@@ -33,10 +33,11 @@ pub struct ClientHandler {
     last_template_time: Arc<Mutex<Instant>>,
     last_balance_check: Arc<Mutex<Instant>>,
     share_handler: Arc<ShareHandler>,
+    instance_id: String,  // Instance identifier for logging
 }
 
 impl ClientHandler {
-    pub fn new(share_handler: Arc<ShareHandler>, min_share_diff: f64, extranonce_size: i8) -> Self {
+    pub fn new(share_handler: Arc<ShareHandler>, min_share_diff: f64, extranonce_size: i8, instance_id: String) -> Self {
         let max_extranonce = if extranonce_size > 0 {
             (2_f64.powi((8 * extranonce_size.min(3) as i32) as i32) - 1.0) as i32
         } else {
@@ -53,6 +54,7 @@ impl ClientHandler {
             last_template_time: Arc::new(Mutex::new(Instant::now())),
             last_balance_check: Arc::new(Mutex::new(Instant::now())),
             share_handler,
+            instance_id,
         }
     }
 
@@ -66,7 +68,7 @@ impl ClientHandler {
         ctx.set_id(idx);
         self.clients.lock().insert(idx, Arc::clone(&ctx));
         
-        tracing::debug!("[CONNECTION] Client {} connected (ID: {}), extranonce will be assigned after miner type detection", ctx.remote_addr, idx);
+        tracing::debug!("{} [CONNECTION] Client {} connected (ID: {}), extranonce will be assigned after miner type detection", self.instance_id, ctx.remote_addr, idx);
 
         // Create stats after 5 seconds (give time for authorize)
         let share_handler = Arc::clone(&self.share_handler);

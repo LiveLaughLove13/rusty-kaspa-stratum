@@ -12,6 +12,7 @@ use std::time::Duration;
 use tracing::warn;
 
 pub struct BridgeConfig {
+    pub instance_id: String,  // Instance identifier for logging (e.g., "Instance 1", "Instance 2")
     pub stratum_port: String,
     pub kaspad_address: String,
     pub prom_port: String,
@@ -74,8 +75,9 @@ pub async fn listen_and_serve<T: KaspaApiTrait + Send + Sync + 'static>(
         2 // Default to 2, will be auto-detected per client anyway
     };
 
-    // Create share handler
-    let share_handler = Arc::new(ShareHandler::new());
+    // Create share handler with instance identifier
+    let instance_id = config.instance_id.clone();
+    let share_handler = Arc::new(ShareHandler::new(instance_id.clone()));
 
     // Create client handler
     // Note: extranonce_size parameter is now only used for backward compatibility
@@ -84,6 +86,7 @@ pub async fn listen_and_serve<T: KaspaApiTrait + Send + Sync + 'static>(
         Arc::clone(&share_handler),
         min_diff,
         extranonce_size,
+        instance_id.clone(),
     ));
 
     // Setup default handlers
@@ -227,7 +230,7 @@ pub async fn listen_and_serve<T: KaspaApiTrait + Send + Sync + 'static>(
 
     // Start listener
     let listener = StratumListener::new(listener_config);
-    tracing::debug!("Starting stratum listener on {}", config.stratum_port);
+    tracing::info!("{} Starting stratum listener on {}", instance_id, config.stratum_port);
     listener.listen().await
 }
 
