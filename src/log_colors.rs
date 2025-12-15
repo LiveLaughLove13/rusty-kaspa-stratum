@@ -134,5 +134,36 @@ impl LogColors {
     pub fn label(s: &str) -> String {
         s.to_string()
     }
+    
+    /// Get ANSI color code for an instance number
+    /// Returns a color code that cycles through a palette of distinct colors
+    /// Colors: Blue, Green, Yellow, Magenta, Cyan, Bright Red, Bright Green, Bright Yellow, Bright Blue, Bright Magenta
+    pub fn instance_color_code(instance_num: usize) -> &'static str {
+        // Color palette for instances (bright, distinct colors)
+        // Using 8-bit color codes for better compatibility
+        const COLORS: &[&str] = &[
+            "\x1b[94m",  // Bright Blue (Instance 1)
+            "\x1b[92m",  // Bright Green (Instance 2)
+            "\x1b[93m",  // Bright Yellow (Instance 3)
+            "\x1b[95m",  // Bright Magenta (Instance 4)
+            "\x1b[96m",  // Bright Cyan (Instance 5)
+            "\x1b[91m",  // Bright Red (Instance 6)
+            "\x1b[33m",  // Yellow (Instance 7)
+            "\x1b[36m",  // Cyan (Instance 8)
+            "\x1b[35m",  // Magenta (Instance 9)
+            "\x1b[32m",  // Green (Instance 10)
+            "\x1b[34m",  // Blue (Instance 11)
+            "\x1b[31m",  // Red (Instance 12)
+        ];
+        
+        // Cycle through colors if we have more than 12 instances
+        COLORS[(instance_num - 1) % COLORS.len()]
+    }
+    
+    /// Format instance identifier (without color codes - colors applied by formatter)
+    /// Returns plain instance string - the formatter will apply colors based on pattern matching
+    pub fn format_instance_id(instance_num: usize) -> String {
+        format!("[Instance {}]", instance_num)
+    }
 }
 

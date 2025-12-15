@@ -11,12 +11,6 @@ static BIG_JOB_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r".*(BzMiner|IceRiverMiner).*").unwrap()
 });
 
-/// Regex for matching Bitmain miners specifically (for special extranonce handling)
-/// Matches: GodMiner (from default_client.go bitmainRegex)
-static BITMAIN_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r".*(GodMiner).*").unwrap()
-});
-
 /// Regex for matching wallet addresses
 static WALLET_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"kaspa(test|dev)?:([a-z0-9]{61}|[a-z0-9]{63})").unwrap()
