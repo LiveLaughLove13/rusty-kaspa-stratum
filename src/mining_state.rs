@@ -1,3 +1,4 @@
+use crate::constants::MAX_JOBS;
 use crate::hasher::KaspaDiff;
 use kaspa_consensus_core::block::Block;
 use kaspa_hashes::Hash;
@@ -8,8 +9,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::SystemTime;
 use tracing;
-
-const MAX_JOBS: u64 = 300;
 
 /// Job structure that holds both the block and the pre-PoW hash
 /// The pre-PoW hash is what we send to the ASIC for mining

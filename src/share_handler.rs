@@ -18,12 +18,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{error, info, warn};
 
+use crate::constants::{STATS_PRUNE_INTERVAL, STATS_PRINT_INTERVAL};
+
 #[allow(dead_code)]
 const VAR_DIFF_THREAD_SLEEP: u64 = 10;
 #[allow(dead_code)]
 const WORK_WINDOW: u64 = 80;
-const STATS_PRUNE_INTERVAL: Duration = Duration::from_secs(60);
-const STATS_PRINT_INTERVAL: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 pub struct WorkStats {
@@ -705,13 +705,14 @@ impl ShareHandler {
             let mut interval = tokio::time::interval(STATS_PRUNE_INTERVAL);
             loop {
                 interval.tick().await;
+                use crate::constants::{WORKER_INITIAL_GRACE_PERIOD, WORKER_INACTIVITY_TIMEOUT};
                 let mut stats_map = stats.lock();
                 let now = Instant::now();
                 stats_map.retain(|_, v| {
                     let last_share = *v.last_share.lock();
                     let shares = *v.shares_found.lock();
-                    (shares > 0 || now.duration_since(v.start_time) < Duration::from_secs(180))
-                        && now.duration_since(last_share) < Duration::from_secs(600)
+                    (shares > 0 || now.duration_since(v.start_time) < Duration::from_secs(WORKER_INITIAL_GRACE_PERIOD))
+                        && now.duration_since(last_share) < Duration::from_secs(WORKER_INACTIVITY_TIMEOUT)
                 });
                 // Note: Pruning is silent, no logs needed
             }
