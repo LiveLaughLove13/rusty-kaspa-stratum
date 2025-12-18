@@ -27,7 +27,7 @@ use serde_json::Value;
 /// A Vec<Value> containing the formatted job parameters:
 /// - [0]: job_id as String
 /// - [1]: Job data (format depends on miner type)
-/// - [2]: Timestamp (only for Legacy/Bitmain format)
+/// - [2]: Timestamp (only for Legacy/Bitmain format) []
 pub fn format_job_params(
     job_id: u64,
     pre_pow_hash: &Hash,

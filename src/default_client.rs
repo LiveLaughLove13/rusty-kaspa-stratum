@@ -85,7 +85,7 @@ pub async fn handle_subscribe(
     tracing::debug!("[SUBSCRIBE] Params count: {}", event.params.len());
     
     // Extract remote app from params if present
-    if let Some(Value::String(app)) = event.params.get(0) {
+    if let Some(Value::String(app)) = event.params.first() {
         *ctx.remote_app.lock() = app.clone();
         tracing::debug!("[SUBSCRIBE] Extracted app from params[0]: '{}'", app);
     } else {
@@ -196,7 +196,7 @@ pub async fn handle_authorize(
         return Err("malformed event from miner, expected param[0] to be address".into());
     }
     
-    let address_value = event.params.get(0)
+    let address_value = event.params.first()
         .ok_or("missing address parameter")?;
     
     let address_str = address_value.as_str()
@@ -320,7 +320,7 @@ fn process_canxium_address(address: &str) -> String {
 /// Clean and validate wallet address
 fn clean_wallet(input: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
     // Try to decode as Kaspa address (supports kaspa:, kaspatest:, kaspadev:)
-    if let Ok(_) = Address::try_from(input) {
+    if Address::try_from(input).is_ok() {
         return Ok(input.to_string());
     }
     

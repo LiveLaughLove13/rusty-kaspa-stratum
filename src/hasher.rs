@@ -27,13 +27,19 @@ pub struct KaspaDiff {
     pub target_value: BigUint,
 }
 
-impl KaspaDiff {
-    pub fn new() -> Self {
+impl Default for KaspaDiff {
+    fn default() -> Self {
         Self {
             hash_value: 0.0,
             diff_value: 0.0,
             target_value: BigUint::zero(),
         }
+    }
+}
+
+impl KaspaDiff {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn set_diff_value(&mut self, diff: f64) {
@@ -69,8 +75,7 @@ pub fn diff_to_target_alternative(diff: f64) -> BigUint {
     let difficulty_big = BigUint::from((diff * 1000000.0) as u64);
     
     // Calculate target = max_target * 1000000 / (difficulty * 1000000)
-    let target = max_target_big * BigUint::from(1000000u64) / difficulty_big;
-    target
+    max_target_big * BigUint::from(1000000u64) / difficulty_big
 }
 
 /// Stratum difficulty to target (IceRiver specific)
@@ -314,7 +319,7 @@ pub fn generate_iceriver_job_params(pre_pow_hash: &kaspa_hashes::Hash, timestamp
     // Convert timestamp to little-endian bytes and then hex (16 hex characters)
     // This matches pool: timestampLE.writeBigUInt64LE(timestamp)
     let timestamp_le = timestamp.to_le_bytes();
-    let timestamp_hex = hex::encode(&timestamp_le);
+    let timestamp_hex = hex::encode(timestamp_le);
     
     // Debug: Verify timestamp conversion matches pool format
     // Pool uses: timestampLE.writeBigUInt64LE(timestamp) which is exactly what to_le_bytes() does

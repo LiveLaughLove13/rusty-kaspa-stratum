@@ -507,7 +507,7 @@ impl KaspaApiTrait for KaspaApi {
         KaspaApi::get_block_template(self, wallet_addr, "", "").await
             .map_err(|e| {
                 let error_msg = e.to_string();
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg)) as Box<dyn std::error::Error + Send + Sync>
+                Box::new(std::io::Error::other(error_msg)) as Box<dyn std::error::Error + Send + Sync>
             })
     }
 
@@ -516,7 +516,7 @@ impl KaspaApiTrait for KaspaApi {
         block: Block,
     ) -> Result<kaspa_rpc_core::SubmitBlockResponse, Box<dyn std::error::Error + Send + Sync>> {
         KaspaApi::submit_block(self, block).await
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
+            .map_err(|e| Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
     }
 
     async fn get_balances_by_addresses(
@@ -524,6 +524,6 @@ impl KaspaApiTrait for KaspaApi {
         addresses: &[String],
     ) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error + Send + Sync>> {
         KaspaApi::get_balances_by_addresses(self, addresses).await
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
+            .map_err(|e| Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
     }
 }

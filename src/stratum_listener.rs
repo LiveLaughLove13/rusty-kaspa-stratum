@@ -260,7 +260,7 @@ impl StratumListener {
                         tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - Raw Bytes Length:"), format!("{} bytes", data.len()));
                         tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - Message as String:"), message_str);
                         tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - String Length:"), format!("{} characters", message_str.len()));
-                        tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - String Length:"), format!("{} bytes (UTF-8)", message_str.as_bytes().len()));
+                        tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - String Length:"), format!("{} bytes (UTF-8)", message_str.len()));
                         // Show byte-by-byte breakdown for first 100 bytes
                         if data.len() <= 100 {
                             tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - Byte Breakdown:"), format!("{:?}", data));

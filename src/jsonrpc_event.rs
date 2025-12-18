@@ -72,7 +72,7 @@ fn default_version() -> String {
 impl JsonRpcEvent {
     pub fn new(id: Option<String>, method: &str, params: Vec<Value>) -> Self {
         Self {
-            id: id.map(|s| Value::String(s)),
+            id: id.map(Value::String),
             jsonrpc: "2.0".to_string(),
             method: method.to_string(),
             params,

@@ -87,7 +87,7 @@ impl Default for InstanceConfig {
 impl BridgeConfig {
     fn from_yaml(content: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let docs = YamlLoader::load_from_str(content)?;
-        let doc = docs.get(0).ok_or("empty YAML document")?;
+        let doc = docs.first().ok_or("empty YAML document")?;
         
         // Parse global config
         let mut global = GlobalConfig::default();
@@ -297,7 +297,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Write target with capitalization
             let target = event.metadata().target();
             let formatted_target = if target.starts_with("rustbridge") {
-                format!("rustbridge{}", &target["rustbridge".len()..])
+                format!("rustbridge{}", target.strip_prefix("rustbridge").unwrap_or(target))
             } else {
                 target.to_string()
             };
@@ -342,7 +342,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut cleaned_message = String::new();
             let mut chars = original_message.chars().peekable();
             while let Some(ch) = chars.next() {
-                if ch == '\x1b' || ch == '\u{001b}' {
+                if ch == '\x1b' {
                     // Skip ANSI escape sequence: \x1b[ followed by numbers and letters until 'm'
                     if chars.peek() == Some(&'[') {
                         chars.next(); // consume '['
