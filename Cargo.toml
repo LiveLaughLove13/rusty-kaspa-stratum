@@ -9,13 +9,13 @@ license = "MIT"
 [dependencies]
 # Kaspa dependencies - using rusty-kaspa repository
 # Note: These packages are in the rusty-kaspa workspace, not kaspad
-kaspa-consensus-core = { git = "https://github.com/kaspanet/rusty-kaspa", package = "kaspa-consensus-core" }
-kaspa-hashes = { git = "https://github.com/kaspanet/rusty-kaspa", package = "kaspa-hashes" }
-kaspa-pow = { git = "https://github.com/kaspanet/rusty-kaspa", package = "kaspa-pow" }
-kaspa-addresses = { git = "https://github.com/kaspanet/rusty-kaspa", package = "kaspa-addresses" }
-kaspa-rpc-core = { git = "https://github.com/kaspanet/rusty-kaspa", package = "kaspa-rpc-core" }
-kaspa-grpc-client = { git = "https://github.com/kaspanet/rusty-kaspa", package = "kaspa-grpc-client" }
-kaspa-notify = { git = "https://github.com/kaspanet/rusty-kaspa", package = "kaspa-notify" }
+kaspa-consensus-core = { git = "https://github.com/kaspanet/rusty-kaspa", rev = "2ccc9e4ca9aa184c62c4fb14dbb463834264e01d", package = "kaspa-consensus-core" }
+kaspa-hashes = { git = "https://github.com/kaspanet/rusty-kaspa", rev = "2ccc9e4ca9aa184c62c4fb14dbb463834264e01d", package = "kaspa-hashes" }
+kaspa-pow = { git = "https://github.com/kaspanet/rusty-kaspa", rev = "2ccc9e4ca9aa184c62c4fb14dbb463834264e01d", package = "kaspa-pow" }
+kaspa-addresses = { git = "https://github.com/kaspanet/rusty-kaspa", rev = "2ccc9e4ca9aa184c62c4fb14dbb463834264e01d", package = "kaspa-addresses" }
+kaspa-rpc-core = { git = "https://github.com/kaspanet/rusty-kaspa", rev = "2ccc9e4ca9aa184c62c4fb14dbb463834264e01d", package = "kaspa-rpc-core" }
+kaspa-grpc-client = { git = "https://github.com/kaspanet/rusty-kaspa", rev = "2ccc9e4ca9aa184c62c4fb14dbb463834264e01d", package = "kaspa-grpc-client" }
+kaspa-notify = { git = "https://github.com/kaspanet/rusty-kaspa", rev = "2ccc9e4ca9aa184c62c4fb14dbb463834264e01d", package = "kaspa-notify" }
 
 # External dependencies
 tokio = { version = "1.0", features = ["full"] }

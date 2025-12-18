@@ -25,6 +25,96 @@ const VAR_DIFF_THREAD_SLEEP: u64 = 10;
 #[allow(dead_code)]
 const WORK_WINDOW: u64 = 80;
 
+// VarDiff tunables (kept conservative to avoid oscillation across miner brands)
+const VARDIFF_MIN_ELAPSED_SECS: f64 = 30.0;
+const VARDIFF_MAX_ELAPSED_SECS_NO_SHARES: f64 = 90.0;
+const VARDIFF_MIN_SHARES: f64 = 3.0;
+const VARDIFF_LOWER_RATIO: f64 = 0.75; // below this => decrease diff
+const VARDIFF_UPPER_RATIO: f64 = 1.25; // above this => increase diff
+const VARDIFF_MAX_STEP_UP: f64 = 2.0; // max 2x per adjustment tick
+const VARDIFF_MAX_STEP_DOWN: f64 = 0.5; // max -50% per adjustment tick
+
+fn vardiff_pow2_clamp_towards(current: f64, next: f64) -> f64 {
+    if !next.is_finite() || next <= 0.0 {
+        return 1.0;
+    }
+
+    // Keep updates monotonic when clamping:
+    // - If we are increasing (next >= current): clamp up to the next power-of-two (ceil).
+    // - If we are decreasing (next < current): clamp down to the previous power-of-two (floor).
+    let exp = if next >= current {
+        next.log2().ceil()
+    } else {
+        next.log2().floor()
+    };
+
+    let clamped = 2_f64.powi(exp as i32);
+    if clamped < 1.0 { 1.0 } else { clamped }
+}
+
+fn vardiff_compute_next_diff(
+    current: f64,
+    shares: f64,
+    elapsed_secs: f64,
+    expected_spm: f64,
+    clamp_pow2: bool,
+) -> Option<f64> {
+    if !current.is_finite() || current <= 0.0 {
+        return None;
+    }
+    if !elapsed_secs.is_finite() || elapsed_secs <= 0.0 {
+        return None;
+    }
+
+    // No shares fallback: if a miner stops submitting, we likely overshot difficulty.
+    if shares == 0.0 && elapsed_secs >= VARDIFF_MAX_ELAPSED_SECS_NO_SHARES {
+        let mut next = current * VARDIFF_MAX_STEP_DOWN;
+        if next < 1.0 {
+            next = 1.0;
+        }
+        if clamp_pow2 {
+            next = vardiff_pow2_clamp_towards(current, next);
+        }
+        return if next != current { Some(next) } else { None };
+    }
+
+    // Need enough observation time and data.
+    if elapsed_secs < VARDIFF_MIN_ELAPSED_SECS || shares < VARDIFF_MIN_SHARES {
+        return None;
+    }
+
+    let observed_spm = (shares / elapsed_secs) * 60.0;
+    let ratio = observed_spm / expected_spm.max(1.0);
+
+    if !(ratio.is_finite()) || ratio <= 0.0 {
+        return None;
+    }
+
+    // Only adjust when we’re meaningfully away from target.
+    if ratio > VARDIFF_LOWER_RATIO && ratio < VARDIFF_UPPER_RATIO {
+        return None;
+    }
+
+    // Dampen the adjustment to avoid oscillation: step = sqrt(ratio)
+    let step = ratio.sqrt().clamp(VARDIFF_MAX_STEP_DOWN, VARDIFF_MAX_STEP_UP);
+
+    let mut next = current * step;
+    if next < 1.0 {
+        next = 1.0;
+    }
+    if clamp_pow2 {
+        next = vardiff_pow2_clamp_towards(current, next);
+    }
+
+    // Avoid tiny churn updates.
+    let rel_change = (next - current).abs() / current.max(1.0);
+    if rel_change < 0.10 {
+        return None;
+    }
+
+    if next != current { Some(next) } else { None }
+}
+
 #[derive(Clone)]
 pub struct WorkStats {
     pub blocks_found: Arc<Mutex<i64>>,
@@ -691,10 +781,10 @@ impl ShareHandler {
 
     pub fn start_client_vardiff(&self, ctx: &StratumContext) {
         let stats = self.get_create_stats(ctx);
-        if stats.var_diff_start_time.lock().is_none() {
-            *stats.var_diff_start_time.lock() = Some(Instant::now());
-            *stats.var_diff_shares_found.lock() = 0;
-        }
+        // Reset window (used after applying a new difficulty)
+        *stats.var_diff_start_time.lock() = Some(Instant::now());
+        *stats.var_diff_shares_found.lock() = 0;
+        *stats.var_diff_window.lock() = 0;
     }
 
     pub fn start_prune_stats_thread(&self) {
@@ -779,13 +869,82 @@ impl ShareHandler {
 
     pub fn start_vardiff_thread(
         &self,
-        _expected_share_rate: u32,
-        _log_stats: bool,
-        _clamp: bool,
+        expected_share_rate: u32,
+        log_stats: bool,
+        clamp: bool,
     ) {
-        // TODO: Implement full vardiff logic
+        // VarDiff controller:
+        // - Uses accepted share rate per worker to converge towards `expected_share_rate` shares/minute
+        // - Adjusts difficulty smoothly (sqrt damping + max step per tick)
+        // - Optional pow2 clamp (matches startup clamp behavior)
+        let stats = Arc::clone(&self.stats);
         let prefix = self.log_prefix();
-        tracing::debug!("{} Vardiff thread started (simplified implementation)", prefix);
+
+        tokio::spawn(async move {
+            let expected_spm = expected_share_rate.max(1) as f64;
+            let mut interval = tokio::time::interval(Duration::from_secs(VAR_DIFF_THREAD_SLEEP));
+
+            if log_stats {
+                tracing::info!(
+                    "{} VarDiff enabled (target={} shares/min, tick={}s, pow2_clamp={})",
+                    prefix,
+                    expected_spm,
+                    VAR_DIFF_THREAD_SLEEP,
+                    clamp
+                );
+            } else {
+                tracing::debug!(
+                    "{} VarDiff thread started (target={} shares/min, tick={}s, pow2_clamp={})",
+                    prefix,
+                    expected_spm,
+                    VAR_DIFF_THREAD_SLEEP,
+                    clamp
+                );
+            }
+
+            loop {
+                interval.tick().await;
+
+                let mut stats_map = stats.lock();
+                let now = Instant::now();
+
+                for (_worker_id, v) in stats_map.iter_mut() {
+                    let start_opt = *v.var_diff_start_time.lock();
+                    let Some(start) = start_opt else {
+                        continue;
+                    };
+
+                    let elapsed = now.duration_since(start).as_secs_f64().max(0.0);
+                    let shares = *v.var_diff_shares_found.lock() as f64;
+                    let current = *v.min_diff.lock();
+                    let next_opt = vardiff_compute_next_diff(current, shares, elapsed, expected_spm, clamp);
+                    let Some(next) = next_opt else {
+                        continue;
+                    };
+
+                    // Update the stored target difficulty, then reset the observation window so we
+                    // don't repeatedly adjust before the miner actually receives the new diff.
+                    *v.min_diff.lock() = next;
+                    *v.var_diff_start_time.lock() = Some(now);
+                    *v.var_diff_shares_found.lock() = 0;
+                    *v.var_diff_window.lock() = 0;
+
+                    if log_stats {
+                        let observed_spm = if elapsed > 0.0 { (shares / elapsed) * 60.0 } else { 0.0 };
+                        tracing::info!(
+                            "{} VarDiff: {:.1} spm (target {:.1}), shares={}, window={:.0}s, diff {:.0} -> {:.0}",
+                            prefix,
+                            observed_spm,
+                            expected_spm,
+                            shares as i64,
+                            elapsed,
+                            current,
+                            next
+                        );
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -825,5 +984,54 @@ pub trait KaspaApiTrait: Send + Sync {
 pub struct WorkerContext<'a> {
     pub worker_name: &'a str,
     pub wallet_addr: &'a str,
+}
+
+#[cfg(test)]
+mod vardiff_tests {
+    use super::*;
+
+    // These tests validate that VarDiff captures the key information it needs:
+    // - accepted share count over a time window
+    // - current diff
+    // and produces stable, bounded diff updates (independent of ASIC model identity).
+
+    #[test]
+    fn vardiff_increases_diff_when_share_rate_is_high() {
+        // current=8192, observed=100 spm, target=20 spm -> ratio=5 -> sqrt(ratio)=2.236 -> clamped to 2x
+        let next = vardiff_compute_next_diff(8192.0, 100.0, 60.0, 20.0, false);
+        assert_eq!(next, Some(16384.0));
+    }
+
+    #[test]
+    fn vardiff_decreases_diff_when_share_rate_is_low() {
+        // current=8192, observed=2.5 spm, target=20 spm -> ratio=0.125 -> sqrt=0.353 -> clamped to 0.5x
+        let next = vardiff_compute_next_diff(8192.0, 5.0, 120.0, 20.0, false);
+        assert_eq!(next, Some(4096.0));
+    }
+
+    #[test]
+    fn vardiff_no_change_when_within_target_band() {
+        // Exactly at target: should not recommend change.
+        let next = vardiff_compute_next_diff(8192.0, 20.0, 60.0, 20.0, false);
+        assert_eq!(next, None);
+    }
+
+    #[test]
+    fn vardiff_decreases_diff_when_no_shares_timeout() {
+        // No accepted shares for long enough => drop diff by 50% to recover submissions.
+        let next = vardiff_compute_next_diff(8192.0, 0.0, 100.0, 20.0, false);
+        assert_eq!(next, Some(4096.0));
+    }
+
+    #[test]
+    fn vardiff_pow2_clamp_should_not_reverse_direction_on_increase() {
+        // If pow2 clamp floors unconditionally, it can accidentally *lower* difficulty on an increase.
+        // Example: current=5000, next_suggested=7500 -> we must clamp UP (8192), not DOWN (4096).
+        //
+        // Choose shares/elapsed such that next_suggested = 5000 * 1.5 = 7500:
+        // step = sqrt(ratio) => ratio = 2.25 => observed_spm = 45 (if target=20)
+        let next = vardiff_compute_next_diff(5000.0, 45.0, 60.0, 20.0, true);
+        assert_eq!(next, Some(8192.0));
+    }
 }
 

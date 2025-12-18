@@ -554,7 +554,8 @@ impl ClientHandler {
                             stratum_diff.set_diff_value_for_miner(var_diff, &remote_app);
                             state.set_stratum_diff(stratum_diff);
                             send_client_diff(&client_clone, &state, var_diff);
-                            share_handler.start_client_vardiff(&client_clone);
+                            // Reset vardiff window once the new difficulty has been applied/sent
+                            share_handler.set_client_vardiff(&client_clone, var_diff);
                         }
                     }
                 }
