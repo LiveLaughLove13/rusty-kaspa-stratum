@@ -1,10 +1,10 @@
+use crate::constants::{WRITE_TIMEOUT, WRITE_MAX_RETRIES, WRITE_RETRY_DELAY};
 use crate::jsonrpc_event::{JsonRpcEvent, JsonRpcResponse};
 use crate::log_colors::LogColors;
 use hex;
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
@@ -321,7 +321,7 @@ impl StratumContext {
                 };
                 
                 let result = if let Some(mut write_half) = write_half_opt {
-                    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+                    let deadline = tokio::time::Instant::now() + WRITE_TIMEOUT;
                     
                     // Try to write directly (no need to wait for writable)
                     let write_result = tokio::time::timeout_at(deadline, write_half.write_all(data)).await;
@@ -349,8 +349,8 @@ impl StratumContext {
                     }
                     Err(_) => {
                         // Timeout on write - try again if we have attempts left
-                        if attempt < 2 {
-                            tokio::time::sleep(Duration::from_millis(10)).await;
+                        if attempt < WRITE_MAX_RETRIES - 1 {
+                            tokio::time::sleep(WRITE_RETRY_DELAY).await;
                             continue;
                         } else {
                             self.check_disconnect();
@@ -360,7 +360,7 @@ impl StratumContext {
                 }
             } else {
                 // Write blocked - wait and retry
-                tokio::time::sleep(Duration::from_millis(10)).await;
+                tokio::time::sleep(WRITE_RETRY_DELAY).await;
             }
         }
 
@@ -389,7 +389,7 @@ impl StratumContext {
     pub async fn reply_low_diff_share(&self, id: &serde_json::Value) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tracing::debug!("[BRIDGE->ASIC] Preparing LOW DIFFICULTY SHARE response (Error Code: 23, Invalid difficulty)");
         self.reply(JsonRpcResponse::error(Some(id.clone()), 23, "Invalid difficulty", None)).await
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
+            .map_err(|e| Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
     }
 
 

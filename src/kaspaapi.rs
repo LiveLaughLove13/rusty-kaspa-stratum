@@ -1,3 +1,4 @@
+use crate::constants::{BLOCK_TEMPLATE_MAX_RETRIES, RETRY_DELAY_BASE_MS};
 use crate::log_colors::LogColors;
 use crate::share_handler::KaspaApiTrait;
 use anyhow::{Context, Result};
@@ -102,12 +103,13 @@ impl KaspaApi {
     }
 
     /// Start network stats thread
-    /// Fetches network stats every 30 seconds and records them in Prometheus
+    /// Fetches network stats periodically and records them in Prometheus
     async fn start_stats_thread(self: Arc<Self>) {
         use kaspa_rpc_core::{GetBlockDagInfoRequest, EstimateNetworkHashesPerSecondRequest};
         use crate::prom::record_network_stats;
         
-        let mut interval = tokio::time::interval(Duration::from_secs(30));
+        const NETWORK_STATS_INTERVAL: Duration = Duration::from_secs(30);
+        let mut interval = tokio::time::interval(NETWORK_STATS_INTERVAL);
         loop {
             interval.tick().await;
             
@@ -260,6 +262,8 @@ impl KaspaApi {
 
     /// Wait for node to sync
     async fn wait_for_sync(&self, verbose: bool) -> Result<()> {
+        const SYNC_CHECK_INTERVAL: Duration = Duration::from_secs(5);
+        
         if verbose {
             tracing::debug!("checking kaspad sync state");
         }
@@ -282,7 +286,7 @@ impl KaspaApi {
             if verbose {
                 warn!("Kaspa is not synced, waiting for sync before starting bridge");
             }
-            sleep(Duration::from_secs(5)).await;
+            sleep(SYNC_CHECK_INTERVAL).await;
         }
 
         Ok(())
@@ -300,12 +304,11 @@ impl KaspaApi {
         _remote_app: &str,
         _canxium_addr: &str,
     ) -> Result<Block> {
-        // Retry up to 3 times if we get "Odd number of digits" error
+        // Retry if we get "Odd number of digits" error
         // This error can occur if the block template has malformed hash fields
-        let max_retries = 3;
         let mut last_error = None;
         
-        for attempt in 0..max_retries {
+        for attempt in 0..BLOCK_TEMPLATE_MAX_RETRIES {
             // Parse wallet address each time (in case Address doesn't implement Clone)
             let address = Address::try_from(wallet_addr)
                 .map_err(|e| anyhow::anyhow!("Could not decode address {}: {}", wallet_addr, e))?;
@@ -317,12 +320,12 @@ impl KaspaApi {
             {
                 Ok(r) => r,
                 Err(e) => {
-                    if attempt < max_retries - 1 {
-                        warn!("Failed to get block template (attempt {}/{}): {}, retrying...", attempt + 1, max_retries, e);
-                        sleep(Duration::from_millis(100 * (attempt + 1) as u64)).await;
+                    if attempt < BLOCK_TEMPLATE_MAX_RETRIES - 1 {
+                        warn!("Failed to get block template (attempt {}/{}): {}, retrying...", attempt + 1, BLOCK_TEMPLATE_MAX_RETRIES, e);
+                        sleep(Duration::from_millis(RETRY_DELAY_BASE_MS * (attempt + 1) as u64)).await;
                         continue;
                     }
-                    return Err(anyhow::anyhow!("Failed to get block template after {} attempts: {}", max_retries, e));
+                    return Err(anyhow::anyhow!("Failed to get block template after {} attempts: {}", BLOCK_TEMPLATE_MAX_RETRIES, e));
                 }
             };
 
@@ -347,9 +350,9 @@ impl KaspaApi {
                         Err(error_str) => {
                             if error_str.contains("Odd number of digits") {
                                 last_error = Some(format!("Block has malformed hash field: {}", error_str));
-                                if attempt < max_retries - 1 {
-                                    warn!("Block template has malformed hash field (attempt {}/{}), retrying...", attempt + 1, max_retries);
-                                    sleep(Duration::from_millis(100 * (attempt + 1) as u64)).await;
+                                if attempt < BLOCK_TEMPLATE_MAX_RETRIES - 1 {
+                                    warn!("Block template has malformed hash field (attempt {}/{}), retrying...", attempt + 1, BLOCK_TEMPLATE_MAX_RETRIES);
+                                    sleep(Duration::from_millis(RETRY_DELAY_BASE_MS * (attempt + 1) as u64)).await;
                                     continue;
                                 }
                             }
@@ -361,14 +364,14 @@ impl KaspaApi {
                 Err(e) => {
                     let error_str = format!("{:?}", e);
                     last_error = Some(error_str.clone());
-                    if error_str.contains("Odd number of digits") && attempt < max_retries - 1 {
-                        warn!("Block conversion failed with 'Odd number of digits' error (attempt {}/{}), retrying...", attempt + 1, max_retries);
-                        sleep(Duration::from_millis(100 * (attempt + 1) as u64)).await;
+                    if error_str.contains("Odd number of digits") && attempt < BLOCK_TEMPLATE_MAX_RETRIES - 1 {
+                        warn!("Block conversion failed with 'Odd number of digits' error (attempt {}/{}), retrying...", attempt + 1, BLOCK_TEMPLATE_MAX_RETRIES);
+                        sleep(Duration::from_millis(RETRY_DELAY_BASE_MS * (attempt + 1) as u64)).await;
                         continue;
                     }
                     // If the error contains "Odd number of digits", provide more context
                     if error_str.contains("Odd number of digits") {
-                        return Err(anyhow::anyhow!("Failed to convert RPC block to Block after {} attempts: {} - This usually indicates a malformed hash field in the block template from the Kaspa node. The block may have a hash with an odd-length hex string.", max_retries, error_str));
+                        return Err(anyhow::anyhow!("Failed to convert RPC block to Block after {} attempts: {} - This usually indicates a malformed hash field in the block template from the Kaspa node. The block may have a hash with an odd-length hex string.", BLOCK_TEMPLATE_MAX_RETRIES, error_str));
                     } else {
                         return Err(anyhow::anyhow!("Failed to convert RPC block to Block: {}", error_str));
                     }
@@ -377,7 +380,7 @@ impl KaspaApi {
         }
         
         // Should never reach here, but handle it just in case
-        Err(anyhow::anyhow!("Failed to get valid block template after {} attempts: {:?}", max_retries, last_error))
+        Err(anyhow::anyhow!("Failed to get valid block template after {} attempts: {:?}", BLOCK_TEMPLATE_MAX_RETRIES, last_error))
     }
 
     /// Get balances by addresses (for Prometheus metrics)
@@ -436,11 +439,12 @@ impl KaspaApi {
 
             loop {
                 // Check sync state and reconnect if needed
+                const RECONNECT_DELAY: Duration = Duration::from_secs(5);
                 if let Err(e) = api_clone.wait_for_sync(false).await {
                     error!("error checking kaspad sync state, attempting reconnect: {}", e);
                     // Note: gRPC client handles reconnection automatically, but we log it
                     // In Go, reconnect() is called explicitly, but Rust gRPC handles it
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    tokio::time::sleep(RECONNECT_DELAY).await;
                     restart_channel = true;
                 }
 
@@ -503,7 +507,7 @@ impl KaspaApiTrait for KaspaApi {
         KaspaApi::get_block_template(self, wallet_addr, "", "").await
             .map_err(|e| {
                 let error_msg = e.to_string();
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg)) as Box<dyn std::error::Error + Send + Sync>
+                Box::new(std::io::Error::other(error_msg)) as Box<dyn std::error::Error + Send + Sync>
             })
     }
 
@@ -512,7 +516,7 @@ impl KaspaApiTrait for KaspaApi {
         block: Block,
     ) -> Result<kaspa_rpc_core::SubmitBlockResponse, Box<dyn std::error::Error + Send + Sync>> {
         KaspaApi::submit_block(self, block).await
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
+            .map_err(|e| Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
     }
 
     async fn get_balances_by_addresses(
@@ -520,6 +524,6 @@ impl KaspaApiTrait for KaspaApi {
         addresses: &[String],
     ) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error + Send + Sync>> {
         KaspaApi::get_balances_by_addresses(self, addresses).await
-            .map_err(|e| Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
+            .map_err(|e| Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
     }
 }

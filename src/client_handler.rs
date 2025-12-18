@@ -1,10 +1,14 @@
 use crate::{
-    hasher::{generate_job_header, generate_large_job_params, generate_iceriver_job_params, serialize_block_header, calculate_target},
+    constants::*,
+    hasher::{serialize_block_header, calculate_target},
     jsonrpc_event::JsonRpcEvent,
     mining_state::{MiningState, Job, GetMiningState},
     prom::*,
     share_handler::{ShareHandler, KaspaApiTrait},
     stratum_context::StratumContext,
+    miner_detection::{is_bitmain, is_iceriver},
+    job_formatter::format_job_params,
+    notification_sender::send_mining_notification,
 };
 use num_bigint::BigUint;
 use num_traits::Zero;
@@ -19,9 +23,6 @@ use tracing::{error, warn};
 static BIG_JOB_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| {
     Regex::new(r".*(BzMiner|IceRiverMiner).*").unwrap()
 });
-
-const BALANCE_DELAY: Duration = Duration::from_secs(60);
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(20);
 
 pub struct ClientHandler {
     clients: Arc<Mutex<HashMap<i32, Arc<StratumContext>>>>,
@@ -39,7 +40,7 @@ pub struct ClientHandler {
 impl ClientHandler {
     pub fn new(share_handler: Arc<ShareHandler>, min_share_diff: f64, extranonce_size: i8, instance_id: String) -> Self {
         let max_extranonce = if extranonce_size > 0 {
-            (2_f64.powi((8 * extranonce_size.min(3) as i32) as i32) - 1.0) as i32
+            (2_f64.powi(8 * extranonce_size.min(3) as i32) - 1.0) as i32
         } else {
             0
         };
@@ -70,11 +71,11 @@ impl ClientHandler {
         
         tracing::debug!("{} [CONNECTION] Client {} connected (ID: {}), extranonce will be assigned after miner type detection", self.instance_id, ctx.remote_addr, idx);
 
-        // Create stats after 5 seconds (give time for authorize)
+        // Create stats after delay (give time for authorize)
         let share_handler = Arc::clone(&self.share_handler);
         let ctx_clone = Arc::clone(&ctx);
         tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            tokio::time::sleep(STATS_CREATION_DELAY).await;
             share_handler.get_create_stats(&ctx_clone);
         });
     }
@@ -87,16 +88,13 @@ impl ClientHandler {
         // Detect miner type and determine required extranonce size
         // Bitmain (GodMiner) requires extranonce_size = 0 (no extranonce)
         // IceRiver, BzMiner, Goldshell require extranonce_size = 2
-        let remote_app_lower = remote_app.to_lowercase();
-        let is_bitmain = remote_app_lower.contains("godminer") || 
-                        remote_app_lower.contains("bitmain") ||
-                        remote_app_lower.contains("antminer");
+        let is_bitmain_flag = is_bitmain(remote_app);
         
-        let required_extranonce_size = if is_bitmain { 0 } else { 2 };
+        let required_extranonce_size = if is_bitmain_flag { EXTRANONCE_SIZE_BITMAIN } else { EXTRANONCE_SIZE_NON_BITMAIN };
         
         let extranonce = if required_extranonce_size > 0 {
             // Calculate max extranonce for size 2
-            let max_extranonce = (2_f64.powi(16) - 1.0) as i32; // 2 bytes = 16 bits = 65535
+            let max_extranonce = MAX_EXTRANONCE_VALUE; // 2 bytes = 16 bits = 65535
             
             let next = self.next_extranonce.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |val| {
                 if val < max_extranonce {
@@ -114,7 +112,7 @@ impl ClientHandler {
             let extranonce_str = format!("{:0width$x}", extranonce_val, width = (required_extranonce_size * 2) as usize);
             tracing::debug!("[AUTO-EXTRANONCE] Assigned extranonce '{}' (value: {}, size: {} bytes) to {} miner '{}'", 
                   extranonce_str, extranonce_val, required_extranonce_size, 
-                  if is_bitmain { "Bitmain" } else { "IceRiver/BzMiner/Goldshell" }, remote_app);
+                  if is_bitmain_flag { "Bitmain" } else { "IceRiver/BzMiner/Goldshell" }, remote_app);
             extranonce_str
         } else {
             tracing::debug!("[AUTO-EXTRANONCE] Assigned empty extranonce (size: 0 bytes) to Bitmain miner '{}'", remote_app);
@@ -125,7 +123,7 @@ impl ClientHandler {
         
         tracing::debug!("[AUTO-EXTRANONCE] Client {} extranonce set to '{}' (detected miner: '{}', type: {})", 
                        ctx.remote_addr, extranonce, remote_app,
-                       if is_bitmain { "Bitmain" } else { "IceRiver/BzMiner/Goldshell" });
+                       if is_bitmain_flag { "Bitmain" } else { "IceRiver/BzMiner/Goldshell" });
     }
 
     pub fn on_disconnect(&self, ctx: &StratumContext) {
@@ -287,7 +285,7 @@ impl ClientHandler {
                 let remote_app_clone = remote_app.clone();
                 stratum_diff.set_diff_value_for_miner(min_diff, &remote_app_clone);
                 state.set_stratum_diff(stratum_diff);
-                let target = state.stratum_diff().map(|d| d.target_value.clone()).unwrap_or_else(|| BigUint::zero());
+                let target = state.stratum_diff().map(|d| d.target_value.clone()).unwrap_or_else(BigUint::zero);
                 let target_bytes = target.to_bytes_be();
                 tracing::debug!("send_immediate_job: Initialized MiningState with difficulty: {}, target: {:x} ({} bytes, {} bits)", 
                               min_diff, target, target_bytes.len(), target_bytes.len() * 8);
@@ -297,66 +295,39 @@ impl ClientHandler {
             // Even if state is already initialized, we need to send difficulty to this specific client
             tracing::debug!("[DIFFICULTY] ===== SENDING DIFFICULTY TO {} =====", client_clone.remote_addr);
             tracing::debug!("[DIFFICULTY] Difficulty value: {}", min_diff);
-            send_client_diff(&client_clone, &*state, min_diff);
+            send_client_diff(&client_clone, &state, min_diff);
             share_handler.set_client_vardiff(&client_clone, min_diff);
             tracing::debug!("[DIFFICULTY] ===== DIFFICULTY SENT TO {} =====", client_clone.remote_addr);
             
             // Small delay to ensure difficulty is sent before job
-            tokio::time::sleep(Duration::from_millis(100)).await;
+            tokio::time::sleep(IMMEDIATE_JOB_DELAY).await;
 
             // Build job params - check if this is an IceRiver or Bitmain miner
-            let remote_app_lower = remote_app.to_lowercase();
-            let is_iceriver = remote_app_lower.contains("iceriver") || 
-                             remote_app_lower.contains("icemining") ||
-                             remote_app_lower.contains("icm");
-            let is_bitmain = remote_app_lower.contains("godminer") || 
-                            remote_app_lower.contains("bitmain") ||
-                            remote_app_lower.contains("antminer");
+            let is_iceriver_flag = is_iceriver(&remote_app);
+            let is_bitmain_flag = is_bitmain(&remote_app);
             
             tracing::debug!("[JOB] ===== BUILDING JOB FOR {} =====", client_clone.remote_addr);
             tracing::debug!("[JOB] Job ID: {}", job_id);
             tracing::debug!("[JOB] Remote app: '{}'", remote_app);
-            tracing::debug!("[JOB] Is IceRiver: {}, Is Bitmain: {}, use_big_job: {}", is_iceriver, is_bitmain, state.use_big_job());
+            tracing::debug!("[JOB] Is IceRiver: {}, Is Bitmain: {}, use_big_job: {}", is_iceriver_flag, is_bitmain_flag, state.use_big_job());
             tracing::debug!("[JOB] Pre-PoW hash: {}", pre_pow_hash);
             tracing::debug!("[JOB] Block timestamp: {}", block.header.timestamp);
             
-            let mut job_params = vec![serde_json::Value::String(job_id.to_string())];
+            // Format job params using helper function (preserves exact formatting logic)
+            let job_params = format_job_params(
+                job_id,
+                &pre_pow_hash,
+                block.header.timestamp,
+                &remote_app,
+                state.use_big_job(),
+            );
             tracing::debug!("[JOB] Job params initialized with job_id: {}", job_id);
-            if state.use_big_job() && !is_iceriver {
-                // BzMiner format - single hex string (big endian hash)
-                // Convert Hash to bytes for BzMiner format
-                tracing::debug!("[JOB] Generating BzMiner format job params");
-                let header_bytes = pre_pow_hash.as_bytes();
-                let large_params = generate_large_job_params(&header_bytes, block.header.timestamp);
-                tracing::debug!("[JOB] BzMiner job_data length: {} (expected 80)", large_params.len());
-                tracing::debug!("[JOB] BzMiner job_data (first 20 chars): {}", &large_params[..large_params.len().min(20)]);
-                tracing::debug!("[JOB] BzMiner job_data (full): {}", large_params);
-                job_params.push(serde_json::Value::String(large_params));
-            } else if is_iceriver {
-                // IceRiver format - single hex string (uses Hash::to_string() to match working stratum code)
-                // This matches Ghostpool and other working implementations
-                tracing::debug!("[JOB] Generating IceRiver format job params");
-                let iceriver_params = generate_iceriver_job_params(&pre_pow_hash, block.header.timestamp);
-                tracing::debug!("[JOB] IceRiver job_data length: {} (expected 80)", iceriver_params.len());
-                tracing::debug!("[JOB] IceRiver job_data (first 20 chars): {}", &iceriver_params[..iceriver_params.len().min(20)]);
-                tracing::debug!("[JOB] IceRiver job_data (full): {}", iceriver_params);
-                job_params.push(serde_json::Value::String(iceriver_params));
-            } else {
-                // Legacy format - array + number (for Bitmain and other miners)
-                let header_bytes = pre_pow_hash.as_bytes();
-                let job_header = generate_job_header(&header_bytes);
-                tracing::debug!("send_immediate_job: using Legacy format, array size: {}", job_header.len());
-                job_params.push(serde_json::Value::Array(
-                    job_header.iter().map(|&v| serde_json::Value::Number(v.into())).collect()
-                ));
-                job_params.push(serde_json::Value::Number(block.header.timestamp.into()));
-            }
+            tracing::debug!("[JOB] Job params count: {}", job_params.len());
 
             tracing::debug!("[JOB] ===== SENDING MINING.NOTIFY TO {} =====", client_clone.remote_addr);
             tracing::debug!("[JOB] Method: mining.notify");
-            tracing::debug!("[JOB] Params count: {}", job_params.len());
             
-            // Also log the raw job data for verification
+            // Also log the raw job data for verification (for string formats)
             if let Some(serde_json::Value::String(job_data)) = job_params.get(1) {
                 tracing::debug!("[JOB] Job data string length: {} chars", job_data.len());
                 if job_data.len() == 80 {
@@ -366,30 +337,23 @@ impl ClientHandler {
                     tracing::debug!("[JOB] Timestamp part (16 hex): {}", timestamp_part);
                     tracing::debug!("[JOB] Full job_data: {}", job_data);
                 } else {
-                    let expected_for = if is_iceriver { "IceRiver" } else if is_bitmain { "Bitmain" } else { "standard" };
+                    let expected_for = if is_iceriver_flag { "IceRiver" } else if is_bitmain_flag { "Bitmain" } else { "standard" };
                     tracing::warn!("[JOB] WARNING - job_data length is {} (expected 80 for {})", job_data.len(), expected_for);
                 }
             }
             
-            let format_name = if is_iceriver { "IceRiver" } else if state.use_big_job() { "BzMiner" } else { "Legacy" };
+            let format_name = if is_iceriver_flag { "IceRiver" } else if state.use_big_job() { "BzMiner" } else { "Legacy" };
             tracing::debug!("[JOB] Sending job ID {} to {} (format: {}, params: {})", 
                           job_id, client_clone.remote_addr, format_name, job_params.len());
 
-            // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
-            // Send job ID in mining.notify
-            let send_result = if is_iceriver {
-                // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
-                client_clone.send_notification("mining.notify", job_params.clone()).await
-            } else {
-                // For non-IceRiver, use standard JSON-RPC format with job ID
-                let notify_event = JsonRpcEvent {
-                    jsonrpc: "2.0".to_string(),
-                    method: "mining.notify".to_string(),
-                    id: Some(serde_json::Value::Number(job_id.into())),
-                    params: job_params.clone(),
-                };
-                client_clone.send(notify_event).await
-            };
+            // Send notification with appropriate format (minimal for IceRiver, standard for others)
+            let send_result = send_mining_notification(
+                &client_clone,
+                "mining.notify",
+                job_params.clone(),
+                job_id,
+                &remote_app,
+            ).await;
 
             if let Err(e) = send_result {
                 if e.to_string().contains("disconnected") {
@@ -420,10 +384,10 @@ impl ClientHandler {
         &self,
         kaspa_api: Arc<T>,
     ) {
-        // Rate limit templates (250ms minimum between sends)
+        // Rate limit templates (minimum time between sends)
         {
             let mut last_time = self.last_template_time.lock();
-            if last_time.elapsed() < Duration::from_millis(250) {
+            if last_time.elapsed() < BLOCK_TEMPLATE_RATE_LIMIT {
                 return;
             }
             *last_time = Instant::now();
@@ -444,6 +408,7 @@ impl ClientHandler {
             }
 
             if client_count > 0 {
+                // Small delay between sending jobs to different clients
                 tokio::time::sleep(Duration::from_micros(500)).await;
             }
             client_count += 1;
@@ -571,11 +536,11 @@ impl ClientHandler {
                     let remote_app = client_clone.remote_app.lock().clone();
                     stratum_diff.set_diff_value_for_miner(min_diff, &remote_app);
                     state.set_stratum_diff(stratum_diff);
-                    let target = state.stratum_diff().map(|d| d.target_value.clone()).unwrap_or_else(|| BigUint::zero());
+                    let target = state.stratum_diff().map(|d| d.target_value.clone()).unwrap_or_else(BigUint::zero);
                     let target_bytes = target.to_bytes_be();
                     tracing::debug!("Initialized per-client MiningState with difficulty: {}, target: {:x} ({} bytes, {} bits)", 
                                   min_diff, target, target_bytes.len(), target_bytes.len() * 8);
-                    send_client_diff(&client_clone, &*state, min_diff);
+                    send_client_diff(&client_clone, &state, min_diff);
                     share_handler.set_client_vardiff(&client_clone, min_diff);
                 } else {
                     // Check for vardiff update
@@ -588,7 +553,7 @@ impl ClientHandler {
                             let remote_app = client_clone.remote_app.lock().clone();
                             stratum_diff.set_diff_value_for_miner(var_diff, &remote_app);
                             state.set_stratum_diff(stratum_diff);
-                            send_client_diff(&client_clone, &*state, var_diff);
+                            send_client_diff(&client_clone, &state, var_diff);
                             share_handler.start_client_vardiff(&client_clone);
                         }
                     }
@@ -597,76 +562,35 @@ impl ClientHandler {
                 // Build job params
                 // Check if this is an IceRiver or Bitmain miner - they need single hex string format
                 let remote_app = client_clone.remote_app.lock().clone();
-                let remote_app_lower = remote_app.to_lowercase();
-                let is_iceriver = remote_app_lower.contains("iceriver") || 
-                                 remote_app_lower.contains("icemining") ||
-                                 remote_app_lower.contains("icm");
-                let is_bitmain = remote_app_lower.contains("godminer") || 
-                                remote_app_lower.contains("bitmain") ||
-                                remote_app_lower.contains("antminer");
+                let is_iceriver_flag = is_iceriver(&remote_app);
+                let is_bitmain_flag = is_bitmain(&remote_app);
                 
                 tracing::debug!("[JOB] new_block_available: client {}, is_iceriver: {}, is_bitmain: {}, use_big_job: {}", 
-                              client_clone.remote_addr, is_iceriver, is_bitmain, state.use_big_job());
+                              client_clone.remote_addr, is_iceriver_flag, is_bitmain_flag, state.use_big_job());
                 
-                let mut job_params = vec![serde_json::Value::String(job_id.to_string())];
-                if is_iceriver {
-                    // IceRiver format - single hex string (uses Hash::to_string() to match working stratum code)
-                    // This matches Ghostpool and other working implementations
-                    tracing::debug!("[JOB] new_block_available: Generating IceRiver format job params");
-                    let iceriver_params = generate_iceriver_job_params(&pre_pow_hash, block.header.timestamp);
-                    tracing::debug!("[JOB] new_block_available: IceRiver job_data length: {} (expected 80)", iceriver_params.len());
-                    job_params.push(serde_json::Value::String(iceriver_params));
-                } else if state.use_big_job() && !is_iceriver {
-                    // BzMiner format - single hex string (big endian hash)
-                    // Convert Hash to bytes for BzMiner format
-                    tracing::debug!("[JOB] new_block_available: Generating BzMiner format job params");
-                    let header_bytes = pre_pow_hash.as_bytes();
-                    let large_params = generate_large_job_params(&header_bytes, block.header.timestamp);
-                    tracing::debug!("[JOB] new_block_available: BzMiner job_data length: {} (expected 80)", large_params.len());
-                    job_params.push(serde_json::Value::String(large_params));
-                } else {
-                    // Legacy format - array + number (for Bitmain and other miners)
-                    tracing::debug!("[JOB] new_block_available: Using Legacy format (array + timestamp)");
-                    let header_bytes = pre_pow_hash.as_bytes();
-                    let job_header = generate_job_header(&header_bytes);
-                    job_params.push(serde_json::Value::Array(
-                        job_header.iter().map(|&v| serde_json::Value::Number(v.into())).collect()
-                    ));
-                    job_params.push(serde_json::Value::Number(block.header.timestamp.into()));
-                }
+                // Format job params using helper function (preserves exact formatting logic)
+                let job_params = format_job_params(
+                    job_id,
+                    &pre_pow_hash,
+                    block.header.timestamp,
+                    &remote_app,
+                    state.use_big_job(),
+                );
 
                 // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
                 // This matches StratumNotification format used by the stratum crate
-                let is_iceriver_client = {
-                    let remote_app = client_clone.remote_app.lock();
-                    remote_app.contains("IceRiver")
-                };
-                let is_bitmain_client = {
-                    let remote_app = client_clone.remote_app.lock();
-                    let remote_app_lower = remote_app.to_lowercase();
-                    remote_app_lower.contains("godminer") || 
-                    remote_app_lower.contains("bitmain") ||
-                    remote_app_lower.contains("antminer")
-                };
-
+                // NOTE: We reuse the flags already computed above for consistency
                 tracing::debug!("new_block_available: sending job ID {} to client {} (params count: {}, is_iceriver: {}, is_bitmain: {})", 
-                              job_id, client_clone.remote_addr, job_params.len(), is_iceriver_client, is_bitmain_client);
+                              job_id, client_clone.remote_addr, job_params.len(), is_iceriver_flag, is_bitmain_flag);
 
-                // Send job ID in mining.notify
-                // })
-                let send_result = if is_iceriver_client {
-                    // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
-                    client_clone.send_notification("mining.notify", job_params.clone()).await
-                } else {
-                    // For non-IceRiver, use standard JSON-RPC format with job ID
-                    let notify_event = JsonRpcEvent {
-                        jsonrpc: "2.0".to_string(),
-                        method: "mining.notify".to_string(),
-                        id: Some(serde_json::Value::Number(job_id.into())),
-                        params: job_params.clone(),
-                    };
-                    client_clone.send(notify_event).await
-                };
+                // Send notification with appropriate format (minimal for IceRiver, standard for others)
+                let send_result = send_mining_notification(
+                    &client_clone,
+                    "mining.notify",
+                    job_params.clone(),
+                    job_id,
+                    &remote_app,
+                ).await;
 
                 if let Err(e) = send_result {
                     if e.to_string().contains("disconnected") {

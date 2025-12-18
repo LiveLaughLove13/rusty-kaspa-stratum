@@ -1,3 +1,4 @@
+pub mod constants;
 pub mod errors;
 pub mod prom;
 pub mod hasher;
@@ -12,10 +13,14 @@ pub mod share_handler;
 pub mod client_handler;
 pub mod stratum_server;
 pub mod pow_diagnostic;
+pub mod miner_detection;
+pub mod job_formatter;
+pub mod notification_sender;
 
 #[cfg(test)]
 pub mod mock_connection;
 
+pub use constants::*;
 pub use errors::*;
 pub use prom::{WorkerContext, *};
 pub use hasher::*;
@@ -28,6 +33,9 @@ pub use default_client::*;
 pub use share_handler::*;
 pub use client_handler::*;
 pub use stratum_server::*;
+pub use miner_detection::*;
+pub use job_formatter::*;
+pub use notification_sender::*;
 
 #[cfg(test)]
 pub use mock_connection::*;

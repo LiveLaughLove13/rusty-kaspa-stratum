@@ -1,3 +1,4 @@
+use crate::constants::{READ_BUFFER_SIZE, READ_TIMEOUT};
 use crate::jsonrpc_event::JsonRpcEvent;
 use crate::log_colors::LogColors;
 use crate::stratum_context::StratumContext;
@@ -157,7 +158,7 @@ impl StratumListener {
         handler_map: &Arc<HashMap<String, EventHandler>>,
     ) {
         tracing::debug!("[CLIENT_LISTENER] Starting client listener for {}:{}", ctx.remote_addr, ctx.remote_port);
-        let mut buffer = [0u8; 1024];
+        let mut buffer = [0u8; READ_BUFFER_SIZE];
         let mut line_buffer = String::new();
         let mut first_message = true;
 
@@ -176,7 +177,7 @@ impl StratumListener {
             
             let read_result = if let Some(mut read_half) = read_half_opt {
                 // Set read deadline
-                let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+                let deadline = tokio::time::Instant::now() + READ_TIMEOUT;
                 
                 let result = tokio::time::timeout_at(deadline, read_half.read(&mut buffer)).await;
                 
@@ -259,7 +260,7 @@ impl StratumListener {
                         tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - Raw Bytes Length:"), format!("{} bytes", data.len()));
                         tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - Message as String:"), message_str);
                         tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - String Length:"), format!("{} characters", message_str.len()));
-                        tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - String Length:"), format!("{} bytes (UTF-8)", message_str.as_bytes().len()));
+                        tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - String Length:"), format!("{} bytes (UTF-8)", message_str.len()));
                         // Show byte-by-byte breakdown for first 100 bytes
                         if data.len() <= 100 {
                             tracing::debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - Byte Breakdown:"), format!("{:?}", data));
@@ -440,7 +441,7 @@ impl StratumListener {
                 }
                 Err(_) => {
                     // Timeout - continue
-                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    tokio::time::sleep(crate::constants::SOCKET_WAIT_DELAY).await;
                     continue;
                 }
             }
