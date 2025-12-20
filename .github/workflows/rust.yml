@@ -150,5 +150,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: kkluster/rusty-kaspa-stratum
+          short-description: ${{ github.event.repository.description }}
+          repository: LiveLaughLove13/rusty-kaspa-stratum
           readme-filepath: ./README.md
