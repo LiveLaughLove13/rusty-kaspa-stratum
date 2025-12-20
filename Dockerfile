@@ -25,10 +25,12 @@ LABEL org.opencontainers.image.title="Kaspa Rust Stratum Bridge" \
     org.opencontainers.image.description="A high-performance Rust implementation of the Kaspa Stratum Bridge, providing seamless mining pool connectivity for Kaspa ASIC miners." \
     org.opencontainers.image.url="https://github.com/LiveLaughLove13/rusty-kaspa-stratum" \
     org.opencontainers.image.source="https://github.com/LiveLaughLove13/rusty-kaspa-stratum" \
-    org.opencontainers.image.vendor="Kluster"
+    org.opencontainers.image.vendor="Kluster" \
+    org.opencontainers.image.licenses="ISC"
 
 # Copy the binary from the builder stage
 COPY --from=builder /usr/src/rustbridge/target/release/rustbridge .
+COPY LICENSE .
 
 # Expose the default stratum and prometheus ports from the config
 # Stratum ports

@@ -20,9 +20,11 @@ jobs:
         with:
           toolchain: stable
           components: clippy
+          cache: true
+          prefix-key: rust-ubuntu
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip
 
       - name: Run Cargo Check
         run: cargo check
@@ -41,10 +43,14 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            os_key: ubuntu
+            binary_name: rustbridge
             asset_name: rustbridge-linux-amd64
             binary_path: target/release/rustbridge
           - os: windows-latest
-            asset_name: rustbridge-windows-amd64.exe
+            os_key: windows
+            binary_name: rustbridge.exe
+            asset_name: rustbridge-windows-amd64
             binary_path: target/release/rustbridge.exe
 
     steps:
@@ -55,10 +61,12 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+          cache: true
+          prefix-key: rust-${{ matrix.os_key }}
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
@@ -67,15 +75,29 @@ jobs:
       - name: Build binary
         run: cargo build --verbose --release
 
+      - name: Package release assets
+        run: |
+          mkdir staging
+          cp README.md LICENSE staging/
+          cp ${{ matrix.binary_path }} staging/${{ matrix.binary_name }}
+
+      - name: Create zip archive (Linux)
+        if: runner.os == 'Linux'
+        run: zip -j ${{ matrix.asset_name }}.zip staging/*
+
+      - name: Create zip archive (Windows)
+        if: runner.os == 'Windows'
+        run: Compress-Archive -Path staging\* -DestinationPath ${{ matrix.asset_name }}.zip
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./${{ matrix.binary_path }}
-          asset_name: ${{ matrix.asset_name }}
-          asset_content_type: application/octet-stream
+          asset_path: ./${{ matrix.asset_name }}.zip
+          asset_name: ${{ matrix.asset_name }}.zip
+          asset_content_type: application/zip
 
   build-and-push-docker:
     name: Build and Push Docker Image
@@ -123,7 +145,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Update Docker Hub Description
-        uses: docker/hub-description-action@v4
+        uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
