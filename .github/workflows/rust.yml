@@ -78,7 +78,8 @@ jobs:
       - name: Package release assets
         run: |
           mkdir staging
-          cp README.md LICENSE staging/
+          cp README.md staging/
+          cp LICENSE staging/
           cp ${{ matrix.binary_path }} staging/${{ matrix.binary_name }}
 
       - name: Create zip archive (Linux)
