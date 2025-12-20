@@ -21,7 +21,7 @@ jobs:
           toolchain: stable
           components: clippy
           cache: true
-          prefix-key: rust-ubuntu
+          cache-key: rust-ubuntu-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip
@@ -62,7 +62,7 @@ jobs:
         with:
           toolchain: stable
           cache: true
-          prefix-key: rust-${{ matrix.os_key }}
+          cache-key: rust-${{ matrix.os_key }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
