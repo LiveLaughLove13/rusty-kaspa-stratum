@@ -20,6 +20,7 @@
 # Format: "HOST:PORT" or "grpc://HOST:PORT"
 # Default HTTP gRPC port is typically 16110
 # Use 127.0.0.1 instead of localhost to force IPv4
+# For Docker installation, if running on the same machine: host.docker.internal:16110
 kaspad_address: "127.0.0.1:16110"
 
 # Block template wait time in milliseconds (shared)
