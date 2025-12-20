@@ -68,7 +68,7 @@ You can run the bridge using the pre-built Docker image available on Docker Hub.
     ```sh
     docker run -d \
       --name rusty-kaspa-stratum \
-      -v "config.yaml:/app/config.yaml" \
+      -v "$PWD/config.yaml:/app/config.yaml" \
       --network host \
       --restart unless-stopped \
       kkluster/rusty-kaspa-stratum:latest
