@@ -62,7 +62,7 @@ jobs:
 
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
-        run: choco install protobuf
+        run: choco install protoc
 
       - name: Build binary
         run: cargo build --verbose --release
