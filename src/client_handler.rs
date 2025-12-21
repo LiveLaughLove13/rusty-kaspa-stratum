@@ -68,6 +68,7 @@ impl ClientHandler {
 
         ctx.set_id(idx);
         self.clients.lock().insert(idx, Arc::clone(&ctx));
+        crate::prom::set_clients_connected(self.clients.lock().len());
         
         tracing::debug!("{} [CONNECTION] Client {} connected (ID: {}), extranonce will be assigned after miner type detection", self.instance_id, ctx.remote_addr, idx);
 
@@ -134,13 +135,14 @@ impl ClientHandler {
             clients.remove(&id);
             tracing::debug!("removed client {}", id);
         }
+        crate::prom::set_clients_connected(clients.len());
         let wallet_addr = ctx.wallet_addr.lock().clone();
         let worker_name = ctx.worker_name.lock().clone();
         record_disconnect(&crate::prom::WorkerContext {
             worker_name: worker_name.clone(),
             miner: String::new(),
             wallet: wallet_addr.clone(),
-            ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
+            ip: ctx.remote_addr().to_string(),
         });
     }
 
@@ -503,7 +505,7 @@ impl ClientHandler {
                         tracing::debug!("Block header bits: {}", block.header.bits);
                         tracing::debug!("Block header daa_score: {}", block.header.daa_score);
                         tracing::debug!("Block header blue_score: {}", block.header.blue_score);
-                        tracing::debug!("Block header parents_by_level expanded_len: {}", block.header.parents_by_level.expanded_len());
+                        tracing::debug!("Block header parents_by_level len: {}", block.header.parents_by_level.len());
                         
                         // Skip this block and continue - the next block template should work
                         return;

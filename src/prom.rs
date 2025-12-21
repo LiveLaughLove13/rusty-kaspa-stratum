@@ -1,9 +1,11 @@
 use prometheus::{
     register_counter_vec, register_gauge_vec, register_gauge, CounterVec, GaugeVec, Gauge,
 };
-use std::sync::OnceLock;
+use std::collections::VecDeque;
+use std::sync::{Mutex, OnceLock};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::time::Duration;
 
 /// Worker labels for Prometheus metrics
 const WORKER_LABELS: &[&str] = &["worker", "miner", "wallet", "ip"];
@@ -58,6 +60,17 @@ static NETWORK_BLOCK_COUNT: OnceLock<Gauge> = OnceLock::new();
 
 /// Worker start time gauge (Unix timestamp in seconds)
 static WORKER_START_TIME: OnceLock<GaugeVec> = OnceLock::new();
+
+static PROCESS_WORKING_SET_BYTES: OnceLock<Gauge> = OnceLock::new();
+static PROCESS_PRIVATE_BYTES: OnceLock<Gauge> = OnceLock::new();
+static PROCESS_PAGEFILE_BYTES: OnceLock<Gauge> = OnceLock::new();
+static PROCESS_HANDLE_COUNT: OnceLock<Gauge> = OnceLock::new();
+
+static RUSTBRIDGE_CLIENTS_CONNECTED: OnceLock<Gauge> = OnceLock::new();
+static RUSTBRIDGE_SHAREHANDLER_STATS_ENTRIES: OnceLock<Gauge> = OnceLock::new();
+
+static BLOCK_GAUGE_SERIES: OnceLock<Mutex<VecDeque<Vec<String>>>> = OnceLock::new();
+const MAX_BLOCK_GAUGE_SERIES: usize = 256;
 
 /// Initialize Prometheus metrics
 pub fn init_metrics() {
@@ -174,6 +187,121 @@ pub fn init_metrics() {
         )
         .unwrap()
     });
+
+    PROCESS_WORKING_SET_BYTES.get_or_init(|| {
+        register_gauge!(
+            "process_working_set_bytes",
+            "Working set size (RSS) in bytes"
+        )
+        .unwrap()
+    });
+
+    PROCESS_PRIVATE_BYTES.get_or_init(|| {
+        register_gauge!(
+            "process_private_bytes",
+            "Private memory usage in bytes"
+        )
+        .unwrap()
+    });
+
+    PROCESS_PAGEFILE_BYTES.get_or_init(|| {
+        register_gauge!(
+            "process_pagefile_bytes",
+            "Commit charge (pagefile usage) in bytes"
+        )
+        .unwrap()
+    });
+
+    PROCESS_HANDLE_COUNT.get_or_init(|| {
+        register_gauge!(
+            "process_handle_count",
+            "Number of open handles for the process"
+        )
+        .unwrap()
+    });
+
+    RUSTBRIDGE_CLIENTS_CONNECTED.get_or_init(|| {
+        register_gauge!(
+            "rustbridge_clients_connected",
+            "Number of currently connected stratum clients"
+        )
+        .unwrap()
+    });
+
+    RUSTBRIDGE_SHAREHANDLER_STATS_ENTRIES.get_or_init(|| {
+        register_gauge!(
+            "rustbridge_sharehandler_stats_entries",
+            "Number of entries in ShareHandler stats map"
+        )
+        .unwrap()
+    });
+
+    BLOCK_GAUGE_SERIES.get_or_init(|| Mutex::new(VecDeque::new()));
+}
+
+pub fn set_clients_connected(count: usize) {
+    if let Some(g) = RUSTBRIDGE_CLIENTS_CONNECTED.get() {
+        g.set(count as f64);
+    }
+}
+
+pub fn set_sharehandler_stats_entries(count: usize) {
+    if let Some(g) = RUSTBRIDGE_SHAREHANDLER_STATS_ENTRIES.get() {
+        g.set(count as f64);
+    }
+}
+
+#[cfg(windows)]
+fn query_process_metrics() -> Option<(u64, u64, u64, u32)> {
+    use windows_sys::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, GetProcessHandleCount};
+
+    unsafe {
+        let process = GetCurrentProcess();
+        let mut counters: PROCESS_MEMORY_COUNTERS_EX = std::mem::zeroed();
+        counters.cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS_EX>() as u32;
+
+        let ok = GetProcessMemoryInfo(
+            process,
+            &mut counters as *mut PROCESS_MEMORY_COUNTERS_EX as *mut PROCESS_MEMORY_COUNTERS,
+            counters.cb,
+        );
+        if ok == 0 {
+            return None;
+        }
+
+        let mut handle_count: u32 = 0;
+        let _ = GetProcessHandleCount(process, &mut handle_count as *mut u32);
+
+        Some((
+            counters.WorkingSetSize as u64,
+            counters.PrivateUsage as u64,
+            counters.PagefileUsage as u64,
+            handle_count,
+        ))
+    }
+}
+
+#[cfg(not(windows))]
+fn query_process_metrics() -> Option<(u64, u64, u64, u32)> {
+    None
+}
+
+fn update_process_metrics() {
+    if let Some((working_set, private_bytes, pagefile, handle_count)) = query_process_metrics() {
+        if let Some(g) = PROCESS_WORKING_SET_BYTES.get() {
+            g.set(working_set as f64);
+        }
+        if let Some(g) = PROCESS_PRIVATE_BYTES.get() {
+            g.set(private_bytes as f64);
+        }
+        if let Some(g) = PROCESS_PAGEFILE_BYTES.get() {
+            g.set(pagefile as f64);
+        }
+        if let Some(g) = PROCESS_HANDLE_COUNT.get() {
+            g.set(handle_count as f64);
+        }
+    }
 }
 
 /// Worker context for metrics
@@ -254,6 +382,26 @@ pub fn record_block_found(worker: &WorkerContext, nonce: u64, bluescore: u64, ha
         labels.push(&bluescore_str);
         labels.push(&hash);
         gauge.with_label_values(&labels).set(1.0);
+
+        if let Some(series_lock) = BLOCK_GAUGE_SERIES.get() {
+            let mut series = series_lock.lock().unwrap_or_else(|e| e.into_inner());
+            series.push_back(vec![
+                worker.worker_name.clone(),
+                worker.miner.clone(),
+                worker.wallet.clone(),
+                worker.ip.clone(),
+                nonce_str,
+                bluescore_str,
+                hash,
+            ]);
+
+            while series.len() > MAX_BLOCK_GAUGE_SERIES {
+                if let Some(old) = series.pop_front() {
+                    let old_refs: Vec<&str> = old.iter().map(|s| s.as_str()).collect();
+                    let _ = gauge.remove_label_values(&old_refs);
+                }
+            }
+        }
     }
 }
 
@@ -788,6 +936,15 @@ pub async fn start_prom_server(port: &str) -> Result<(), Box<dyn std::error::Err
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     init_metrics();
+    update_process_metrics();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            interval.tick().await;
+            update_process_metrics();
+        }
+    });
 
     // Handle ":PORT" format by prepending "0.0.0.0"
     let addr_str = if port.starts_with(':') {

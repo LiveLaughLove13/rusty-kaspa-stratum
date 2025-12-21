@@ -208,13 +208,13 @@ pub fn serialize_block_header(block: &kaspa_consensus_core::block::Block) -> Res
     hasher.update(header.version.to_le_bytes());
     
     // Write number of parent levels
-    let expanded_len = header.parents_by_level.expanded_len();
-    hasher.update((expanded_len as u64).to_le_bytes());
+    let parent_levels_len = header.parents_by_level.len();
+    hasher.update((parent_levels_len as u64).to_le_bytes());
     
     // Write parents at each level
     // The "Odd number of digits" error likely occurs here when processing parent hashes
     // We'll process each level and parent individually to catch errors early
-    for level in header.parents_by_level.expanded_iter() {
+    for level in header.parents_by_level.iter() {
         // Write array length
         hasher.update((level.len() as u64).to_le_bytes());
         // Write each parent hash
@@ -222,7 +222,7 @@ pub fn serialize_block_header(block: &kaspa_consensus_core::block::Block) -> Res
             // Access the hash as bytes first - this will trigger any hex parsing errors
             // The error "Odd number of digits" typically comes from hex decoding
             let _bytes = parent.as_bytes();
-            hasher.update(parent); // Hash types can be updated directly
+            hasher.update(*parent); // Hash types can be updated directly
         }
     }
     

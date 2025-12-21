@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RustyKaspa Bridge Monitor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        :root {
+          --kaspa-primary: #70c7ba;
+          --kaspa-accent: #49eacb;
+          --surface-dark: rgba(15, 21, 30, 0.72);
+          --surface-light: rgba(255, 255, 255, 0.92);
+          --bg-gradient-start: #0f1319;
+          --bg-gradient-mid: #141c26;
+          --text-primary: #e8f4f0;
+          --text-secondary: #9fbac3;
+          --card-border: rgba(112, 199, 186, 0.22);
+          --shadow: 0 24px 60px rgba(5, 12, 20, 0.45);
+          --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+          min-height: 100vh;
+          background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-mid) 100%);
+          color: var(--text-primary);
+          font-family: var(--font-family);
+          -webkit-font-smoothing: antialiased;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .app-header {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1.1rem 2rem;
+          backdrop-filter: blur(20px);
+          background: rgba(15, 21, 30, 0.6);
+          border-bottom: 1px solid rgba(112, 199, 186, 0.18);
+        }
+
+        .logo {
+          display: flex;
+          align-items: center;
+          gap: 0.65rem;
+          font-weight: 700;
+          font-size: 1.05rem;
+          letter-spacing: 0.04em;
+        }
+
+        .logo-icon {
+          font-size: 1.35rem;
+          filter: drop-shadow(0 0 8px rgba(112, 199, 186, 0.45));
+        }
+
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .status-pill {
+          font-size: 0.85rem;
+          font-weight: 700;
+          padding: 0.55rem 0.9rem;
+          border-radius: 999px;
+          border: 1px solid rgba(112, 199, 186, 0.22);
+          background: rgba(10, 16, 24, 0.65);
+          color: var(--text-secondary);
+        }
+
+        #status.connected { color: var(--kaspa-accent); border-color: rgba(73, 234, 203, 0.35); }
+        #status.disconnected { color: #ff8080; border-color: rgba(255, 128, 128, 0.35); }
+        #status.monitoring { color: var(--kaspa-accent); border-color: rgba(73, 234, 203, 0.55); box-shadow: 0 0 18px rgba(73, 234, 203, 0.16); }
+
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.7rem 1.2rem;
+          border-radius: 999px;
+          font-weight: 700;
+          cursor: pointer;
+          border: 1px solid rgba(112, 199, 186, 0.26);
+          background: rgba(255, 255, 255, 0.06);
+          color: var(--text-secondary);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, background 0.2s ease;
+        }
+
+        .btn:hover { color: var(--kaspa-accent); border-color: rgba(73, 234, 203, 0.4); transform: translateY(-1px); }
+
+        .btn-primary {
+          background: linear-gradient(135deg, var(--kaspa-accent) 0%, var(--kaspa-primary) 100%);
+          color: #03181a;
+          border: none;
+          box-shadow: 0 16px 30px rgba(73, 234, 203, 0.22);
+        }
+
+        .btn-primary:hover { box-shadow: 0 20px 45px rgba(73, 234, 203, 0.3); }
+
+        .btn-danger {
+          border-color: rgba(255, 128, 128, 0.35);
+          background: rgba(255, 255, 255, 0.06);
+          color: #ffb3b3;
+        }
+
+        .btn-danger:hover { color: #ffd6d6; border-color: rgba(255, 128, 128, 0.55); }
+
+        .btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+
+        .main-layout {
+          display: flex;
+          flex: 1;
+          gap: 1.75rem;
+          max-width: 1400px;
+          margin: 0 auto;
+          width: 100%;
+          padding: 1.75rem;
+        }
+
+        .sidebar {
+          width: 280px;
+          min-width: 280px;
+          position: sticky;
+          top: 84px;
+          height: fit-content;
+          max-height: calc(100vh - 120px);
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(112, 199, 186, 0.35) rgba(10, 16, 24, 0.65);
+          padding: 1.25rem;
+          background: rgba(10, 16, 24, 0.85);
+          border-radius: 20px;
+          border: 1px solid rgba(112, 199, 186, 0.18);
+          backdrop-filter: blur(20px);
+        }
+
+        .sidebar::-webkit-scrollbar {
+          width: 10px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+          background: rgba(10, 16, 24, 0.65);
+          border-radius: 999px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+          background: rgba(112, 199, 186, 0.35);
+          border-radius: 999px;
+          border: 2px solid rgba(10, 16, 24, 0.75);
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+          background: rgba(73, 234, 203, 0.45);
+        }
+
+        .sidebar-title {
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: var(--kaspa-accent);
+          font-weight: 800;
+          margin-bottom: 0.75rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid rgba(112, 199, 186, 0.15);
+        }
+
+        .sidebar-section {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .sidebar-section + .sidebar-section {
+          margin-top: 1.1rem;
+        }
+
+        .sidebar-section-toggle {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          background: transparent;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          text-align: left;
+        }
+
+        .sidebar-section-toggle .sidebar-title {
+          margin-bottom: 0;
+          padding-bottom: 0;
+          border-bottom: none;
+        }
+
+        .sidebar-section-toggle-inner {
+          flex: 1;
+          min-width: 0;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid rgba(112, 199, 186, 0.15);
+        }
+
+        .sidebar-section-arrow {
+          width: 22px;
+          height: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: rgba(112, 199, 186, 0.9);
+          transition: transform 0.2s ease, color 0.2s ease;
+          flex-shrink: 0;
+        }
+
+        .sidebar-section-arrow::before {
+          content: '▸';
+          font-size: 0.95rem;
+          line-height: 1;
+        }
+
+        .sidebar-section:not(.collapsed) .sidebar-section-arrow {
+          transform: rotate(90deg);
+          color: rgba(73, 234, 203, 0.95);
+        }
+
+        .sidebar-section-body {
+          overflow: hidden;
+          max-height: 0;
+          opacity: 0;
+          transform: translateY(-2px);
+          padding-top: 0;
+          transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .sidebar-section:not(.collapsed) .sidebar-section-body {
+          max-height: 1200px;
+          opacity: 1;
+          transform: translateY(0);
+          padding-top: 0.65rem;
+        }
+
+        .sidebar-subtitle {
+          margin-top: 0;
+          margin-bottom: 0.65rem;
+          font-size: 0.75rem;
+          line-height: 1.25;
+          color: rgba(159, 186, 195, 0.75);
+        }
+
+        .sidebar-menu { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+        #metrics-menu { margin-top: 1rem; border-top: 1px solid var(--card-border); padding-top: 1rem; }
+
+        .sidebar-link {
+          display: flex;
+          flex-direction: column;
+          gap: 0.15rem;
+          padding: 0.55rem 0.85rem;
+          color: var(--text-secondary);
+          text-decoration: none;
+          font-size: 0.92rem;
+          border-radius: 10px;
+          transition: all 0.2s ease;
+          font-weight: 600;
+          position: relative;
+        }
+
+        .sidebar-link-title {
+          font-size: 0.92rem;
+          font-weight: 650;
+          color: inherit;
+        }
+
+        .sidebar-link-desc {
+          font-size: 0.75rem;
+          line-height: 1.2;
+          font-weight: 500;
+          color: rgba(159, 186, 195, 0.75);
+        }
+
+        .sidebar-link:hover { color: var(--kaspa-accent); background: rgba(112, 199, 186, 0.1); }
+        .sidebar-link.active { color: var(--kaspa-accent); background: rgba(112, 199, 186, 0.15); }
+
+        .sidebar-link:hover .sidebar-link-desc {
+          color: rgba(73, 234, 203, 0.7);
+        }
+
+        .page-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1.75rem; padding: 1.75rem; }
+        .page-content h1 { font-size: 1.85rem; line-height: 1.2; margin-bottom: 0.6rem; }
+        .page-content p { color: var(--text-secondary); font-size: 0.98rem; line-height: 1.7; }
+
+        .hero {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          align-items: start;
+          gap: 1.25rem;
+          padding: 1.75rem;
+          border-radius: 24px;
+          background: rgba(10, 16, 24, 0.78);
+          border: 1px solid rgba(112, 199, 186, 0.32);
+          box-shadow: var(--shadow);
+        }
+
+        .hero-copy h1 { font-size: 1.85rem; line-height: 1.2; margin-bottom: 0.6rem; }
+        .hero-copy p { color: var(--text-secondary); font-size: 0.98rem; line-height: 1.7; }
+
+        .hero-actions { display: flex; gap: 0.65rem; flex-wrap: wrap; margin-top: 1rem; }
+
+        .stat-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 0.85rem;
+          margin-top: 1.1rem;
+        }
+
+        .stat-card {
+          padding: 1rem 1.1rem;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(112, 199, 186, 0.15);
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 24px rgba(5, 12, 20, 0.3);
+            border-color: rgba(112, 199, 186, 0.3);
+        }
+
+        .stat-value { font-size: 1.3rem; font-weight: 800; color: var(--kaspa-accent); display: none; }
+        .stat-label { font-size: 0.85rem; color: var(--text-secondary); }
+
+        .grid {
+          display: grid;
+          gap: 1.25rem;
+          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        }
+
+        .card {
+          padding: 1.25rem;
+          border-radius: 20px;
+          background: rgba(15, 21, 30, 0.78);
+          border: 1px solid rgba(112, 199, 186, 0.18);
+          box-shadow: 0 16px 36px rgba(5, 12, 20, 0.38);
+        }
+
+        .card-header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+        .card-header h2 { font-size: 1.1rem; }
+        .card-header span { color: var(--text-secondary); font-size: 0.85rem; }
+
+        @media (max-width: 1100px) {
+          .main-layout { flex-direction: column; }
+          .sidebar { width: 100%; min-width: 0; position: relative; top: 0; max-height: none; }
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; pointer-events: none;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; pointer-events: all; }
+        .modal-backdrop { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(5, 12, 20, 0.85); backdrop-filter: blur(12px); }
+        .modal-container {
+            position: relative; z-index: 1001; width: 90%; max-width: 800px;
+            background: rgba(10, 16, 24, 0.95); border-radius: 24px; border: 1px solid rgba(112, 199, 186, 0.3);
+            box-shadow: 0 32px 80px rgba(5, 12, 20, 0.6);
+            transform: scale(0.95); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .modal-overlay.active .modal-container { transform: scale(1); opacity: 1; }
+        .modal-close {
+            position: absolute; top: 1rem; right: 1rem; z-index: 1002; width: 36px; height: 36px; border-radius: 50%;
+            background: rgba(15, 21, 30, 0.8); border: 1px solid rgba(112, 199, 186, 0.3); color: var(--text-secondary);
+            cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; line-height: 1;
+            transition: all 0.3s ease;
+        }
+        .modal-close:hover { background: rgba(112, 199, 186, 0.2); color: var(--kaspa-accent); transform: rotate(90deg); }
+        .modal-content { padding: 2rem; }
+        .modal-content h2 { font-size: 1.8rem; margin-bottom: 1.5rem; color: var(--kaspa-accent); }
+        .modal-desc { margin-top: -1rem; margin-bottom: 1.4rem; color: var(--text-secondary); font-size: 0.95rem; line-height: 1.55; }
+        #modal-chart-container { height: 350px; }
+        .network-info-list { list-style: none; padding: 0; font-size: 0.95rem; line-height: 1.8; color: var(--text-secondary); }
+        .network-info-list strong { color: var(--text-primary); min-width: 150px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<header class="app-header">
+    <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">RustyKaspa Bridge Monitor</span>
+    </div>
+    <div class="header-actions">
+        <div id="status" class="status-pill disconnected">Disconnected</div>
+        <button id="start-btn" class="btn btn-primary" disabled>Start</button>
+        <button id="stop-btn" class="btn btn-danger" disabled>Stop</button>
+    </div>
+</header>
+
+<div class="main-layout">
+    <aside class="sidebar">
+        <div class="sidebar-section collapsed" data-section="dashboard">
+            <button class="sidebar-section-toggle" type="button" aria-expanded="false">
+                <div class="sidebar-section-toggle-inner">
+                    <div class="sidebar-title">Dashboard</div>
+                </div>
+                <span class="sidebar-section-arrow" aria-hidden="true"></span>
+            </button>
+            <div class="sidebar-section-body">
+                <ul class="sidebar-menu">
+                    <li>
+                        <a id="network-btn" href="#" class="sidebar-link">
+                            <span class="sidebar-link-title">Network Info</span>
+                            <span class="sidebar-link-desc">Kaspa node status: sync, difficulty, and block counts.</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="sidebar-section collapsed" data-section="system">
+            <button class="sidebar-section-toggle" type="button" aria-expanded="false">
+                <div class="sidebar-section-toggle-inner">
+                    <div class="sidebar-title">System</div>
+                </div>
+                <span class="sidebar-section-arrow" aria-hidden="true"></span>
+            </button>
+            <div class="sidebar-section-body">
+                <div class="sidebar-subtitle">Host + process resource usage (CPU, memory, handles).</div>
+                <ul id="system-metrics-menu" class="sidebar-menu"></ul>
+            </div>
+        </div>
+
+        <div class="sidebar-section collapsed" data-section="mining">
+            <button class="sidebar-section-toggle" type="button" aria-expanded="false">
+                <div class="sidebar-section-toggle-inner">
+                    <div class="sidebar-title">Mining &amp; Bridge</div>
+                </div>
+                <span class="sidebar-section-arrow" aria-hidden="true"></span>
+            </button>
+            <div class="sidebar-section-body">
+                <div class="sidebar-subtitle">Stratum bridge + exporter metrics (shares, workers, and network).</div>
+                <ul id="mining-metrics-menu" class="sidebar-menu"></ul>
+            </div>
+        </div>
+    </aside>
+
+    <main class="page-content">
+        <h1>Bridge Monitor Dashboard</h1>
+        <p>Use the sidebar to view metrics. Click any metric to see its historical graph.</p>
+        <p>Click the "Start" button in the header to begin monitoring.</p>
+    </main>
+</div>
+
+<div id="metric-modal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <button class="modal-close">&times;</button>
+        <div class="modal-content">
+            <h2 id="modal-title"></h2>
+            <div id="modal-desc" class="modal-desc"></div>
+            <div id="modal-chart-container">
+                <canvas id="modal-chart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="network-modal" class="modal-overlay">
+    <div class="modal-backdrop"></div>
+    <div class="modal-container">
+        <button class="modal-close">&times;</button>
+        <div class="modal-content">
+            <h2>Network Info</h2>
+            <ul id="network-info-list" class="network-info-list"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    const statusEl = document.getElementById('status');
+    const statusTextEl = document.getElementById('status-text');
+    const wsEndpointEl = document.getElementById('ws-endpoint');
+    const modal = document.getElementById('metric-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalDesc = document.getElementById('modal-desc');
+    const modalChartCanvas = document.getElementById('modal-chart');
+    let modalChart = null;
+
+    const networkBtn = document.getElementById('network-btn');
+    const networkModal = document.getElementById('network-modal');
+    const networkInfoList = document.getElementById('network-info-list');
+
+    let lastNetworkInfo = null;
+    let lastNetworkInfoTs = null;
+    let lastNetworkInfoError = null;
+    let lastNetworkInfoErrorTs = null;
+
+    let ws;
+    let charts = {};
+    let fullHistory = {}; // Store all data points for modal charts
+    const MAX_DATA_POINTS = 100;
+
+    function renderNetworkInfo(info, ts, err, errTs) {
+        if (!networkInfoList) return;
+        if (!info) {
+            const msg = ts
+                ? `No network data received yet (last update: ${new Date(ts).toLocaleString()}).`
+                : 'No network data received yet.';
+
+            const errLine = err
+                ? `<li><strong>RPC Error:</strong> ${String(err)}</li>`
+                : '';
+
+            const errTimeLine = errTs
+                ? `<li><strong>Error Time:</strong> ${new Date(errTs).toLocaleString()}</li>`
+                : '';
+
+            networkInfoList.innerHTML = `
+                <li><strong>Status:</strong> ${msg}</li>
+                ${errLine}
+                ${errTimeLine}
+                <li><strong>Hint:</strong> Click Start to begin monitoring.</li>
+                <li><strong>Hint:</strong> Ensure the Kaspa node RPC is reachable (default: http://127.0.0.1:16110).</li>
+            `;
+            return;
+        }
+
+        const updated = ts ? new Date(ts).toLocaleString() : '--';
+        const safe = (v) => (v === null || v === undefined ? '--' : String(v));
+
+        const p2pIdFull = safe(info.p2pId || info.p2p_id);
+        const p2pIdShort = p2pIdFull && p2pIdFull !== '--' ? `${p2pIdFull.substring(0, 12)}...` : '--';
+
+        networkInfoList.innerHTML = `
+            <li><strong>Last Updated:</strong> ${safe(updated)}</li>
+            <li><strong>Network:</strong> ${safe(info.networkName)}</li>
+            <li><strong>Version:</strong> ${safe(info.serverVersion)}</li>
+            <li><strong>Virtual DAA Score:</strong> ${safe(info.virtualDaaScore)}</li>
+            <li><strong>Block Count:</strong> ${safe(info.blockCount)}</li>
+            <li><strong>Header Count:</strong> ${safe(info.headerCount)}</li>
+            <li><strong>Difficulty:</strong> ${typeof info.difficulty === 'number' ? info.difficulty.toExponential(4) : safe(info.difficulty)}</li>
+            <li><strong>Mempool Size:</strong> ${safe(info.mempoolSize)}</li>
+            <li><strong>Is Synced:</strong> ${safe(info.isSynced)}</li>
+            <li><strong>UTXO Indexed:</strong> ${safe(info.isUtxoIndexed)}</li>
+            <li><strong>P2P ID:</strong> ${p2pIdShort}</li>
+        `;
+    }
+
+    function connect() {
+        const host = (window.location.hostname && window.location.hostname.length > 0)
+            ? window.location.hostname
+            : '127.0.0.1';
+        const port = (window.location.port && window.location.port.length > 0)
+            ? window.location.port
+            : 9001;
+        const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+        if (wsEndpointEl) {
+            wsEndpointEl.textContent = `${scheme}://${host}:${port}/ws`;
+        }
+
+        if (window.location.protocol === 'file:') {
+            setStatus('disconnected', 'Opened as file; trying ws://127.0.0.1:9001 (run bridge-monitor)');
+        }
+
+        ws = new WebSocket(`${scheme}://${host}:${port}/ws`);
+
+        ws.onopen = () => {
+            setStatus('connected', 'Connected');
+            startBtn.disabled = false;
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.error) {
+                setStatus('disconnected', `Error: ${data.error}`);
+                ws.close();
+                return;
+            }
+            updateCharts(data);
+        };
+
+        ws.onclose = () => {
+            setStatus('disconnected', 'Disconnected');
+            startBtn.disabled = true;
+            stopBtn.disabled = true;
+            setTimeout(() => connect(), 2000);
+        };
+
+        ws.onerror = (err) => {
+            console.error('WebSocket Error:', err);
+            setStatus('disconnected', 'Connection Error');
+            ws.close();
+        };
+    }
+
+    function setStatus(className, text) {
+        statusEl.className = `status-pill ${className}`;
+        statusEl.textContent = text;
+        if (statusTextEl) {
+            statusTextEl.textContent = text;
+        }
+    }
+
+    function startMonitoring() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send('start');
+            setStatus('monitoring', 'Monitoring...');
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+        }
+    }
+
+    function stopMonitoring() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send('stop');
+            setStatus('connected', 'Connected');
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+    }
+
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+
+    startBtn.addEventListener('click', startMonitoring);
+    stopBtn.addEventListener('click', stopMonitoring);
+
+    function formatBytes(bytes) {
+        if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return '--';
+        const b = Number(bytes);
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let u = 0;
+        let v = b;
+        while (v >= 1024 && u < units.length - 1) {
+            v /= 1024;
+            u += 1;
+        }
+        return `${v.toFixed(v >= 10 || u === 0 ? 0 : 1)} ${units[u]}`;
+    }
+
+    function formatCount(value) {
+        if (value === null || value === undefined) return '--';
+        const v = Number(value);
+        if (!Number.isFinite(v)) return String(value);
+        return Math.round(v).toLocaleString();
+    }
+
+    function formatHashrate(value) {
+        if (value === null || value === undefined) return '--';
+        let v = Number(value);
+        if (!Number.isFinite(v)) return String(value);
+        const units = ['H/s', 'kH/s', 'MH/s', 'GH/s', 'TH/s', 'PH/s', 'EH/s'];
+        let u = 0;
+        while (v >= 1000 && u < units.length - 1) {
+            v /= 1000;
+            u += 1;
+        }
+        return `${v.toFixed(v >= 10 || u === 0 ? 0 : 2)} ${units[u]}`;
+    }
+
+    function formatTimestamp(value) {
+        if (value === null || value === undefined) return '--';
+        const v = Number(value);
+        if (!Number.isFinite(v)) return String(value);
+
+        let ms;
+        if (v > 1e12) {
+            ms = v;
+        } else if (v > 1e9) {
+            ms = v * 1000;
+        } else {
+            return String(value);
+        }
+
+        const d = new Date(ms);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleString();
+    }
+
+    function formatMetricValue(metricKey, value) {
+        if (value === null || value === undefined) return '--';
+
+        if (typeof value === 'string') return value;
+        const v = Number(value);
+        if (!Number.isFinite(v)) return String(value);
+
+        if (metricKey === 'cpu_percent') {
+            return `${v.toFixed(1)} %`;
+        }
+
+        if (metricKey.includes('bytes') || metricKey.includes('rss')) {
+            return formatBytes(v);
+        }
+
+        if (metricKey.includes('hashrate')) {
+            return formatHashrate(v);
+        }
+
+        if (metricKey.includes('difficulty')) {
+            return v.toExponential(4);
+        }
+
+        if (metricKey.includes('start_time')) {
+            return formatTimestamp(v);
+        }
+
+        if (metricKey.includes('balance')) {
+            return `${v.toFixed(4)} KAS`;
+        }
+
+        if (
+            metricKey.includes('counter') ||
+            metricKey.includes('count') ||
+            metricKey.includes('handles') ||
+            metricKey.includes('handle') ||
+            metricKey.includes('blocks')
+        ) {
+            return formatCount(v);
+        }
+
+        return v.toFixed(2);
+    }
+
+    function initializeApp() {
+        Chart.defaults.color = '#9fbac3';
+        Chart.defaults.borderColor = 'rgba(112, 199, 186, 0.15)';
+    }
+
+    const friendlyNames = {
+        'cpu_percent': 'CPU Usage',
+        'rss_bytes': 'RSS Memory',
+        'virtual_bytes': 'Virtual Memory',
+        'private_bytes': 'Private Bytes',
+        'working_set_bytes': 'Working Set',
+        'pagefile_bytes': 'Pagefile Usage',
+        'handle_count': 'Handle Count',
+        'ks_blocks_mined': 'Blocks Mined',
+        'ks_invalid_share_counter': 'Invalid Shares',
+        'ks_worker_disconnect_counter': 'Worker Disconnects',
+        'ks_worker_job_counter': 'Worker Jobs',
+        'ks_valid_share_diff_counter': 'Valid Share Difficulty',
+        'process_handle_count': 'Process Handles',
+        'ks_balance_by_wallet_gauge': 'Wallet Balance',
+        'ks_estimated_network_hashrate_gauge': 'Network Hashrate',
+        'rustbridge_clients_connected': 'Connected Clients',
+        'ks_network_difficulty_gauge': 'Network Difficulty',
+        'ks_network_block_count': 'Network Block Count',
+        'ks_worker_start_time': 'Worker Start Time',
+    };
+
+    const friendlyDescriptions = {
+        'cpu_percent': 'How much CPU the monitored process is using (percentage of a core).',
+        'rss_bytes': 'Resident memory currently held in RAM by the monitored process.',
+        'virtual_bytes': 'Virtual memory reserved by the monitored process (address space).',
+        'private_bytes': 'Private committed memory used by the process (Windows).',
+        'working_set_bytes': 'Working set size: memory currently in physical RAM (Windows).',
+        'pagefile_bytes': 'Committed memory backed by the pagefile (Windows).',
+        'handle_count': 'Number of OS handles currently open by the process (Windows).',
+        'process_handle_count': 'Number of OS handles currently open by the process.',
+        'rustbridge_clients_connected': 'How many stratum clients are currently connected to the bridge.',
+        'ks_blocks_mined': 'Total blocks found by this miner/bridge since start.',
+        'ks_invalid_share_counter': 'Total invalid shares submitted since start.',
+        'ks_valid_share_diff_counter': 'Total accumulated difficulty of valid shares since start.',
+        'ks_worker_disconnect_counter': 'Total worker disconnect events since start.',
+        'ks_worker_job_counter': 'Total mining jobs issued to workers since start.',
+        'ks_balance_by_wallet_gauge': 'Current wallet balance value reported by the exporter.',
+        'ks_estimated_network_hashrate_gauge': 'Estimated network hashrate reported by the exporter.',
+        'ks_network_difficulty_gauge': 'Current Kaspa network difficulty.',
+        'ks_network_block_count': 'Current Kaspa network block count.',
+        'ks_worker_start_time': 'Timestamp of when the worker started (exporter-provided).',
+    };
+
+    function getMetricDescription(metricKey) {
+        if (friendlyDescriptions[metricKey]) return friendlyDescriptions[metricKey];
+        if (metricKey.includes('bytes')) return 'Memory value reported in bytes.';
+        if (metricKey.includes('cpu')) return 'CPU usage of the monitored process.';
+        if (metricKey.includes('_counter')) return 'A counter that increases over time (total since start).';
+        if (metricKey.includes('_gauge')) return 'A gauge representing the current value.';
+        return 'Live metric value from the monitor/exporter.';
+    }
+
+    const categories = {
+        'System': ['cpu_percent', 'rss_bytes', 'virtual_bytes', 'private_bytes', 'working_set_bytes', 'pagefile_bytes', 'handle_count', 'process_handle_count'],
+        'Mining & Bridge': ['ks_blocks_mined', 'ks_invalid_share_counter', 'ks_valid_share_diff_counter', 'ks_worker_disconnect_counter', 'ks_worker_job_counter', 'rustbridge_clients_connected', 'ks_balance_by_wallet_gauge', 'ks_estimated_network_hashrate_gauge', 'ks_network_difficulty_gauge', 'ks_network_block_count', 'ks_worker_start_time'],
+    };
+
+    const systemMetricsMenu = document.getElementById('system-metrics-menu');
+    const miningMetricsMenu = document.getElementById('mining-metrics-menu');
+    const createdButtons = new Set();
+
+    function createMetricButton(key, point) {
+        if (key === 'ts' || key === 'pid' || key === 'network_info' || point[key] === null) return;
+
+        const safeId = `metric-btn-${key.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+        if (createdButtons.has(key) || document.getElementById(safeId)) {
+            createdButtons.add(key);
+            return;
+        }
+
+        let category = 'Mining & Bridge'; // Default category
+        if (categories.System.includes(key)) {
+            category = 'System';
+        }
+        
+        const menu = category === 'System' ? systemMetricsMenu : miningMetricsMenu;
+
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = '#';
+        a.id = safeId;
+        a.className = 'sidebar-link';
+        const titleText = friendlyNames[key] || key.replace(/_/g, ' ');
+        const descText = getMetricDescription(key);
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'sidebar-link-title';
+        titleSpan.textContent = titleText;
+        const descSpan = document.createElement('span');
+        descSpan.className = 'sidebar-link-desc';
+        descSpan.textContent = descText;
+        a.appendChild(titleSpan);
+        a.appendChild(descSpan);
+        a.onclick = (e) => {
+            e.preventDefault();
+            openModal(key);
+        };
+        li.appendChild(a);
+        menu.appendChild(li);
+        createdButtons.add(key);
+    }
+
+    function updateCharts(point) {
+        const time = new Date(point.ts);
+
+        // Create buttons for all received metrics
+        for (const key in point) {
+            if (Object.hasOwnProperty.call(point, key)) {
+                createMetricButton(key, point);
+            }
+        }
+
+        // Add all data points to history
+        for (const key in point) {
+            if (Object.hasOwnProperty.call(point, key) && key !== 'ts' && key !== 'pid' && key !== 'network_info') {
+                if (!fullHistory[key]) fullHistory[key] = [];
+                fullHistory[key].push({ x: time, y: point[key] });
+                if (fullHistory[key].length > MAX_DATA_POINTS) {
+                    fullHistory[key].shift();
+                }
+            }
+        }
+
+        const info = point.network_info || point.networkInfo;
+        const infoErr = point.network_info_error || point.networkInfoError;
+        if (info) {
+            lastNetworkInfo = info;
+            lastNetworkInfoTs = point.ts;
+        }
+        if (infoErr) {
+            lastNetworkInfoError = infoErr;
+            lastNetworkInfoErrorTs = point.ts;
+        }
+        if (networkModal && networkModal.classList.contains('active')) {
+            renderNetworkInfo(lastNetworkInfo, lastNetworkInfoTs, lastNetworkInfoError, lastNetworkInfoErrorTs);
+        }
+    }
+
+    function openModal(metricKey) {
+        if (modalChart) {
+            modalChart.destroy();
+        }
+
+        const history = fullHistory[metricKey] || [];
+        const latestPoint = history.length > 0 ? history[history.length - 1] : null;
+        let latestValue = '--';
+        if (latestPoint) {
+            latestValue = formatMetricValue(metricKey, latestPoint.y);
+        }
+
+        const title = (friendlyNames[metricKey] || metricKey.replace(/_/g, ' ')).replace(/\b\w/g, l => l.toUpperCase());
+        document.getElementById('modal-title').textContent = `${title}: ${latestValue}`;
+        if (modalDesc) {
+            modalDesc.textContent = getMetricDescription(metricKey);
+        }
+
+        modalChart = new Chart(document.getElementById('modal-chart'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: (friendlyNames[metricKey] || metricKey.replace(/_/g, ' ')).replace(/\b\w/g, l => l.toUpperCase()),
+                    data: history,
+                    borderColor: 'rgb(73, 234, 203)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const y = ctx.parsed?.y;
+                                return formatMetricValue(metricKey, y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { type: 'time', time: { tooltipFormat: 'PPpp' } },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => formatMetricValue(metricKey, value)
+                        }
+                    }
+                }
+            }
+        });
+
+        modal.classList.add('active');
+    }
+
+    function closeModal() {
+        modal.classList.remove('active');
+    }
+
+    function closeNetworkModal() {
+        networkModal.classList.remove('active');
+    }
+
+    modal.querySelector('.modal-backdrop').addEventListener('click', closeModal);
+    modal.querySelector('.modal-close').addEventListener('click', closeModal);
+
+    networkBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        networkModal.classList.add('active');
+        renderNetworkInfo(lastNetworkInfo, lastNetworkInfoTs, lastNetworkInfoError, lastNetworkInfoErrorTs);
+    });
+
+    networkModal.querySelector('.modal-backdrop').addEventListener('click', closeNetworkModal);
+    networkModal.querySelector('.modal-close').addEventListener('click', closeNetworkModal);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeNetworkModal();
+        }
+    });
+
+    function setupSidebarSections() {
+        const sections = document.querySelectorAll('.sidebar-section');
+        for (const section of sections) {
+            const toggle = section.querySelector('.sidebar-section-toggle');
+            if (!toggle) continue;
+
+            toggle.addEventListener('click', () => {
+                const isCollapsed = section.classList.contains('collapsed');
+                section.classList.toggle('collapsed', !isCollapsed);
+                toggle.setAttribute('aria-expanded', String(isCollapsed));
+            });
+        }
+    }
+
+    setupSidebarSections();
+    initializeApp();
+    connect();
+</script>
+
+</body>
+</html>

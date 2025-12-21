@@ -17,8 +17,23 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{error, info, warn};
+use once_cell::sync::Lazy;
 
 use crate::constants::{STATS_PRUNE_INTERVAL, STATS_PRINT_INTERVAL};
+
+// Global aggregation for single consolidated print across instances (formatting only)
+struct PrintSnapshot {
+    lines: Vec<String>,
+    total_rate: f64,
+    shares: i64,
+    stales: i64,
+    invalids: i64,
+    blocks: i64,
+    uptime: String,
+}
+
+static GLOBAL_PRINT_SNAPSHOTS: Lazy<Mutex<HashMap<String, PrintSnapshot>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[allow(dead_code)]
 const VAR_DIFF_THREAD_SLEEP: u64 = 10;
@@ -186,7 +201,7 @@ impl ShareHandler {
             if !worker_name.is_empty() {
                 worker_name.clone()
             } else {
-                format!("{}:{}", ctx.remote_addr(), ctx.remote_port())
+                ctx.remote_addr().to_string()
             }
         };
 
@@ -196,6 +211,7 @@ impl ShareHandler {
 
         let stats = WorkStats::new(worker_id.clone());
         stats_map.insert(worker_id.clone(), stats.clone());
+        crate::prom::set_sharehandler_stats_entries(stats_map.len());
         drop(stats_map);
 
         // Initialize worker counters
@@ -205,7 +221,7 @@ impl ShareHandler {
             worker_name: worker_name.clone(),
             miner: String::new(),
             wallet: wallet_addr.clone(),
-            ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
+            ip: ctx.remote_addr().to_string(),
         });
 
         stats
@@ -544,6 +560,20 @@ impl ShareHandler {
                         info!("{} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::block(&format!("🎉🎉🎉 BLOCK ACCEPTED BY NODE! 🎉🎉🎉 Hash: {}", blockhash)));
                         info!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("  - Worker:"), worker_name);
                         info!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("  - Nonce:"), format!("{:x}", nonce_val));
+
+                        if let Some(coinbase_tx) = block.transactions.get(0) {
+                            let payload = &coinbase_tx.payload;
+                            let payload_ascii = String::from_utf8_lossy(payload);
+                            let payload_hex = hex::encode(payload);
+                            info!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("  - Coinbase payload (ASCII):"), payload_ascii);
+                            info!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("  - Coinbase payload (hex):"), payload_hex);
+                            let tag = b"Kaspa Stratum Mined block";
+                            if let Some(pos) = payload.windows(tag.len()).position(|w| w == tag) {
+                                info!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("  - Custom coinbase tag found at offset:"), pos);
+                            } else {
+                                info!("{} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("  - Custom coinbase tag not found in payload"));
+                            }
+                        }
                         
                         // Record block found statistics
                         let stats = self.get_create_stats(&ctx);
@@ -808,6 +838,7 @@ impl ShareHandler {
                     (shares > 0 || now.duration_since(v.start_time) < Duration::from_secs(WORKER_INITIAL_GRACE_PERIOD))
                         && now.duration_since(last_share) < Duration::from_secs(WORKER_INACTIVITY_TIMEOUT)
                 });
+                crate::prom::set_sharehandler_stats_entries(stats_map.len());
                 // Note: Pruning is silent, no logs needed
             }
         });
@@ -818,6 +849,12 @@ impl ShareHandler {
         let overall = Arc::clone(&self.overall);
         let prefix = self.log_prefix();
         let target_spm = Arc::clone(&self.target_spm);
+        // Derive a compact instance label like "Ins01" from the instance_id
+        let instance_id_src = self.instance_id.clone();
+        let instance_col = {
+            let digits: String = instance_id_src.chars().filter(|c| c.is_ascii_digit()).collect();
+            if let Ok(n) = digits.parse::<usize>() { format!("Ins{:02}", n) } else { instance_id_src }
+        };
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(STATS_PRINT_INTERVAL);
             let start = Instant::now();
@@ -865,7 +902,7 @@ impl ShareHandler {
                         None => (0.0, 0.0),
                     };
 
-                    let (trend, status) = if let Some(target) = target_spm_val {
+                    let (trend, _status) = if let Some(target) = target_spm_val {
                         if window_secs == 0.0 {
                             ("-", "warmup")
                         } else if target > 0.0 {
@@ -885,8 +922,18 @@ impl ShareHandler {
                     };
 
                     let worker_name = &*v.worker_name.lock();
+                    // Clamp worker name to fixed display width to preserve column alignment
+                    let worker_disp: String = {
+                        let s = worker_name.as_str();
+                        let mut it = s.chars();
+                        let mut out = String::with_capacity(16);
+                        for _ in 0..16 {
+                            if let Some(c) = it.next() { out.push(c); } else { break; }
+                        }
+                        out
+                    };
                     let diff_str = if diff > 0.0 { format!("{:.0}", diff) } else { "-".to_string() };
-                    let spm_str = if target_spm_val.is_some() && window_secs > 0.0 {
+                    let _spm_str = if target_spm_val.is_some() && window_secs > 0.0 {
                         format!("{:.1}", spm)
                     } else {
                         "-".to_string()
@@ -897,15 +944,24 @@ impl ShareHandler {
                         "-".to_string()
                     };
 
+                    // Compose compact SPM/target column for white-style table
+                    let spm_target = if target_spm_val.is_some() && window_secs > 0.0 {
+                        format!("{:.1}/{}", spm, target_str)
+                    } else if target_spm_val.is_some() {
+                        format!("-/{}", target_str)
+                    } else {
+                        "-".to_string()
+                    };
+
+                    // White-style row formatting (visual-only change)
                     lines.push(format!(
-                        " {:<22}| {:>14} | {:>8} | {:>6} | {:>7} | {:>7} | {:>7} | {:>13} | {:>6} | {:>11}",
-                        worker_name,
+                        " | {:<16} | {:<5} | {:>10} | {:>6} | {:>10} | {:>5} | {:>12} | {:>6} | {:>7} |",
+                        worker_disp,
+                        instance_col,
                         format_hashrate(rate),
                         diff_str,
-                        spm_str,
-                        target_str,
+                        spm_target,
                         trend,
-                        status,
                         format!("{}/{}/{}", shares, stales, invalids),
                         blocks,
                         uptime
@@ -914,26 +970,95 @@ impl ShareHandler {
                 
                 lines.sort();
                 drop(stats_map);
-                
-                info!("{} \n===============================================================================\n      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   \n-------------------------------------------------------------------------------\n{}\n-------------------------------------------------------------------------------\n                       | {:>14} | {:>8} | {:>6} | {:>7} | {:>7} | {:>7} | {:>13} | {:>6} | {:>11}\n========================================================== RustBridge V.1 ===\n",
-                    prefix,
-                    lines.join("\n"),
-                    format_hashrate(total_rate),
-                    "-",
-                    "-",
-                    if let Some(target) = target_spm_val { format!("{:.1}", target) } else { "-".to_string() },
-                    "-",
-                    if target_spm_val.is_some() { "vardiff".to_string() } else { "fixed".to_string() },
-                    format!("{}/{}/{}", 
-                        *overall.shares_found.lock(), 
-                        *overall.stale_shares.lock(), 
-                        *overall.invalid_shares.lock()),
-                    *overall.blocks_found.lock(),
-                    {
+
+                // Build header and separators dynamically to keep perfect alignment and full-width borders
+                let header_line = format!(
+                    " | {:<16} | {:<5} | {:>10} | {:>6} | {:>10} | {:>5} | {:>12} | {:>6} | {:>7} |",
+                    "Worker", "Inst", "Hash", "Diff", "SPM/tgt", "Trend", "Acc/Stl/Inv", "Blocks", "Time"
+                );
+                let width = header_line.len();
+                let sep_eq = "=".repeat(width);
+                let sep_dash = "-".repeat(width);
+
+                // Update global snapshot for this instance
+                let inst_num_opt = instance_col
+                    .chars()
+                    .filter(|c| c.is_ascii_digit())
+                    .collect::<String>()
+                    .parse::<usize>()
+                    .ok();
+                let snapshot = PrintSnapshot {
+                    lines: lines.clone(),
+                    total_rate,
+                    shares: *overall.shares_found.lock(),
+                    stales: *overall.stale_shares.lock(),
+                    invalids: *overall.invalid_shares.lock(),
+                    blocks: *overall.blocks_found.lock(),
+                    uptime: {
                         let overall_secs = start.elapsed().as_secs_f64();
                         format!("{:.1}m", overall_secs / 60.0)
+                    },
+                };
+                {
+                    let mut map = GLOBAL_PRINT_SNAPSHOTS.lock();
+                    map.insert(instance_col.clone(), snapshot);
+                }
+
+                // Only the first instance prints the consolidated table
+                let is_printer = inst_num_opt == Some(1);
+                if is_printer {
+                    let map = GLOBAL_PRINT_SNAPSHOTS.lock();
+                    let mut all_lines: Vec<String> = Vec::new();
+                    let mut sum_rate = 0.0;
+                    let mut sum_shares: i64 = 0;
+                    let mut sum_stales: i64 = 0;
+                    let mut sum_invalids: i64 = 0;
+                    let mut sum_blocks: i64 = 0;
+                    let mut max_uptime_secs: f64 = 0.0;
+
+                    // Deterministic order by instance label then row text
+                    let mut inst_keys: Vec<&String> = map.keys().collect();
+                    inst_keys.sort();
+                    for key in inst_keys {
+                        if let Some(snap) = map.get(key) {
+                            all_lines.extend(snap.lines.iter().cloned());
+                            sum_rate += snap.total_rate;
+                            sum_shares += snap.shares;
+                            sum_stales += snap.stales;
+                            sum_invalids += snap.invalids;
+                            sum_blocks += snap.blocks;
+                            if let Some(stripped) = snap.uptime.strip_suffix('m') {
+                                if let Ok(v) = stripped.parse::<f64>() { max_uptime_secs = max_uptime_secs.max(v * 60.0); }
+                            }
+                        }
                     }
-                );
+
+                    // Totals row uses the exact same formatter so columns line up 1:1
+                    let total_row = format!(
+                        " | {:<16} | {:<5} | {:>10} | {:>6} | {:>10} | {:>5} | {:>12} | {:>6} | {:>7} |",
+                        "TOTAL",
+                        "ALL",
+                        format_hashrate(sum_rate),
+                        "-",
+                        if let Some(target) = target_spm_val { format!("-/{:.1}", target) } else { "-".to_string() },
+                        "-",
+                        format!("{}/{}/{}", sum_shares, sum_stales, sum_invalids),
+                        sum_blocks,
+                        format!("{:.1}m", max_uptime_secs / 60.0)
+                    );
+
+                    info!(
+                        "{} \n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+                        prefix,
+                        sep_eq,
+                        header_line,
+                        sep_dash,
+                        all_lines.join("\n"),
+                        sep_dash,
+                        total_row,
+                        sep_eq
+                    );
+                }
             }
         });
     }

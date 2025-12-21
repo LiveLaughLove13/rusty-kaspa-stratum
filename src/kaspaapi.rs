@@ -20,6 +20,8 @@ use tokio::sync::mpsc;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
 
+ const STRATUM_COINBASE_TAG_BYTES: &[u8] = b"Kaspa Stratum Mined block";
+
 /// Kaspa API client wrapper using RPC client
 /// Both use gRPC under the hood, but through an RPC client wrapper abstraction
 pub struct KaspaApi {
@@ -315,7 +317,7 @@ impl KaspaApi {
 
             // Request block template using RPC client wrapper
             let response = match self.client
-                .get_block_template_call(None, GetBlockTemplateRequest::new(address, vec![]))
+                .get_block_template_call(None, GetBlockTemplateRequest::new(address, STRATUM_COINBASE_TAG_BYTES.to_vec()))
                 .await
             {
                 Ok(r) => r,
