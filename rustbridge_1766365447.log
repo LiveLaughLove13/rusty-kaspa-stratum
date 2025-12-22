@@ -1,0 +1,646 @@
+INFO  rustbridge_stratum_service: ----------------------------------
+INFO  rustbridge_stratum_service: initializing bridge (4 instances)
+INFO  rustbridge_stratum_service: 	kaspad:          127.0.0.1:16110 (shared)
+INFO  rustbridge_stratum_service: 	block wait:      1s
+INFO  rustbridge_stratum_service: 	print stats:     true
+INFO  rustbridge_stratum_service: 	var diff:        true
+INFO  rustbridge_stratum_service: 	shares per min:  20
+INFO  rustbridge_stratum_service: 	var diff stats:  true
+INFO  rustbridge_stratum_service: 	pow2 clamp:      true
+INFO  rustbridge_stratum_service: 	extranonce:      auto-detected per client
+INFO  rustbridge_stratum_service: 	health check:    
+INFO  rustbridge_stratum_service: 	--- Instance 1 ---
+INFO  rustbridge_stratum_service: 	  stratum:       :5555
+INFO  rustbridge_stratum_service: 	  min diff:      2048
+INFO  rustbridge_stratum_service: 	  prom:          :2114
+INFO  rustbridge_stratum_service: 	  log to file:   true
+INFO  rustbridge_stratum_service: 	--- Instance 2 ---
+INFO  rustbridge_stratum_service: 	  stratum:       :5556
+INFO  rustbridge_stratum_service: 	  min diff:      4096
+INFO  rustbridge_stratum_service: 	  prom:          :2115
+INFO  rustbridge_stratum_service: 	  log to file:   true
+INFO  rustbridge_stratum_service: 	--- Instance 3 ---
+INFO  rustbridge_stratum_service: 	  stratum:       :5557
+INFO  rustbridge_stratum_service: 	  min diff:      8192
+INFO  rustbridge_stratum_service: 	  prom:          :2116
+INFO  rustbridge_stratum_service: 	  log to file:   true
+INFO  rustbridge_stratum_service: 	--- Instance 4 ---
+INFO  rustbridge_stratum_service: 	  stratum:       :5558
+INFO  rustbridge_stratum_service: 	  min diff:      16384
+INFO  rustbridge_stratum_service: 	  prom:          :2117
+INFO  rustbridge_stratum_service: 	  log to file:   true
+INFO  rustbridge_stratum_service: ----------------------------------
+INFO  rustbridge::kaspaapi: Connecting to Kaspa node at 127.0.0.1:16110
+INFO  rustbridge_stratum_service: All 4 instance(s) started, waiting for completion...
+INFO  rustbridge_stratum_service: [Instance 4] Starting on stratum port :5558
+INFO  rustbridge_stratum_service: [Instance 3] Starting on stratum port :5557
+INFO  rustbridge_stratum_service: [Instance 1] Starting on stratum port :5555
+INFO  rustbridge_stratum_service: [Instance 2] Starting on stratum port :5556
+WARN  rustbridge::stratum_server: Using polling-based block template listener (concrete KaspaApi not provided, notifications not available)
+WARN  rustbridge::stratum_server: Using polling-based block template listener (concrete KaspaApi not provided, notifications not available)
+INFO  rustbridge::share_handler: [[Instance 4]] VarDiff enabled (target=20 shares/min, tick=10s, pow2_clamp=true)
+INFO  rustbridge::share_handler: [[Instance 3]] VarDiff enabled (target=20 shares/min, tick=10s, pow2_clamp=true)
+INFO  rustbridge::stratum_server: [Instance 1] Starting stratum listener on :5555
+INFO  rustbridge::share_handler: [[Instance 1]] VarDiff enabled (target=20 shares/min, tick=10s, pow2_clamp=true)
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.0m
+========================================================== RustBridge V.1 ===
+
+WARN  rustbridge::stratum_server: Using polling-based block template listener (concrete KaspaApi not provided, notifications not available)
+INFO  rustbridge::share_handler: [[Instance 2]] VarDiff enabled (target=20 shares/min, tick=10s, pow2_clamp=true)
+INFO  rustbridge::stratum_server: [Instance 4] Starting stratum listener on :5558
+INFO  rustbridge::stratum_server: [Instance 3] Starting stratum listener on :5557
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::stratum_server: [Instance 2] Starting stratum listener on :5556
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       8.24TH/s |     8192 |   14.0 |    20.0 |    down | vardiff |         2/0/0 |      0 |        0.1m
+-------------------------------------------------------------------------------
+                       |       8.24TH/s |        - |      - |    20.0 |       - | vardiff |         2/0/0 |      0 |        0.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       0.00MH/s |     4096 |    0.0 |    20.0 |    down | vardiff |         0/0/0 |      0 |        0.1m
+ miner                 |       2.06TH/s |     4096 |    7.0 |    20.0 |    down | vardiff |         1/0/0 |      0 |        0.1m
+-------------------------------------------------------------------------------
+                       |       2.06TH/s |        - |      - |    20.0 |       - | vardiff |         1/0/0 |      0 |        0.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.06TH/s |     2048 |   14.0 |    20.0 |    down | vardiff |         2/0/0 |      0 |        0.1m
+-------------------------------------------------------------------------------
+                       |       2.06TH/s |        - |      - |    20.0 |       - | vardiff |         2/0/0 |      0 |        0.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       5.69TH/s |     8192 |    9.7 |    20.0 |    down | vardiff |         3/0/0 |      0 |        0.3m
+-------------------------------------------------------------------------------
+                       |       5.69TH/s |        - |      - |    20.0 |       - | vardiff |         3/0/0 |      0 |        0.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       3.79TH/s |     2048 |   25.9 |    20.0 |      up | vardiff |         8/0/0 |      0 |        0.3m
+-------------------------------------------------------------------------------
+                       |       3.79TH/s |        - |      - |    20.0 |       - | vardiff |         8/0/0 |      0 |        0.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       1.90TH/s |     4096 |    6.5 |    20.0 |    down | vardiff |         2/0/0 |      0 |        0.3m
+ miner                 |       3.79TH/s |     4096 |   12.9 |    20.0 |    down | vardiff |         4/0/0 |      0 |        0.3m
+-------------------------------------------------------------------------------
+                       |       5.69TH/s |        - |      - |    20.0 |       - | vardiff |         6/0/0 |      0 |        0.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.7m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       3.70TH/s |     8192 |    6.3 |    20.0 |    down | vardiff |         3/0/0 |      0 |        0.5m
+-------------------------------------------------------------------------------
+                       |       3.70TH/s |        - |      - |    20.0 |       - | vardiff |         3/0/0 |      0 |        0.7m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       3.70TH/s |     4096 |   12.6 |    20.0 |    down | vardiff |         6/0/0 |      0 |        0.5m
+ miner                 |       3.70TH/s |     4096 |   12.6 |    20.0 |    down | vardiff |         6/0/0 |      0 |        0.5m
+-------------------------------------------------------------------------------
+                       |       7.39TH/s |        - |      - |    20.0 |       - | vardiff |        12/0/0 |      0 |        0.7m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       3.08TH/s |     2048 |   21.0 |    20.0 |    flat | vardiff |        10/0/0 |      0 |        0.5m
+-------------------------------------------------------------------------------
+                       |       3.08TH/s |        - |      - |    20.0 |       - | vardiff |        10/0/0 |      0 |        0.7m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] VarDiff: 10.9 spm (target 20.0), shares=7, window=39s, diff 4096 -> 2048
+INFO  rustbridge::share_handler: [[Instance 3]] VarDiff: 4.7 spm (target 20.0), shares=3, window=39s, diff 8192 -> 4096
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.8m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.74TH/s |     2048 |   18.7 |    20.0 |    flat | vardiff |        12/0/0 |      0 |        0.6m
+-------------------------------------------------------------------------------
+                       |       2.74TH/s |        - |      - |    20.0 |       - | vardiff |        12/0/0 |      0 |        0.8m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] VarDiff: 9.3 spm (target 20.0), shares=6, window=39s, diff 4096 -> 2048
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.74TH/s |     4096 |    0.0 |    20.0 |    down | vardiff |         3/0/0 |      0 |        0.6m
+-------------------------------------------------------------------------------
+                       |       2.74TH/s |        - |      - |    20.0 |       - | vardiff |         3/0/0 |      0 |        0.8m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       3.19TH/s |     2048 |    0.0 |    20.0 |    down | vardiff |         7/0/0 |      0 |        0.6m
+ miner                 |       2.74TH/s |     2048 |    0.0 |    20.0 |    down | vardiff |         6/0/0 |      0 |        0.6m
+-------------------------------------------------------------------------------
+                       |       5.93TH/s |        - |      - |    20.0 |       - | vardiff |        13/0/0 |      0 |        0.8m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       3.26TH/s |     2048 |   24.0 |    20.0 |    flat | vardiff |        11/0/0 |      0 |        0.8m
+ miner                 |       2.72TH/s |     2048 |   18.0 |    20.0 |    flat | vardiff |         9/0/0 |      0 |        0.8m
+-------------------------------------------------------------------------------
+                       |       5.98TH/s |        - |      - |    20.0 |       - | vardiff |        20/0/0 |      0 |        1.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        1.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.54TH/s |     4096 |    6.0 |    20.0 |    down | vardiff |         4/0/0 |      0 |        0.8m
+-------------------------------------------------------------------------------
+                       |       2.54TH/s |        - |      - |    20.0 |       - | vardiff |         4/0/0 |      0 |        1.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.90TH/s |     2048 |   19.8 |    20.0 |    flat | vardiff |        16/0/0 |      0 |        0.8m
+-------------------------------------------------------------------------------
+                       |       2.90TH/s |        - |      - |    20.0 |       - | vardiff |        16/0/0 |      0 |        1.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        1.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.10TH/s |     4096 |    3.0 |    20.0 |    down | vardiff |         4/0/0 |      0 |        1.0m
+-------------------------------------------------------------------------------
+                       |       2.10TH/s |        - |      - |    20.0 |       - | vardiff |         4/0/0 |      0 |        1.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.70TH/s |     2048 |   18.4 |    20.0 |    flat | vardiff |        18/0/0 |      0 |        1.0m
+-------------------------------------------------------------------------------
+                       |       2.70TH/s |        - |      - |    20.0 |       - | vardiff |        18/0/0 |      0 |        1.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       3.00TH/s |     2048 |   18.0 |    20.0 |    flat | vardiff |        13/0/0 |      0 |        1.0m
+ miner                 |       2.55TH/s |     2048 |   15.0 |    20.0 |    down | vardiff |        11/0/0 |      0 |        1.0m
+-------------------------------------------------------------------------------
+                       |       5.56TH/s |        - |      - |    20.0 |       - | vardiff |        24/0/0 |      0 |        1.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] VarDiff: 14.0 spm (target 20.0), shares=7, window=30s, diff 2048 -> 1024
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        1.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.05TH/s |     4096 |    4.0 |    20.0 |    down | vardiff |         5/0/0 |      0 |        1.1m
+-------------------------------------------------------------------------------
+                       |       2.05TH/s |        - |      - |    20.0 |       - | vardiff |         5/0/0 |      0 |        1.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.69TH/s |     2048 |   18.4 |    20.0 |    flat | vardiff |        21/0/0 |      0 |        1.1m
+-------------------------------------------------------------------------------
+                       |       2.69TH/s |        - |      - |    20.0 |       - | vardiff |        21/0/0 |      0 |        1.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.69TH/s |     1024 |    0.0 |    20.0 |    down | vardiff |        14/0/0 |      0 |        1.1m
+ miner                 |       2.57TH/s |     2048 |   16.0 |    20.0 |    flat | vardiff |        14/0/0 |      0 |        1.1m
+-------------------------------------------------------------------------------
+                       |       5.26TH/s |        - |      - |    20.0 |       - | vardiff |        28/0/0 |      0 |        1.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        1.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       1.79TH/s |     4096 |    3.0 |    20.0 |    down | vardiff |         5/0/0 |      0 |        1.3m
+-------------------------------------------------------------------------------
+                       |       1.79TH/s |        - |      - |    20.0 |       - | vardiff |         5/0/0 |      0 |        1.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.58TH/s |     1024 |   24.0 |    20.0 |    flat | vardiff |        18/0/0 |      0 |        1.3m
+ miner                 |       2.69TH/s |     2048 |   18.0 |    20.0 |    flat | vardiff |        18/0/0 |      0 |        1.3m
+-------------------------------------------------------------------------------
+                       |       5.26TH/s |        - |      - |    20.0 |       - | vardiff |        36/0/0 |      0 |        1.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.46TH/s |     2048 |   16.8 |    20.0 |    flat | vardiff |        22/0/0 |      0 |        1.3m
+-------------------------------------------------------------------------------
+                       |       2.46TH/s |        - |      - |    20.0 |       - | vardiff |        22/0/0 |      0 |        1.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] VarDiff: 14.9 spm (target 20.0), shares=22, window=89s, diff 2048 -> 1024
+INFO  rustbridge::share_handler: [[Instance 3]] VarDiff: 4.8 spm (target 20.0), shares=4, window=50s, diff 4096 -> 2048
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        1.7m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.63TH/s |     1024 |   33.0 |    20.0 |      up | vardiff |        25/0/0 |      0 |        1.5m
+ miner                 |       2.78TH/s |     2048 |   19.2 |    20.0 |    flat | vardiff |        22/0/0 |      0 |        1.5m
+-------------------------------------------------------------------------------
+                       |       5.41TH/s |        - |      - |    20.0 |       - | vardiff |        47/0/0 |      0 |        1.7m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.19TH/s |     1024 |    0.0 |    20.0 |    down | vardiff |        22/0/0 |      0 |        1.5m
+-------------------------------------------------------------------------------
+                       |       2.19TH/s |        - |      - |    20.0 |       - | vardiff |        22/0/0 |      0 |        1.7m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       1.99TH/s |     2048 |    0.0 |    20.0 |    down | vardiff |         7/0/0 |      0 |        1.5m
+-------------------------------------------------------------------------------
+                       |       1.99TH/s |        - |      - |    20.0 |       - | vardiff |         7/0/0 |      0 |        1.7m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        1.8m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.19TH/s |     1024 |   30.3 |    20.0 |      up | vardiff |        27/0/0 |      0 |        1.6m
+-------------------------------------------------------------------------------
+                       |       2.19TH/s |        - |      - |    20.0 |       - | vardiff |        27/0/0 |      0 |        1.8m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.54TH/s |     1024 |   30.0 |    20.0 |      up | vardiff |        29/0/0 |      0 |        1.6m
+ miner                 |       2.86TH/s |     2048 |   20.0 |    20.0 |    flat | vardiff |        26/0/0 |      0 |        1.6m
+-------------------------------------------------------------------------------
+                       |       5.40TH/s |        - |      - |    20.0 |       - | vardiff |        55/0/0 |      0 |        1.8m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.14TH/s |     2048 |   24.0 |    20.0 |    flat | vardiff |        11/0/0 |      0 |        1.6m
+-------------------------------------------------------------------------------
+                       |       2.14TH/s |        - |      - |    20.0 |       - | vardiff |        11/0/0 |      0 |        1.8m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        2.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.11TH/s |     2048 |   18.0 |    20.0 |    flat | vardiff |        13/0/0 |      0 |        1.8m
+-------------------------------------------------------------------------------
+                       |       2.11TH/s |        - |      - |    20.0 |       - | vardiff |        13/0/0 |      0 |        2.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.51TH/s |     1024 |   30.0 |    20.0 |      up | vardiff |        34/0/0 |      0 |        1.8m
+ miner                 |       2.84TH/s |     2048 |   19.7 |    20.0 |    flat | vardiff |        29/0/0 |      0 |        1.8m
+-------------------------------------------------------------------------------
+                       |       5.35TH/s |        - |      - |    20.0 |       - | vardiff |        63/0/0 |      0 |        2.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] VarDiff: 30.0 spm (target 20.0), shares=20, window=40s, diff 1024 -> 2048
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.23TH/s |     1024 |   33.2 |    20.0 |      up | vardiff |        33/0/0 |      0 |        1.8m
+-------------------------------------------------------------------------------
+                       |       2.23TH/s |        - |      - |    20.0 |       - | vardiff |        33/0/0 |      0 |        2.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        2.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.30TH/s |     2048 |   22.0 |    20.0 |    flat | vardiff |        18/0/0 |      0 |        2.0m
+-------------------------------------------------------------------------------
+                       |       2.30TH/s |        - |      - |    20.0 |       - | vardiff |        18/0/0 |      0 |        2.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.15TH/s |     1024 |   28.1 |    20.0 |      up | vardiff |        36/0/0 |      0 |        2.0m
+-------------------------------------------------------------------------------
+                       |       2.15TH/s |        - |      - |    20.0 |       - | vardiff |        36/0/0 |      0 |        2.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.75TH/s |     2048 |   36.0 |    20.0 |      up | vardiff |        40/0/0 |      0 |        2.0m
+ miner                 |       2.60TH/s |     2048 |   17.3 |    20.0 |    flat | vardiff |        29/0/0 |      0 |        2.0m
+-------------------------------------------------------------------------------
+                       |       5.34TH/s |        - |      - |    20.0 |       - | vardiff |        69/0/0 |      0 |        2.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        2.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.67TH/s |     2048 |   24.0 |    20.0 |    flat | vardiff |        42/0/0 |      0 |        2.1m
+ miner                 |       2.53TH/s |     2048 |   16.7 |    20.0 |    flat | vardiff |        31/0/0 |      0 |        2.1m
+-------------------------------------------------------------------------------
+                       |       5.20TH/s |        - |      - |    20.0 |       - | vardiff |        73/0/0 |      0 |        2.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.39TH/s |     2048 |   22.5 |    20.0 |    flat | vardiff |        22/0/0 |      0 |        2.1m
+-------------------------------------------------------------------------------
+                       |       2.39TH/s |        - |      - |    20.0 |       - | vardiff |        22/0/0 |      0 |        2.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.05TH/s |     1024 |   24.1 |    20.0 |    flat | vardiff |        38/0/0 |      0 |        2.1m
+-------------------------------------------------------------------------------
+                       |       2.05TH/s |        - |      - |    20.0 |       - | vardiff |        38/0/0 |      0 |        2.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        2.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       2.41TH/s |     2048 |   21.6 |    20.0 |    flat | vardiff |        25/0/0 |      0 |        2.3m
+-------------------------------------------------------------------------------
+                       |       2.41TH/s |        - |      - |    20.0 |       - | vardiff |        25/0/0 |      0 |        2.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       2.00TH/s |     1024 |   22.8 |    20.0 |    flat | vardiff |        41/0/0 |      0 |        2.3m
+-------------------------------------------------------------------------------
+                       |       2.00TH/s |        - |      - |    20.0 |       - | vardiff |        41/0/0 |      0 |        2.5m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.67TH/s |     2048 |   22.0 |    20.0 |    flat | vardiff |        45/0/0 |      0 |        2.3m
+ miner                 |       2.67TH/s |     2048 |   18.0 |    20.0 |    flat | vardiff |        36/0/0 |      0 |        2.3m
+-------------------------------------------------------------------------------
+                       |       5.33TH/s |        - |      - |    20.0 |       - | vardiff |        81/0/0 |      0 |        2.5m
+========================================================== RustBridge V.1 ===
+
