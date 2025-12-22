@@ -1,0 +1,160 @@
+INFO  rustbridge: ----------------------------------
+INFO  rustbridge: initializing bridge (4 instances)
+INFO  rustbridge: 	kaspad:          127.0.0.1:16110 (shared)
+INFO  rustbridge: 	block wait:      1s
+INFO  rustbridge: 	print stats:     true
+INFO  rustbridge: 	var diff:        true
+INFO  rustbridge: 	shares per min:  20
+INFO  rustbridge: 	var diff stats:  true
+INFO  rustbridge: 	pow2 clamp:      true
+INFO  rustbridge: 	extranonce:      auto-detected per client
+INFO  rustbridge: 	health check:    
+INFO  rustbridge: 	--- Instance 1 ---
+INFO  rustbridge: 	  stratum:       :5555
+INFO  rustbridge: 	  min diff:      2048
+INFO  rustbridge: 	  prom:          :2114
+INFO  rustbridge: 	  log to file:   true
+INFO  rustbridge: 	--- Instance 2 ---
+INFO  rustbridge: 	  stratum:       :5556
+INFO  rustbridge: 	  min diff:      4096
+INFO  rustbridge: 	  prom:          :2115
+INFO  rustbridge: 	  log to file:   true
+INFO  rustbridge: 	--- Instance 3 ---
+INFO  rustbridge: 	  stratum:       :5557
+INFO  rustbridge: 	  min diff:      8192
+INFO  rustbridge: 	  prom:          :2116
+INFO  rustbridge: 	  log to file:   true
+INFO  rustbridge: 	--- Instance 4 ---
+INFO  rustbridge: 	  stratum:       :5558
+INFO  rustbridge: 	  min diff:      16384
+INFO  rustbridge: 	  prom:          :2117
+INFO  rustbridge: 	  log to file:   true
+INFO  rustbridge: ----------------------------------
+INFO  rustbridge::kaspaapi: Connecting to Kaspa node at 127.0.0.1:16110
+INFO  rustbridge: All 4 instance(s) started, waiting for completion...
+INFO  rustbridge: [Instance 1] Starting on stratum port :5555
+INFO  rustbridge: [Instance 2] Starting on stratum port :5556
+INFO  rustbridge: [Instance 3] Starting on stratum port :5557
+INFO  rustbridge: [Instance 4] Starting on stratum port :5558
+WARN  rustbridge::stratum_server: Using polling-based block template listener (concrete KaspaApi not provided, notifications not available)
+INFO  rustbridge::stratum_server: [Instance 1] Starting stratum listener on :5555
+WARN  rustbridge::stratum_server: Using polling-based block template listener (concrete KaspaApi not provided, notifications not available)
+INFO  rustbridge::share_handler: [[Instance 2]] VarDiff enabled (target=20 shares/min, tick=10s, pow2_clamp=true)
+INFO  rustbridge::share_handler: [[Instance 1]] VarDiff enabled (target=20 shares/min, tick=10s, pow2_clamp=true)
+INFO  rustbridge::share_handler: [[Instance 3]] VarDiff enabled (target=20 shares/min, tick=10s, pow2_clamp=true)
+WARN  rustbridge::stratum_server: Using polling-based block template listener (concrete KaspaApi not provided, notifications not available)
+INFO  rustbridge::share_handler: [[Instance 4]] VarDiff enabled (target=20 shares/min, tick=10s, pow2_clamp=true)
+INFO  rustbridge::stratum_server: [Instance 2] Starting stratum listener on :5556
+INFO  rustbridge::stratum_server: [Instance 3] Starting stratum listener on :5557
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.0m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::stratum_server: [Instance 4] Starting stratum listener on :5558
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.2m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.2m
+========================================================== RustBridge V.1 ===
+
+WARN  rustbridge::share_handler: [SUBMIT] Job ID 2531 not found at slot 131 (current counter: 1, stored IDs: [1])
+WARN  rustbridge::share_handler: [SUBMIT] Job ID 2531 not found at slot 131 (current counter: 1, stored IDs: [1])
+INFO  rustbridge::share_handler: [[Instance 1]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2lite               |       5.79TH/s |     2048 |   39.5 |    20.0 |      up | vardiff |         4/0/0 |      0 |        0.1m
+-------------------------------------------------------------------------------
+                       |       5.79TH/s |        - |      - |    20.0 |       - | vardiff |         4/0/0 |      0 |        0.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 4]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 2]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest4          |       2.90TH/s |     4096 |    9.9 |    20.0 |    down | vardiff |         1/0/0 |      0 |        0.1m
+ miner                 |       0.00MH/s |     4096 |    0.0 |    20.0 |    down | vardiff |         0/0/0 |      0 |        0.1m
+-------------------------------------------------------------------------------
+                       |       2.90TH/s |        - |      - |    20.0 |       - | vardiff |         1/0/0 |      0 |        0.3m
+========================================================== RustBridge V.1 ===
+
+INFO  rustbridge::share_handler: [[Instance 3]] 
+===============================================================================
+      worker name      |  avg hashrate  |    diff |   spm |  target |  trend |  status |  acc/stl/inv  | blocks |    uptime   
+-------------------------------------------------------------------------------
+ ks2litetest2          |       0.00MH/s |     8192 |    0.0 |    20.0 |    down | vardiff |         0/0/0 |      0 |        0.1m
+-------------------------------------------------------------------------------
+                       |       0.00MH/s |        - |      - |    20.0 |       - | vardiff |         0/0/0 |      0 |        0.3m
+========================================================== RustBridge V.1 ===
+
