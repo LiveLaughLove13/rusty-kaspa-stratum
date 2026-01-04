@@ -27,7 +27,7 @@ struct Cli {
     #[arg(long, value_enum)]
     node_mode: Option<NodeMode>,
 
-    #[arg(long)]
+    #[arg(long, default_value = "--utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110 --disable-upnp")]
     node_args: Option<String>,
 
     #[arg(long, action = clap::ArgAction::Append)]
@@ -133,7 +133,7 @@ async fn main() -> Result<(), anyhow::Error> {
     }
     node_args.extend(cli.node_arg.iter().cloned());
 
-    let inferred_mode = if !node_args.is_empty() { NodeMode::Inprocess } else { NodeMode::External };
+    let inferred_mode = if !node_args.is_empty() { NodeMode::Inprocess } else { NodeMode::Inprocess };
     let node_mode = cli.node_mode.unwrap_or(inferred_mode);
 
     // Load config first to check if file logging is enabled
