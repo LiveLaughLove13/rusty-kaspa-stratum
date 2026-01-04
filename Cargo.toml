@@ -8,18 +8,18 @@ license = "ISC"
 repository = "https://github.com/kaspanet/rusty-kaspa"
 
 [dependencies]
-# Kaspa dependencies - using git versions
-kaspa-consensus-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-hashes = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-pow = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-addresses = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-rpc-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-rpc-service = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-grpc-client = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-notify = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspa-utils = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-kaspad = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
+# Kaspa dependencies - aligned with BridgeBinary branch
+kaspa-consensus-core = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-hashes = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-pow = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-addresses = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-rpc-core = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-rpc-service = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-grpc-client = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-notify = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-core = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspa-utils = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
+kaspad = { git = "https://github.com/LiveLaughLove13/rusty-kaspa.git", branch = "BridgeBinary" }
 
 # External dependencies
 tokio = { version = "1.32", features = ["full"] }
@@ -51,13 +51,12 @@ blake2 = "0.10"
 num-bigint = "0.4"
 faster-hex = "0.1"
 windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Console"] }
+tracing-log = "0.2.0"
+chrono = "0.4.42"
 
 [dev-dependencies]
 tokio-test = "0.4"
 
-[[bin]]
-name = "kaspa-stratum-bridge"
-path = "src/main.rs"
 
 [[bin]]
 name = "stratum-bridge"

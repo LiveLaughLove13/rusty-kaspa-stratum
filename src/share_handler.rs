@@ -15,7 +15,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde_json::Value;
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -27,6 +27,8 @@ const VAR_DIFF_THREAD_SLEEP: u64 = 10;
 const WORK_WINDOW: u64 = 80;
 const STATS_PRUNE_INTERVAL: Duration = Duration::from_secs(60);
 const STATS_PRINT_INTERVAL: Duration = Duration::from_secs(10);
+const BLOCK_CONFIRM_RETRY_DELAY: Duration = Duration::from_secs(2);
+const BLOCK_CONFIRM_MAX_ATTEMPTS: usize = 30;
 
 // VarDiff tunables
 const VARDIFF_MIN_ELAPSED_SECS: f64 = 30.0;
@@ -150,12 +152,86 @@ impl WorkStats {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DuplicateSubmitOutcome {
+    InFlight,
+    Accepted,
+    Stale,
+    LowDiff,
+    Bad,
+}
+
+struct DuplicateSubmitEntry {
+    ts: Instant,
+    outcome: DuplicateSubmitOutcome,
+}
+
+struct DuplicateSubmitGuard {
+    ttl: Duration,
+    max_entries: usize,
+    entries: HashMap<String, DuplicateSubmitEntry>,
+    order: VecDeque<String>,
+}
+
+impl DuplicateSubmitGuard {
+    fn new(ttl: Duration, max_entries: usize) -> Self {
+        Self { ttl, max_entries, entries: HashMap::new(), order: VecDeque::new() }
+    }
+
+    fn prune(&mut self, now: Instant) {
+        while let Some(front) = self.order.front() {
+            let remove = match self.entries.get(front) {
+                Some(e) => now.duration_since(e.ts) > self.ttl,
+                None => true,
+            };
+            if remove {
+                if let Some(key) = self.order.pop_front() {
+                    self.entries.remove(&key);
+                }
+            } else {
+                break;
+            }
+        }
+
+        while self.entries.len() > self.max_entries {
+            if let Some(key) = self.order.pop_front() {
+                self.entries.remove(&key);
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn get(&mut self, key: &str, now: Instant) -> Option<DuplicateSubmitOutcome> {
+        self.prune(now);
+        self.entries.get(key).map(|e| e.outcome)
+    }
+
+    fn insert_inflight(&mut self, key: String, now: Instant) {
+        self.prune(now);
+        if self.entries.contains_key(&key) {
+            return;
+        }
+        self.entries.insert(key.clone(), DuplicateSubmitEntry { ts: now, outcome: DuplicateSubmitOutcome::InFlight });
+        self.order.push_back(key);
+    }
+
+    fn set_outcome(&mut self, key: &str, now: Instant, outcome: DuplicateSubmitOutcome) {
+        self.prune(now);
+        if let Some(e) = self.entries.get_mut(key) {
+            e.ts = now;
+            e.outcome = outcome;
+        }
+    }
+}
+
 pub struct ShareHandler {
     #[allow(dead_code)]
     tip_blue_score: Arc<Mutex<u64>>,
     stats: Arc<Mutex<HashMap<String, WorkStats>>>,
     overall: Arc<WorkStats>,
     instance_id: String, // Instance identifier for logging
+    duplicate_submit_guard: Arc<Mutex<DuplicateSubmitGuard>>,
 }
 
 impl ShareHandler {
@@ -165,6 +241,7 @@ impl ShareHandler {
             stats: Arc::new(Mutex::new(HashMap::new())),
             overall: Arc::new(WorkStats::new("overall".to_string())),
             instance_id,
+            duplicate_submit_guard: Arc::new(Mutex::new(DuplicateSubmitGuard::new(Duration::from_secs(180), 50_000))),
         }
     }
 
@@ -180,7 +257,7 @@ impl ShareHandler {
             if !worker_name.is_empty() {
                 worker_name.clone()
             } else {
-                format!("{}:{}", ctx.remote_addr(), ctx.remote_port())
+                ctx.remote_addr().to_string()
             }
         };
 
@@ -196,6 +273,7 @@ impl ShareHandler {
         let wallet_addr = ctx.wallet_addr.lock().clone();
         let worker_name = stats.worker_name.lock().clone();
         init_worker_counters(&crate::prom::WorkerContext {
+            instance_id: self.instance_id.clone(),
             worker_name: worker_name.clone(),
             miner: String::new(),
             wallet: wallet_addr.clone(),
@@ -230,7 +308,7 @@ impl ShareHandler {
         if event.params.len() < 3 {
             tracing::error!("{} [SUBMIT] ERROR: Expected at least 3 params, got {}", prefix, event.params.len());
             let wallet_addr = ctx.wallet_addr.lock().clone();
-            record_worker_error(&wallet_addr, ErrorShortCode::BadDataFromMiner.as_str());
+            record_worker_error(&self.instance_id, &wallet_addr, ErrorShortCode::BadDataFromMiner.as_str());
             return Err("malformed event, expected at least 3 params".into());
         }
 
@@ -318,7 +396,7 @@ impl ShareHandler {
                 );
                 // Job doesn't exist - fail immediately
                 let wallet_addr = ctx.wallet_addr.lock().clone();
-                record_worker_error(&wallet_addr, ErrorShortCode::MissingJob.as_str());
+                record_worker_error(&self.instance_id, &wallet_addr, ErrorShortCode::MissingJob.as_str());
                 return Err("job does not exist. stale?".into());
             }
         };
@@ -363,6 +441,51 @@ impl ShareHandler {
 
         tracing::debug!("[SUBMIT] Parsed nonce value (u64): {}", nonce_val);
         tracing::debug!("[SUBMIT] Nonce hex: {:016x}", nonce_val);
+
+        let worker_id = {
+            let worker_name = ctx.worker_name.lock();
+            if !worker_name.is_empty() {
+                worker_name.clone()
+            } else {
+                format!("{}:{}", ctx.remote_addr(), ctx.remote_port())
+            }
+        };
+        let submit_key = format!("{}|{}|{}", worker_id, job_id, final_nonce_str);
+
+        let duplicate_outcome = {
+            let now = Instant::now();
+            let mut guard = self.duplicate_submit_guard.lock();
+            if let Some(outcome) = guard.get(&submit_key, now) {
+                Some(outcome)
+            } else {
+                guard.insert_inflight(submit_key.clone(), now);
+                None
+            }
+        };
+
+        if let Some(outcome) = duplicate_outcome {
+            match outcome {
+                DuplicateSubmitOutcome::Accepted | DuplicateSubmitOutcome::InFlight => {
+                    ctx.reply(JsonRpcResponse { id: event.id.clone(), result: Some(serde_json::Value::Bool(true)), error: None })
+                        .await?;
+                    return Ok(());
+                }
+                DuplicateSubmitOutcome::Stale => {
+                    ctx.reply_stale_share(event.id.clone()).await?;
+                    return Ok(());
+                }
+                DuplicateSubmitOutcome::LowDiff => {
+                    if let Some(id) = &event.id {
+                        let _ = ctx.reply_low_diff_share(id).await;
+                    }
+                    return Ok(());
+                }
+                DuplicateSubmitOutcome::Bad => {
+                    ctx.reply_bad_share(event.id.clone()).await?;
+                    return Ok(());
+                }
+            }
+        }
 
         // PoW validation with job ID workaround
         // Go validates the submitted job first, then tries previous jobs if share doesn't meet pool difficulty
@@ -688,25 +811,63 @@ impl ShareHandler {
                             format!("{:x}", nonce_val)
                         );
 
-                        // Record block found statistics
                         let stats = self.get_create_stats(&ctx);
-                        *stats.blocks_found.lock() += 1;
-                        *self.overall.blocks_found.lock() += 1;
+                        let overall = self.overall.clone();
+                        let instance_id = self.instance_id.clone();
+                        let prom_worker = crate::prom::WorkerContext {
+                            instance_id: self.instance_id.clone(),
+                            worker_name: worker_name.clone(),
+                            miner: String::new(),
+                            wallet: wallet_addr.clone(),
+                            ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
+                        };
 
-                        record_block_found(
-                            &crate::prom::WorkerContext {
-                                worker_name: worker_name.clone(),
-                                miner: String::new(),
-                                wallet: wallet_addr.clone(),
-                                ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
-                            },
-                            nonce_val,
-                            blue_score,
-                            block_hash.clone(),
-                        );
+                        record_block_accepted_by_node(&prom_worker);
+
+                        let kaspa_api = Arc::clone(&kaspa_api);
+                        let block_hash_for_confirm = block_hash.clone();
+
+                        tokio::spawn(async move {
+                            for _ in 0..BLOCK_CONFIRM_MAX_ATTEMPTS {
+                                match kaspa_api.get_current_block_color(&block_hash_for_confirm).await {
+                                    Ok(true) => {
+                                        *stats.blocks_found.lock() += 1;
+                                        *overall.blocks_found.lock() += 1;
+                                        record_block_found(&prom_worker, nonce_val, blue_score, block_hash_for_confirm.clone());
+                                        info!(
+                                            "[{}] {} {}",
+                                            instance_id,
+                                            LogColors::block("[BLOCK]"),
+                                            LogColors::block(&format!(
+                                                "✓ Block confirmed BLUE in DAG! Hash: {}",
+                                                block_hash_for_confirm
+                                            ))
+                                        );
+                                        return;
+                                    }
+                                    Ok(false) => {
+                                        tokio::time::sleep(BLOCK_CONFIRM_RETRY_DELAY).await;
+                                    }
+                                    Err(_) => {
+                                        tokio::time::sleep(BLOCK_CONFIRM_RETRY_DELAY).await;
+                                    }
+                                }
+                            }
+
+                            record_block_not_confirmed_blue(&prom_worker);
+                            info!(
+                                "[{}] {} {}",
+                                instance_id,
+                                LogColors::block("[BLOCK]"),
+                                LogColors::label(&format!(
+                                    "ℹ Block not confirmed blue after {} attempts (not counted as Blocks). Hash: {}",
+                                    BLOCK_CONFIRM_MAX_ATTEMPTS, block_hash_for_confirm
+                                ))
+                            );
+                        });
 
                         // Return allows HandleSubmit to record share (blocks are shares too!)
-                        // After successful block submission, continue to record share at end of function
+                        // After successful block submission, continue to record the share
                         // Don't return early - let the code continue to record the share
                         invalid_share = false;
                         break;
@@ -732,11 +893,18 @@ impl ShareHandler {
                                 "Block was already submitted to the network (stale/duplicate)"
                             );
 
+                            {
+                                let now = Instant::now();
+                                let mut guard = self.duplicate_submit_guard.lock();
+                                guard.set_outcome(&submit_key, now, DuplicateSubmitOutcome::Stale);
+                            }
+
                             let stats = self.get_create_stats(&ctx);
                             *stats.stale_shares.lock() += 1;
                             *self.overall.stale_shares.lock() += 1;
 
                             record_stale_share(&crate::prom::WorkerContext {
+                                instance_id: self.instance_id.clone(),
                                 worker_name: worker_name.clone(),
                                 miner: String::new(),
                                 wallet: wallet_addr.clone(),
@@ -766,11 +934,18 @@ impl ShareHandler {
                             *self.overall.invalid_shares.lock() += 1;
 
                             record_invalid_share(&crate::prom::WorkerContext {
+                                instance_id: self.instance_id.clone(),
                                 worker_name: worker_name.clone(),
                                 miner: String::new(),
                                 wallet: wallet_addr.clone(),
                                 ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
                             });
+
+                            {
+                                let now = Instant::now();
+                                let mut guard = self.duplicate_submit_guard.lock();
+                                guard.set_outcome(&submit_key, now, DuplicateSubmitOutcome::Bad);
+                            }
                             ctx.reply_bad_share(event.id.clone()).await?;
                             return Ok(());
                         }
@@ -882,6 +1057,7 @@ impl ShareHandler {
             let wallet_addr = ctx.wallet_addr.lock().clone();
             let worker_name = ctx.worker_name.lock().clone();
             record_weak_share(&crate::prom::WorkerContext {
+                instance_id: self.instance_id.clone(),
                 worker_name: worker_name.clone(),
                 miner: String::new(),
                 wallet: wallet_addr.clone(),
@@ -890,6 +1066,12 @@ impl ShareHandler {
 
             if let Some(id) = &event.id {
                 let _ = ctx.reply_low_diff_share(id).await;
+            }
+
+            {
+                let now = Instant::now();
+                let mut guard = self.duplicate_submit_guard.lock();
+                guard.set_outcome(&submit_key, now, DuplicateSubmitOutcome::LowDiff);
             }
             return Ok(());
         }
@@ -917,6 +1099,7 @@ impl ShareHandler {
         let worker_name = ctx.worker_name.lock().clone();
         record_share_found(
             &crate::prom::WorkerContext {
+                instance_id: self.instance_id.clone(),
                 worker_name: worker_name.clone(),
                 miner: String::new(),
                 wallet: wallet_addr.clone(),
@@ -924,6 +1107,12 @@ impl ShareHandler {
             },
             hash_value,
         );
+
+        {
+            let now = Instant::now();
+            let mut guard = self.duplicate_submit_guard.lock();
+            guard.set_outcome(&submit_key, now, DuplicateSubmitOutcome::Accepted);
+        }
 
         ctx.reply(JsonRpcResponse { id: event.id.clone(), result: Some(serde_json::Value::Bool(true)), error: None })
             .await
@@ -1027,6 +1216,15 @@ impl ShareHandler {
                 }
             }
 
+            fn format_uptime(d: Duration) -> String {
+                let total_secs = d.as_secs();
+                let days = total_secs / 86_400;
+                let hours = (total_secs % 86_400) / 3_600;
+                let mins = (total_secs % 3_600) / 60;
+                let secs = total_secs % 60;
+                format!("{:02}:{:02}:{:02}:{:02}", days, hours, mins, secs)
+            }
+
             const WORKER_W: usize = 16;
             const INST_W: usize = 5;
             const HASH_W: usize = 11;
@@ -1035,7 +1233,7 @@ impl ShareHandler {
             const TRND_W: usize = 4;
             const ACC_W: usize = 12;
             const BLK_W: usize = 6;
-            const TIME_W: usize = 7;
+            const TIME_W: usize = 11;
 
             fn border() -> String {
                 format!(
@@ -1059,11 +1257,11 @@ impl ShareHandler {
                     "Inst",
                     "Hash",
                     "Diff",
-                    "SPM/tgt",
+                    "SPM|TGT",
                     "Trnd",
-                    "Acc/Stl/Inv",
+                    "Acc|Stl|Inv",
                     "Blocks",
-                    "Time",
+                    "D|HR|M|S",
                 )
             }
 
@@ -1138,7 +1336,6 @@ impl ShareHandler {
                             "flat"
                         };
 
-                        let uptime_mins = v.start_time.elapsed().as_secs_f64() / 60.0;
                         let worker = v.worker_name.lock().clone();
 
                         let spm_tgt = format!("{:>4.1}/{:<4.1}", spm, *target_spm);
@@ -1153,7 +1350,7 @@ impl ShareHandler {
                             trend,
                             format!("{}/{}/{}", shares, stales, invalids),
                             blocks,
-                            format!("{:.1}m", uptime_mins)
+                            format_uptime(v.start_time.elapsed())
                         );
                         let sort_key = format!("{}:{}", inst_short, worker);
                         rows.push((sort_key, line));
@@ -1181,13 +1378,38 @@ impl ShareHandler {
                 let vdaa = node_status.virtual_daa_score.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
                 let blocks = node_status.block_count.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
                 let headers = node_status.header_count.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
-                let diff = node_status.difficulty.map(|d| format!("{:.2}", d)).unwrap_or_else(|| "-".to_string());
+                let diff = node_status.difficulty.map(|d| format!("{:.2e}", d)).unwrap_or_else(|| "-".to_string());
                 let tip = node_status.tip_hash.as_deref().unwrap_or("-");
                 let mempool = node_status.mempool_size.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
 
+                let tip_short = if tip.len() > 28 { format!("{}...{}", &tip[..16], &tip[tip.len() - 8..]) } else { tip.to_string() };
+
+                let net_short = {
+                    let mut network_type = None;
+                    let mut suffix = None;
+                    if let Some(pos) = net.find("network_type:") {
+                        let s = &net[pos + "network_type:".len()..];
+                        let s = s.trim_start();
+                        network_type = s.split(&[',', '}'][..]).next().map(|v| v.trim());
+                    }
+                    if let Some(pos) = net.find("suffix:") {
+                        let s = &net[pos + "suffix:".len()..];
+                        let s = s.trim_start();
+                        let raw = s.split(&[',', '}'][..]).next().map(|v| v.trim());
+                        if raw != Some("None") {
+                            suffix = raw;
+                        }
+                    }
+                    match (network_type, suffix) {
+                        (Some(nt), Some(suf)) => format!("{}-{}", nt, suf),
+                        (Some(nt), None) => nt.to_string(),
+                        _ => net.to_string(),
+                    }
+                };
+
                 out.push(format!(
-                    "[NODE] {} / {} | net={} | ver={} | peers={} | vdaa={} | blocks={}/{} | diff={} | mempool={} | tip={}",
-                    conn_str, sync_str, net, ver, peers, vdaa, blocks, headers, diff, mempool, tip
+                    "[NODE] {}|{} | n={} | v={} | p={} | vd={} | blk={}/{} | d={} | mp={} | tip={}",
+                    conn_str, sync_str, net_short, ver, peers, vdaa, blocks, headers, diff, mempool, tip_short
                 ));
 
                 out.push(top.clone());
@@ -1216,7 +1438,7 @@ impl ShareHandler {
                     "-",
                     format!("{}/{}/{}", total_shares, total_stales, total_invalids),
                     total_blocks,
-                    format!("{:.1}m", total_uptime_mins)
+                    format_uptime(now.duration_since(start))
                 ));
 
                 out.push(top);
@@ -1325,6 +1547,8 @@ pub trait KaspaApiTrait: Send + Sync {
         &self,
         addresses: &[String],
     ) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error + Send + Sync>>;
+
+    async fn get_current_block_color(&self, block_hash: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
 }
 
 pub struct WorkerContext<'a> {

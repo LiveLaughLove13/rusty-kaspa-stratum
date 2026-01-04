@@ -1904,7 +1904,7 @@ dependencies = [
 [[package]]
 name = "kaspa-addresses"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "borsh",
  "js-sys",
@@ -1919,7 +1919,7 @@ dependencies = [
 [[package]]
 name = "kaspa-addressmanager"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "borsh",
  "igd-next",
@@ -1941,7 +1941,7 @@ dependencies = [
 [[package]]
 name = "kaspa-alloc"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "mimalloc",
 ]
@@ -1949,7 +1949,7 @@ dependencies = [
 [[package]]
 name = "kaspa-connectionmanager"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "duration-string",
  "futures-util",
@@ -1967,7 +1967,7 @@ dependencies = [
 [[package]]
 name = "kaspa-consensus"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "arc-swap",
  "async-channel 2.5.0",
@@ -2008,7 +2008,7 @@ dependencies = [
 [[package]]
 name = "kaspa-consensus-client"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "ahash",
  "cfg-if",
@@ -2037,7 +2037,7 @@ dependencies = [
 [[package]]
 name = "kaspa-consensus-core"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -2074,7 +2074,7 @@ dependencies = [
 [[package]]
 name = "kaspa-consensus-notify"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "cfg-if",
@@ -2094,7 +2094,7 @@ dependencies = [
 [[package]]
 name = "kaspa-consensus-wasm"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "cfg-if",
  "faster-hex 0.9.0",
@@ -2119,7 +2119,7 @@ dependencies = [
 [[package]]
 name = "kaspa-consensusmanager"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "duration-string",
  "futures",
@@ -2139,7 +2139,7 @@ dependencies = [
 [[package]]
 name = "kaspa-core"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "anyhow",
  "cfg-if",
@@ -2159,7 +2159,7 @@ dependencies = [
 [[package]]
 name = "kaspa-database"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "bincode",
  "enum-primitive-derive",
@@ -2182,7 +2182,7 @@ dependencies = [
 [[package]]
 name = "kaspa-grpc-client"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "async-stream",
@@ -2215,7 +2215,7 @@ dependencies = [
 [[package]]
 name = "kaspa-grpc-core"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "async-stream",
@@ -2246,7 +2246,7 @@ dependencies = [
 [[package]]
 name = "kaspa-grpc-server"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "async-stream",
@@ -2282,7 +2282,7 @@ dependencies = [
 [[package]]
 name = "kaspa-hashes"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "blake2b_simd",
  "borsh",
@@ -2301,7 +2301,7 @@ dependencies = [
 [[package]]
 name = "kaspa-index-core"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "async-trait",
@@ -2321,7 +2321,7 @@ dependencies = [
 [[package]]
 name = "kaspa-index-processor"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "async-trait",
@@ -2347,7 +2347,7 @@ dependencies = [
 [[package]]
 name = "kaspa-math"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "borsh",
  "faster-hex 0.9.0",
@@ -2367,7 +2367,7 @@ dependencies = [
 [[package]]
 name = "kaspa-merkle"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "kaspa-hashes",
 ]
@@ -2375,7 +2375,7 @@ dependencies = [
 [[package]]
 name = "kaspa-mining"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "futures-util",
  "itertools 0.13.0",
@@ -2401,7 +2401,7 @@ dependencies = [
 [[package]]
 name = "kaspa-mining-errors"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "kaspa-consensus-core",
  "thiserror 1.0.69",
@@ -2410,7 +2410,7 @@ dependencies = [
 [[package]]
 name = "kaspa-muhash"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "kaspa-hashes",
  "kaspa-math",
@@ -2421,7 +2421,7 @@ dependencies = [
 [[package]]
 name = "kaspa-notify"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "async-trait",
@@ -2453,7 +2453,7 @@ dependencies = [
 [[package]]
 name = "kaspa-p2p-flows"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2486,7 +2486,7 @@ dependencies = [
 [[package]]
 name = "kaspa-p2p-lib"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "borsh",
  "ctrlc",
@@ -2517,7 +2517,7 @@ dependencies = [
 [[package]]
 name = "kaspa-p2p-mining"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "kaspa-consensus-core",
  "kaspa-consensusmanager",
@@ -2535,7 +2535,7 @@ dependencies = [
 [[package]]
 name = "kaspa-perf-monitor"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "kaspa-core",
  "log",
@@ -2548,7 +2548,7 @@ dependencies = [
 [[package]]
 name = "kaspa-pow"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "js-sys",
  "kaspa-consensus-client",
@@ -2564,7 +2564,7 @@ dependencies = [
 [[package]]
 name = "kaspa-rpc-core"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "async-trait",
@@ -2607,7 +2607,7 @@ dependencies = [
 [[package]]
 name = "kaspa-rpc-macros"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "convert_case 0.6.0",
  "proc-macro-error",
@@ -2620,7 +2620,7 @@ dependencies = [
 [[package]]
 name = "kaspa-rpc-service"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-trait",
  "kaspa-addresses",
@@ -2655,6 +2655,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "blake2",
+ "chrono",
  "clap 4.5.53",
  "faster-hex 0.1.1",
  "futures-util",
@@ -2683,6 +2684,7 @@ dependencies = [
  "tokio-test",
  "tracing",
  "tracing-appender",
+ "tracing-log",
  "tracing-subscriber",
  "uuid 1.19.0",
  "windows-sys 0.52.0",
@@ -2692,7 +2694,7 @@ dependencies = [
 [[package]]
 name = "kaspa-txscript"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "blake2b_simd",
  "borsh",
@@ -2723,7 +2725,7 @@ dependencies = [
 [[package]]
 name = "kaspa-txscript-errors"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "secp256k1",
  "thiserror 1.0.69",
@@ -2732,7 +2734,7 @@ dependencies = [
 [[package]]
 name = "kaspa-utils"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "arc-swap",
  "async-channel 2.5.0",
@@ -2762,7 +2764,7 @@ dependencies = [
 [[package]]
 name = "kaspa-utils-tower"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "bytes",
  "cfg-if",
@@ -2779,7 +2781,7 @@ dependencies = [
 [[package]]
 name = "kaspa-utxoindex"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "futures",
  "kaspa-consensus-core",
@@ -2799,7 +2801,7 @@ dependencies = [
 [[package]]
 name = "kaspa-wasm-core"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "faster-hex 0.9.0",
  "hexplay",
@@ -2811,7 +2813,7 @@ dependencies = [
 [[package]]
 name = "kaspa-wrpc-server"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-trait",
  "borsh",
@@ -2840,7 +2842,7 @@ dependencies = [
 [[package]]
 name = "kaspad"
 version = "1.0.1"
-source = "git+https://github.com/kaspanet/rusty-kaspa.git?branch=master#09217b3b4655be4ad6add94dd96b902d111c6012"
+source = "git+https://github.com/LiveLaughLove13/rusty-kaspa.git?branch=BridgeBinary#b41b4c58525467aefb0c57a98aa41fe63b2906e5"
 dependencies = [
  "async-channel 2.5.0",
  "cfg-if",
