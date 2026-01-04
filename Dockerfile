@@ -1,7 +1,8 @@
 FROM rust:1.92-alpine AS builder
 
-RUN apk add --no-cache build-base protoc clang llvm15-dev
+RUN apk add --no-cache build-base protoc clang llvm15-dev pkgconfig
 ENV LIBCLANG_PATH=/usr/lib/llvm15/lib
+ENV BINDGEN_EXTRA_CLANG_ARGS="-I/usr/include"
 
 WORKDIR /usr/src/rustbridge
 
