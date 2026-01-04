@@ -1,6 +1,6 @@
 FROM rust:1.92-alpine AS builder
 
-RUN apk add --no-cache build-base protoc
+RUN apk add --no-cache build-base protoc clang
 
 WORKDIR /usr/src/rustbridge
 
