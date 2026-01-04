@@ -62,13 +62,23 @@ impl MiningState {
 
         // Log if we're overwriting an old job
         if let Some(old_id) = job_ids.get(&slot) {
-            tracing::debug!("Overwriting job at slot {}: old_id={}, new_id={}", slot, old_id, idx);
+            tracing::debug!(
+                "Overwriting job at slot {}: old_id={}, new_id={}",
+                slot,
+                old_id,
+                idx
+            );
         }
 
         jobs.insert(slot, job);
         job_ids.insert(slot, idx);
 
-        tracing::debug!("[JOB STORAGE] Added job ID {} at slot {} (counter now: {})", idx, slot, idx);
+        tracing::debug!(
+            "[JOB STORAGE] Added job ID {} at slot {} (counter now: {})",
+            idx,
+            slot,
+            idx
+        );
         idx
     }
 

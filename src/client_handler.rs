@@ -1,5 +1,8 @@
 use crate::{
-    hasher::{calculate_target, generate_iceriver_job_params, generate_job_header, generate_large_job_params, serialize_block_header},
+    hasher::{
+        calculate_target, generate_iceriver_job_params, generate_job_header,
+        generate_large_job_params, serialize_block_header,
+    },
     jsonrpc_event::JsonRpcEvent,
     mining_state::{GetMiningState, Job, MiningState},
     prom::*,
@@ -37,8 +40,17 @@ pub struct ClientHandler {
 }
 
 impl ClientHandler {
-    pub fn new(share_handler: Arc<ShareHandler>, min_share_diff: f64, extranonce_size: i8, instance_id: String) -> Self {
-        let max_extranonce = if extranonce_size > 0 { (2_f64.powi(8 * extranonce_size.min(3) as i32) - 1.0) as i32 } else { 0 };
+    pub fn new(
+        share_handler: Arc<ShareHandler>,
+        min_share_diff: f64,
+        extranonce_size: i8,
+        instance_id: String,
+    ) -> Self {
+        let max_extranonce = if extranonce_size > 0 {
+            (2_f64.powi(8 * extranonce_size.min(3) as i32) - 1.0) as i32
+        } else {
+            0
+        };
 
         Self {
             clients: Arc::new(Mutex::new(HashMap::new())),
@@ -90,8 +102,9 @@ impl ClientHandler {
         // Bitmain (GodMiner) requires extranonce_size = 0 (no extranonce)
         // IceRiver, BzMiner, Goldshell require extranonce_size = 2
         let remote_app_lower = remote_app.to_lowercase();
-        let is_bitmain =
-            remote_app_lower.contains("godminer") || remote_app_lower.contains("bitmain") || remote_app_lower.contains("antminer");
+        let is_bitmain = remote_app_lower.contains("godminer")
+            || remote_app_lower.contains("bitmain")
+            || remote_app_lower.contains("antminer");
 
         let required_extranonce_size = if is_bitmain { 0 } else { 2 };
 
@@ -99,20 +112,25 @@ impl ClientHandler {
             // Calculate max extranonce for size 2
             let max_extranonce = (2_f64.powi(16) - 1.0) as i32; // 2 bytes = 16 bits = 65535
 
-            let next = GLOBAL_NEXT_EXTRANONCE.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |val| {
-                if val < max_extranonce {
-                    Some(val + 1)
-                } else {
-                    Some(0)
-                }
-            });
+            let next =
+                GLOBAL_NEXT_EXTRANONCE.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |val| {
+                    if val < max_extranonce {
+                        Some(val + 1)
+                    } else {
+                        Some(0)
+                    }
+                });
 
             if next.is_err() || next.unwrap() >= max_extranonce {
                 warn!("wrapped extranonce! new clients may be duplicating work...");
             }
 
             let extranonce_val = next.unwrap_or(0);
-            let extranonce_str = format!("{:0width$x}", extranonce_val, width = (required_extranonce_size * 2) as usize);
+            let extranonce_str = format!(
+                "{:0width$x}",
+                extranonce_val,
+                width = (required_extranonce_size * 2) as usize
+            );
             tracing::debug!(
                 "[AUTO-EXTRANONCE] Assigned extranonce '{}' (value: {}, size: {} bytes) to {} miner '{}'",
                 extranonce_str,
@@ -123,7 +141,10 @@ impl ClientHandler {
             );
             extranonce_str
         } else {
-            tracing::debug!("[AUTO-EXTRANONCE] Assigned empty extranonce (size: 0 bytes) to Bitmain miner '{}'", remote_app);
+            tracing::debug!(
+                "[AUTO-EXTRANONCE] Assigned empty extranonce (size: 0 bytes) to Bitmain miner '{}'",
+                remote_app
+            );
             String::new()
         };
 
@@ -134,7 +155,11 @@ impl ClientHandler {
             ctx.remote_addr,
             extranonce,
             remote_app,
-            if is_bitmain { "Bitmain" } else { "IceRiver/BzMiner/Goldshell" }
+            if is_bitmain {
+                "Bitmain"
+            } else {
+                "IceRiver/BzMiner/Goldshell"
+            }
         );
     }
 
@@ -173,14 +198,20 @@ impl ClientHandler {
         let _wallet_addr_str = {
             let wallet_addr = client.wallet_addr.lock();
             if wallet_addr.is_empty() {
-                tracing::debug!("send_immediate_job: client {} has no wallet address yet, skipping", client.remote_addr);
+                tracing::debug!(
+                    "send_immediate_job: client {} has no wallet address yet, skipping",
+                    client.remote_addr
+                );
                 return;
             }
             wallet_addr.clone()
         };
 
         if !client.connected() {
-            tracing::debug!("send_immediate_job: client {} not connected, skipping", client.remote_addr);
+            tracing::debug!(
+                "send_immediate_job: client {} not connected, skipping",
+                client.remote_addr
+            );
             return;
         }
 
@@ -209,16 +240,25 @@ impl ClientHandler {
             );
 
             // Get block template
-            let template_result = kaspa_api_clone.get_block_template(&wallet_addr, &remote_app, &canxium_addr).await;
+            let template_result = kaspa_api_clone
+                .get_block_template(&wallet_addr, &remote_app, &canxium_addr)
+                .await;
 
             let block = match template_result {
                 Ok(block) => {
-                    tracing::debug!("send_immediate_job: successfully fetched block template for client {}", client_clone.remote_addr);
+                    tracing::debug!(
+                        "send_immediate_job: successfully fetched block template for client {}",
+                        client_clone.remote_addr
+                    );
 
                     // === LOG NEW BLOCK TEMPLATE HEADER === (moved to debug level)
                     tracing::debug!("=== NEW BLOCK TEMPLATE RECEIVED ===");
                     tracing::debug!("  blue_score: {}", block.header.blue_score);
-                    tracing::debug!("  bits: {} (0x{:08x})", block.header.bits, block.header.bits);
+                    tracing::debug!(
+                        "  bits: {} (0x{:08x})",
+                        block.header.bits,
+                        block.header.bits
+                    );
                     tracing::debug!("  timestamp: {}", block.header.timestamp);
                     tracing::debug!("  version: {}", block.header.version);
                     tracing::debug!("  daa_score: {}", block.header.daa_score);
@@ -226,14 +266,37 @@ impl ClientHandler {
                     // Track and log what changed from previous header
                     if let Some(old_header) = state.get_last_header() {
                         tracing::debug!("=== HEADER CHANGES ===");
-                        tracing::debug!("  blue_score_changed: {}", old_header.blue_score != block.header.blue_score);
-                        tracing::debug!("    old: {}, new: {}", old_header.blue_score, block.header.blue_score);
+                        tracing::debug!(
+                            "  blue_score_changed: {}",
+                            old_header.blue_score != block.header.blue_score
+                        );
+                        tracing::debug!(
+                            "    old: {}, new: {}",
+                            old_header.blue_score,
+                            block.header.blue_score
+                        );
                         tracing::debug!("  bits_changed: {}", old_header.bits != block.header.bits);
-                        tracing::debug!("    old: 0x{:08x}, new: 0x{:08x}", old_header.bits, block.header.bits);
-                        tracing::debug!("  timestamp_changed: {}", old_header.timestamp != block.header.timestamp);
-                        tracing::debug!("    delta: {} ms", block.header.timestamp - old_header.timestamp);
-                        tracing::debug!("  daa_score_changed: {}", old_header.daa_score != block.header.daa_score);
-                        tracing::debug!("  version_changed: {}", old_header.version != block.header.version);
+                        tracing::debug!(
+                            "    old: 0x{:08x}, new: 0x{:08x}",
+                            old_header.bits,
+                            block.header.bits
+                        );
+                        tracing::debug!(
+                            "  timestamp_changed: {}",
+                            old_header.timestamp != block.header.timestamp
+                        );
+                        tracing::debug!(
+                            "    delta: {} ms",
+                            block.header.timestamp - old_header.timestamp
+                        );
+                        tracing::debug!(
+                            "  daa_score_changed: {}",
+                            old_header.daa_score != block.header.daa_score
+                        );
+                        tracing::debug!(
+                            "  version_changed: {}",
+                            old_header.version != block.header.version
+                        );
                     } else {
                         tracing::debug!("=== FIRST HEADER === (no previous header to compare)");
                     }
@@ -245,11 +308,19 @@ impl ClientHandler {
                 }
                 Err(e) => {
                     if e.to_string().contains("Could not decode address") {
-                        record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::InvalidAddressFmt.as_str());
+                        record_worker_error(
+                            &instance_id,
+                            &wallet_addr,
+                            crate::errors::ErrorShortCode::InvalidAddressFmt.as_str(),
+                        );
                         error!("send_immediate_job: failed fetching block template, malformed address: {}", e);
                         client_clone.disconnect();
                     } else {
-                        record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedBlockFetch.as_str());
+                        record_worker_error(
+                            &instance_id,
+                            &wallet_addr,
+                            crate::errors::ErrorShortCode::FailedBlockFetch.as_str(),
+                        );
                         error!("send_immediate_job: failed fetching block template: {}", e);
                     }
                     return;
@@ -268,8 +339,15 @@ impl ClientHandler {
                 Ok(h) => h,
                 Err(e) => {
                     let error_msg = e.to_string();
-                    record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::BadDataFromMiner.as_str());
-                    error!("send_immediate_job: failed to serialize block header: {}", error_msg);
+                    record_worker_error(
+                        &instance_id,
+                        &wallet_addr,
+                        crate::errors::ErrorShortCode::BadDataFromMiner.as_str(),
+                    );
+                    error!(
+                        "send_immediate_job: failed to serialize block header: {}",
+                        error_msg
+                    );
 
                     // Log block header details for debugging
                     tracing::debug!("Block header version: {}", block.header.version);
@@ -282,7 +360,10 @@ impl ClientHandler {
             };
 
             // Create Job struct with both block and pre_pow_hash
-            let job = Job { block: block.clone(), pre_pow_hash };
+            let job = Job {
+                block: block.clone(),
+                pre_pow_hash,
+            };
 
             // Add job
             let job_id = state.add_job(job);
@@ -308,7 +389,10 @@ impl ClientHandler {
                 let remote_app_clone = remote_app.clone();
                 stratum_diff.set_diff_value_for_miner(min_diff, &remote_app_clone);
                 state.set_stratum_diff(stratum_diff);
-                let target = state.stratum_diff().map(|d| d.target_value.clone()).unwrap_or_else(BigUint::zero);
+                let target = state
+                    .stratum_diff()
+                    .map(|d| d.target_value.clone())
+                    .unwrap_or_else(BigUint::zero);
                 let target_bytes = target.to_bytes_be();
                 tracing::debug!(
                     "send_immediate_job: Initialized MiningState with difficulty: {}, target: {:x} ({} bytes, {} bits)",
@@ -321,26 +405,42 @@ impl ClientHandler {
 
             // CRITICAL: Always send difficulty to each client (IceRiver expects this on every connection)
             // Even if state is already initialized, we need to send difficulty to this specific client
-            tracing::debug!("[DIFFICULTY] ===== SENDING DIFFICULTY TO {} =====", client_clone.remote_addr);
+            tracing::debug!(
+                "[DIFFICULTY] ===== SENDING DIFFICULTY TO {} =====",
+                client_clone.remote_addr
+            );
             tracing::debug!("[DIFFICULTY] Difficulty value: {}", min_diff);
             send_client_diff(&instance_id, &client_clone, &state, min_diff);
             share_handler.set_client_vardiff(&client_clone, min_diff);
-            tracing::debug!("[DIFFICULTY] ===== DIFFICULTY SENT TO {} =====", client_clone.remote_addr);
+            tracing::debug!(
+                "[DIFFICULTY] ===== DIFFICULTY SENT TO {} =====",
+                client_clone.remote_addr
+            );
 
             // Small delay to ensure difficulty is sent before job
             tokio::time::sleep(Duration::from_millis(100)).await;
 
             // Build job params - check if this is an IceRiver or Bitmain miner
             let remote_app_lower = remote_app.to_lowercase();
-            let is_iceriver =
-                remote_app_lower.contains("iceriver") || remote_app_lower.contains("icemining") || remote_app_lower.contains("icm");
-            let is_bitmain =
-                remote_app_lower.contains("godminer") || remote_app_lower.contains("bitmain") || remote_app_lower.contains("antminer");
+            let is_iceriver = remote_app_lower.contains("iceriver")
+                || remote_app_lower.contains("icemining")
+                || remote_app_lower.contains("icm");
+            let is_bitmain = remote_app_lower.contains("godminer")
+                || remote_app_lower.contains("bitmain")
+                || remote_app_lower.contains("antminer");
 
-            tracing::debug!("[JOB] ===== BUILDING JOB FOR {} =====", client_clone.remote_addr);
+            tracing::debug!(
+                "[JOB] ===== BUILDING JOB FOR {} =====",
+                client_clone.remote_addr
+            );
             tracing::debug!("[JOB] Job ID: {}", job_id);
             tracing::debug!("[JOB] Remote app: '{}'", remote_app);
-            tracing::debug!("[JOB] Is IceRiver: {}, Is Bitmain: {}, use_big_job: {}", is_iceriver, is_bitmain, state.use_big_job());
+            tracing::debug!(
+                "[JOB] Is IceRiver: {}, Is Bitmain: {}, use_big_job: {}",
+                is_iceriver,
+                is_bitmain,
+                state.use_big_job()
+            );
             tracing::debug!("[JOB] Pre-PoW hash: {}", pre_pow_hash);
             tracing::debug!("[JOB] Block timestamp: {}", block.header.timestamp);
 
@@ -352,29 +452,53 @@ impl ClientHandler {
                 tracing::debug!("[JOB] Generating BzMiner format job params");
                 let header_bytes = pre_pow_hash.as_bytes();
                 let large_params = generate_large_job_params(&header_bytes, block.header.timestamp);
-                tracing::debug!("[JOB] BzMiner job_data length: {} (expected 80)", large_params.len());
-                tracing::debug!("[JOB] BzMiner job_data (first 20 chars): {}", &large_params[..large_params.len().min(20)]);
+                tracing::debug!(
+                    "[JOB] BzMiner job_data length: {} (expected 80)",
+                    large_params.len()
+                );
+                tracing::debug!(
+                    "[JOB] BzMiner job_data (first 20 chars): {}",
+                    &large_params[..large_params.len().min(20)]
+                );
                 tracing::debug!("[JOB] BzMiner job_data (full): {}", large_params);
                 job_params.push(serde_json::Value::String(large_params));
             } else if is_iceriver {
                 // IceRiver format - single hex string (uses Hash::to_string() to match working stratum code)
                 // This matches Ghostpool and other working implementations
                 tracing::debug!("[JOB] Generating IceRiver format job params");
-                let iceriver_params = generate_iceriver_job_params(&pre_pow_hash, block.header.timestamp);
-                tracing::debug!("[JOB] IceRiver job_data length: {} (expected 80)", iceriver_params.len());
-                tracing::debug!("[JOB] IceRiver job_data (first 20 chars): {}", &iceriver_params[..iceriver_params.len().min(20)]);
+                let iceriver_params =
+                    generate_iceriver_job_params(&pre_pow_hash, block.header.timestamp);
+                tracing::debug!(
+                    "[JOB] IceRiver job_data length: {} (expected 80)",
+                    iceriver_params.len()
+                );
+                tracing::debug!(
+                    "[JOB] IceRiver job_data (first 20 chars): {}",
+                    &iceriver_params[..iceriver_params.len().min(20)]
+                );
                 tracing::debug!("[JOB] IceRiver job_data (full): {}", iceriver_params);
                 job_params.push(serde_json::Value::String(iceriver_params));
             } else {
                 // Legacy format - array + number (for Bitmain and other miners)
                 let header_bytes = pre_pow_hash.as_bytes();
                 let job_header = generate_job_header(&header_bytes);
-                tracing::debug!("send_immediate_job: using Legacy format, array size: {}", job_header.len());
-                job_params.push(serde_json::Value::Array(job_header.iter().map(|&v| serde_json::Value::Number(v.into())).collect()));
+                tracing::debug!(
+                    "send_immediate_job: using Legacy format, array size: {}",
+                    job_header.len()
+                );
+                job_params.push(serde_json::Value::Array(
+                    job_header
+                        .iter()
+                        .map(|&v| serde_json::Value::Number(v.into()))
+                        .collect(),
+                ));
                 job_params.push(serde_json::Value::Number(block.header.timestamp.into()));
             }
 
-            tracing::debug!("[JOB] ===== SENDING MINING.NOTIFY TO {} =====", client_clone.remote_addr);
+            tracing::debug!(
+                "[JOB] ===== SENDING MINING.NOTIFY TO {} =====",
+                client_clone.remote_addr
+            );
             tracing::debug!("[JOB] Method: mining.notify");
             tracing::debug!("[JOB] Params count: {}", job_params.len());
 
@@ -395,7 +519,11 @@ impl ClientHandler {
                     } else {
                         "standard"
                     };
-                    tracing::warn!("[JOB] WARNING - job_data length is {} (expected 80 for {})", job_data.len(), expected_for);
+                    tracing::warn!(
+                        "[JOB] WARNING - job_data length is {} (expected 80 for {})",
+                        job_data.len(),
+                        expected_for
+                    );
                 }
             }
 
@@ -418,7 +546,9 @@ impl ClientHandler {
             // Send job ID in mining.notify
             let send_result = if is_iceriver {
                 // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
-                client_clone.send_notification("mining.notify", job_params.clone()).await
+                client_clone
+                    .send_notification("mining.notify", job_params.clone())
+                    .await
             } else {
                 // For non-IceRiver, use standard JSON-RPC format with job ID
                 let notify_event = JsonRpcEvent {
@@ -432,13 +562,27 @@ impl ClientHandler {
 
             if let Err(e) = send_result {
                 if e.to_string().contains("disconnected") {
-                    record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::Disconnected.as_str());
-                    tracing::error!("[JOB] ERROR: Failed to send job {} - client disconnected", job_id);
+                    record_worker_error(
+                        &instance_id,
+                        &wallet_addr,
+                        crate::errors::ErrorShortCode::Disconnected.as_str(),
+                    );
+                    tracing::error!(
+                        "[JOB] ERROR: Failed to send job {} - client disconnected",
+                        job_id
+                    );
                 } else {
-                    record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedSendWork.as_str());
+                    record_worker_error(
+                        &instance_id,
+                        &wallet_addr,
+                        crate::errors::ErrorShortCode::FailedSendWork.as_str(),
+                    );
                     error!("[JOB] ERROR: Failed sending work packet {}: {}", job_id, e);
                 }
-                tracing::debug!("[JOB] ===== JOB SEND FAILED FOR {} =====", client_clone.remote_addr);
+                tracing::debug!(
+                    "[JOB] ===== JOB SEND FAILED FOR {} =====",
+                    client_clone.remote_addr
+                );
             } else {
                 let wallet_addr_str = wallet_addr.clone();
                 let worker_name = client_clone.worker_name.lock().clone();
@@ -447,15 +591,29 @@ impl ClientHandler {
                     worker_name: worker_name.clone(),
                     miner: String::new(),
                     wallet: wallet_addr_str.clone(),
-                    ip: format!("{}:{}", client_clone.remote_addr(), client_clone.remote_port()),
+                    ip: format!(
+                        "{}:{}",
+                        client_clone.remote_addr(),
+                        client_clone.remote_port()
+                    ),
                 });
-                tracing::debug!("[JOB] Successfully sent job ID {} to client {}", job_id, client_clone.remote_addr);
-                tracing::debug!("[JOB] ===== JOB SENT SUCCESSFULLY TO {} =====", client_clone.remote_addr);
+                tracing::debug!(
+                    "[JOB] Successfully sent job ID {} to client {}",
+                    job_id,
+                    client_clone.remote_addr
+                );
+                tracing::debug!(
+                    "[JOB] ===== JOB SENT SUCCESSFULLY TO {} =====",
+                    client_clone.remote_addr
+                );
             }
         });
     }
 
-    pub async fn new_block_available<T: KaspaApiTrait + Send + Sync + 'static>(&self, kaspa_api: Arc<T>) {
+    pub async fn new_block_available<T: KaspaApiTrait + Send + Sync + 'static>(
+        &self,
+        kaspa_api: Arc<T>,
+    ) {
         // Rate limit templates (250ms minimum between sends)
         {
             let mut last_time = self.last_template_time.lock();
@@ -511,7 +669,11 @@ impl ClientHandler {
                             if elapsed > CLIENT_TIMEOUT {
                                 warn!("client misconfigured, no miner address specified - disconnecting");
                                 let wallet_str = wallet_addr.clone();
-                                record_worker_error(&instance_id, &wallet_str, crate::errors::ErrorShortCode::NoMinerAddress.as_str());
+                                record_worker_error(
+                                    &instance_id,
+                                    &wallet_str,
+                                    crate::errors::ErrorShortCode::NoMinerAddress.as_str(),
+                                );
                                 drop(wallet_addr); // Drop before disconnect
                                 client_clone.disconnect();
                             }
@@ -539,7 +701,9 @@ impl ClientHandler {
                     (wallet, app, canx)
                 };
 
-                let template_result = kaspa_api_clone.get_block_template(&wallet_addr, &remote_app, &canxium_addr).await;
+                let template_result = kaspa_api_clone
+                    .get_block_template(&wallet_addr, &remote_app, &canxium_addr)
+                    .await;
 
                 let block = match template_result {
                     Ok(block) => {
@@ -551,11 +715,19 @@ impl ClientHandler {
                     }
                     Err(e) => {
                         if e.to_string().contains("Could not decode address") {
-                            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::InvalidAddressFmt.as_str());
+                            record_worker_error(
+                                &instance_id,
+                                &wallet_addr,
+                                crate::errors::ErrorShortCode::InvalidAddressFmt.as_str(),
+                            );
                             error!("failed fetching new block template from kaspa, malformed address: {}", e);
                             client_clone.disconnect();
                         } else {
-                            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedBlockFetch.as_str());
+                            record_worker_error(
+                                &instance_id,
+                                &wallet_addr,
+                                crate::errors::ErrorShortCode::FailedBlockFetch.as_str(),
+                            );
                             error!("failed fetching new block template from kaspa: {}", e);
                         }
                         return;
@@ -574,7 +746,11 @@ impl ClientHandler {
                     Ok(h) => h,
                     Err(e) => {
                         let error_msg = e.to_string();
-                        record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::BadDataFromMiner.as_str());
+                        record_worker_error(
+                            &instance_id,
+                            &wallet_addr,
+                            crate::errors::ErrorShortCode::BadDataFromMiner.as_str(),
+                        );
                         error!("failed to serialize block header: {}", error_msg);
 
                         // Log block header details for debugging
@@ -594,7 +770,10 @@ impl ClientHandler {
                 };
 
                 // Create Job struct with both block and pre_pow_hash
-                let job = Job { block: block.clone(), pre_pow_hash };
+                let job = Job {
+                    block: block.clone(),
+                    pre_pow_hash,
+                };
 
                 // Add job
                 let job_id = state.add_job(job);
@@ -621,7 +800,10 @@ impl ClientHandler {
                     let remote_app = client_clone.remote_app.lock().clone();
                     stratum_diff.set_diff_value_for_miner(min_diff, &remote_app);
                     state.set_stratum_diff(stratum_diff);
-                    let target = state.stratum_diff().map(|d| d.target_value.clone()).unwrap_or_else(BigUint::zero);
+                    let target = state
+                        .stratum_diff()
+                        .map(|d| d.target_value.clone())
+                        .unwrap_or_else(BigUint::zero);
                     let target_bytes = target.to_bytes_be();
                     tracing::debug!(
                         "Initialized per-client MiningState with difficulty: {}, target: {:x} ({} bytes, {} bits)",
@@ -672,25 +854,43 @@ impl ClientHandler {
                 if is_iceriver {
                     // IceRiver format - single hex string (uses Hash::to_string() to match working stratum code)
                     // This matches Ghostpool and other working implementations
-                    tracing::debug!("[JOB] new_block_available: Generating IceRiver format job params");
-                    let iceriver_params = generate_iceriver_job_params(&pre_pow_hash, block.header.timestamp);
-                    tracing::debug!("[JOB] new_block_available: IceRiver job_data length: {} (expected 80)", iceriver_params.len());
+                    tracing::debug!(
+                        "[JOB] new_block_available: Generating IceRiver format job params"
+                    );
+                    let iceriver_params =
+                        generate_iceriver_job_params(&pre_pow_hash, block.header.timestamp);
+                    tracing::debug!(
+                        "[JOB] new_block_available: IceRiver job_data length: {} (expected 80)",
+                        iceriver_params.len()
+                    );
                     job_params.push(serde_json::Value::String(iceriver_params));
                 } else if state.use_big_job() && !is_iceriver {
                     // BzMiner format - single hex string (big endian hash)
                     // Convert Hash to bytes for BzMiner format
-                    tracing::debug!("[JOB] new_block_available: Generating BzMiner format job params");
+                    tracing::debug!(
+                        "[JOB] new_block_available: Generating BzMiner format job params"
+                    );
                     let header_bytes = pre_pow_hash.as_bytes();
-                    let large_params = generate_large_job_params(&header_bytes, block.header.timestamp);
-                    tracing::debug!("[JOB] new_block_available: BzMiner job_data length: {} (expected 80)", large_params.len());
+                    let large_params =
+                        generate_large_job_params(&header_bytes, block.header.timestamp);
+                    tracing::debug!(
+                        "[JOB] new_block_available: BzMiner job_data length: {} (expected 80)",
+                        large_params.len()
+                    );
                     job_params.push(serde_json::Value::String(large_params));
                 } else {
                     // Legacy format - array + number (for Bitmain and other miners)
-                    tracing::debug!("[JOB] new_block_available: Using Legacy format (array + timestamp)");
+                    tracing::debug!(
+                        "[JOB] new_block_available: Using Legacy format (array + timestamp)"
+                    );
                     let header_bytes = pre_pow_hash.as_bytes();
                     let job_header = generate_job_header(&header_bytes);
-                    job_params
-                        .push(serde_json::Value::Array(job_header.iter().map(|&v| serde_json::Value::Number(v.into())).collect()));
+                    job_params.push(serde_json::Value::Array(
+                        job_header
+                            .iter()
+                            .map(|&v| serde_json::Value::Number(v.into()))
+                            .collect(),
+                    ));
                     job_params.push(serde_json::Value::Number(block.header.timestamp.into()));
                 }
 
@@ -721,7 +921,9 @@ impl ClientHandler {
                 // })
                 let send_result = if is_iceriver_client {
                     // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
-                    client_clone.send_notification("mining.notify", job_params.clone()).await
+                    client_clone
+                        .send_notification("mining.notify", job_params.clone())
+                        .await
                 } else {
                     // For non-IceRiver, use standard JSON-RPC format with job ID
                     let notify_event = JsonRpcEvent {
@@ -735,10 +937,21 @@ impl ClientHandler {
 
                 if let Err(e) = send_result {
                     if e.to_string().contains("disconnected") {
-                        record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::Disconnected.as_str());
-                        tracing::warn!("new_block_available: failed to send job {} - client disconnected", job_id);
+                        record_worker_error(
+                            &instance_id,
+                            &wallet_addr,
+                            crate::errors::ErrorShortCode::Disconnected.as_str(),
+                        );
+                        tracing::warn!(
+                            "new_block_available: failed to send job {} - client disconnected",
+                            job_id
+                        );
                     } else {
-                        record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedSendWork.as_str());
+                        record_worker_error(
+                            &instance_id,
+                            &wallet_addr,
+                            crate::errors::ErrorShortCode::FailedSendWork.as_str(),
+                        );
                         error!("failed sending work packet {}: {}", job_id, e);
                         tracing::error!(
                             "new_block_available: failed to send job {} to client {}: {}",
@@ -755,9 +968,17 @@ impl ClientHandler {
                         worker_name: worker_name.clone(),
                         miner: String::new(),
                         wallet: wallet_addr_str.clone(),
-                        ip: format!("{}:{}", client_clone.remote_addr(), client_clone.remote_port()),
+                        ip: format!(
+                            "{}:{}",
+                            client_clone.remote_addr(),
+                            client_clone.remote_port()
+                        ),
                     });
-                    tracing::debug!("new_block_available: successfully sent job ID {} to client {}", job_id, client_clone.remote_addr);
+                    tracing::debug!(
+                        "new_block_available: successfully sent job ID {} to client {}",
+                        job_id,
+                        client_clone.remote_addr
+                    );
                 }
             });
         }
@@ -774,7 +995,10 @@ impl ClientHandler {
                 let kaspa_api_clone = Arc::clone(&kaspa_api);
                 let instance_id = self.instance_id.clone();
                 tokio::spawn(async move {
-                    match kaspa_api_clone.get_balances_by_addresses(&addresses_clone).await {
+                    match kaspa_api_clone
+                        .get_balances_by_addresses(&addresses_clone)
+                        .await
+                    {
                         Ok(balances) => {
                             // Record balances
                             crate::prom::record_balances(&instance_id, &balances);
@@ -791,17 +1015,24 @@ impl ClientHandler {
 
 // Send difficulty update to client
 fn send_client_diff(instance_id: &str, client: &StratumContext, _state: &MiningState, diff: f64) {
-    tracing::debug!("[DIFFICULTY] Building difficulty message for {}", client.remote_addr);
+    tracing::debug!(
+        "[DIFFICULTY] Building difficulty message for {}",
+        client.remote_addr
+    );
 
     let instance_id = instance_id.to_string();
 
     // Send diffValue directly as a number
-    let diff_value =
-        serde_json::Value::Number(serde_json::Number::from_f64(diff).unwrap_or_else(|| serde_json::Number::from(diff as u64)));
+    let diff_value = serde_json::Value::Number(
+        serde_json::Number::from_f64(diff).unwrap_or_else(|| serde_json::Number::from(diff as u64)),
+    );
 
     let client_clone = client.clone();
     tokio::spawn(async move {
-        tracing::debug!("[DIFFICULTY] Sending mining.set_difficulty to {}", client_clone.remote_addr);
+        tracing::debug!(
+            "[DIFFICULTY] Sending mining.set_difficulty to {}",
+            client_clone.remote_addr
+        );
 
         // Always use standard JSON-RPC format
         let diff_event = JsonRpcEvent {
@@ -815,10 +1046,18 @@ fn send_client_diff(instance_id: &str, client: &StratumContext, _state: &MiningS
 
         if let Err(e) = send_result {
             let wallet_addr = client_clone.wallet_addr.lock().clone();
-            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedSetDiff.as_str());
+            record_worker_error(
+                &instance_id,
+                &wallet_addr,
+                crate::errors::ErrorShortCode::FailedSetDiff.as_str(),
+            );
             error!("[DIFFICULTY] ERROR: Failed sending difficulty: {}", e);
             return;
         }
-        tracing::debug!("[DIFFICULTY] Successfully sent difficulty {} to {}", diff, client_clone.remote_addr);
+        tracing::debug!(
+            "[DIFFICULTY] Successfully sent difficulty {} to {}",
+            diff,
+            client_clone.remote_addr
+        );
     });
 }

@@ -27,7 +27,10 @@ struct Cli {
     #[arg(long, value_enum)]
     node_mode: Option<NodeMode>,
 
-    #[arg(long, default_value = "--utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110 --disable-upnp")]
+    #[arg(
+        long,
+        default_value = "--utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110 --disable-upnp"
+    )]
     node_args: Option<String>,
 
     #[arg(long, action = clap::ArgAction::Append)]
@@ -84,8 +87,15 @@ fn split_shell_words(input: &str) -> Result<Vec<String>, anyhow::Error> {
 fn log_bridge_configuration(config: &app_config::BridgeConfig) {
     let instance_count = config.instances.len();
     tracing::info!("----------------------------------");
-    tracing::info!("initializing bridge ({} instance{})", instance_count, if instance_count > 1 { "s" } else { "" });
-    tracing::info!("\tkaspad:          {} (shared)", config.global.kaspad_address);
+    tracing::info!(
+        "initializing bridge ({} instance{})",
+        instance_count,
+        if instance_count > 1 { "s" } else { "" }
+    );
+    tracing::info!(
+        "\tkaspad:          {} (shared)",
+        config.global.kaspad_address
+    );
     tracing::info!("\tblock wait:      {:?}", config.global.block_wait_time);
     tracing::info!("\tprint stats:     {}", config.global.print_stats);
     tracing::info!("\tvar diff:        {}", config.global.var_diff);
@@ -109,7 +119,10 @@ fn log_bridge_configuration(config: &app_config::BridgeConfig) {
     tracing::info!("----------------------------------");
 }
 
-async fn kaspa_api_with_retry(kaspad_address: String, block_wait_time: Duration) -> Result<Arc<KaspaApi>, anyhow::Error> {
+async fn kaspa_api_with_retry(
+    kaspad_address: String,
+    block_wait_time: Duration,
+) -> Result<Arc<KaspaApi>, anyhow::Error> {
     let mut last_err: Option<anyhow::Error> = None;
     for _ in 0..60 {
         match KaspaApi::new(kaspad_address.clone(), block_wait_time).await {
@@ -155,10 +168,17 @@ async fn main() -> Result<(), anyhow::Error> {
     // 1. Direct path as specified
     // 2. Fallback path under ./bridge/
     // 3-5. Paths relative to executable directory (for different deployment scenarios)
-    let exe_base = std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.to_path_buf()));
-    let exe_root = exe_base.as_ref().and_then(|p| p.parent()).and_then(|p| p.parent()).map(|p| p.to_path_buf());
+    let exe_base = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let exe_root = exe_base
+        .as_ref()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .map(|p| p.to_path_buf());
 
-    let mut candidates: Vec<std::path::PathBuf> = vec![config_path.to_path_buf(), fallback_path.clone()];
+    let mut candidates: Vec<std::path::PathBuf> =
+        vec![config_path.to_path_buf(), fallback_path.clone()];
 
     if config_path.is_relative() {
         if let Some(exe_base) = exe_base.as_ref() {
@@ -193,7 +213,9 @@ async fn main() -> Result<(), anyhow::Error> {
         // Default: warn level, but allow info from the bridge. In inprocess mode we also
         // enable info-level logs from the embedded node (which uses the `log` crate).
         if node_mode == NodeMode::Inprocess {
-            EnvFilter::new("warn,kaspa_stratum_bridge=info,kaspa=info,kaspad=info,kaspad_lib=info,log=info")
+            EnvFilter::new(
+                "warn,kaspa_stratum_bridge=info,kaspa=info,kaspad=info,kaspad_lib=info,log=info",
+            )
         } else {
             EnvFilter::new("warn,kaspa_stratum_bridge=info")
         }
@@ -201,7 +223,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // Note: The file_guard must be kept alive for the lifetime of the program
     // to ensure logs are flushed to the file
-    let _file_guard = tracing_setup::init_tracing(&config, filter, node_mode == NodeMode::Inprocess);
+    let _file_guard =
+        tracing_setup::init_tracing(&config, filter, node_mode == NodeMode::Inprocess);
 
     // Start in-process node after tracing is initialized so bridge logs (including the stats table)
     // are not filtered out by a tracing subscriber installed by kaspad.
@@ -216,7 +239,11 @@ async fn main() -> Result<(), anyhow::Error> {
 
     if loaded_from.is_none() {
         let cwd = std::env::current_dir().ok();
-        tracing::warn!("config.yaml not found, using defaults (requested: {:?}, cwd: {:?})", config_path, cwd);
+        tracing::warn!(
+            "config.yaml not found, using defaults (requested: {:?}, cwd: {:?})",
+            config_path,
+            cwd
+        );
     }
 
     log_bridge_configuration(&config);
@@ -229,13 +256,19 @@ async fn main() -> Result<(), anyhow::Error> {
 
     // Create shared kaspa API client (all instances use the same node)
     let kaspa_api = if inprocess_node.is_some() {
-        kaspa_api_with_retry(config.global.kaspad_address.clone(), config.global.block_wait_time)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?
+        kaspa_api_with_retry(
+            config.global.kaspad_address.clone(),
+            config.global.block_wait_time,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?
     } else {
-        KaspaApi::new(config.global.kaspad_address.clone(), config.global.block_wait_time)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?
+        KaspaApi::new(
+            config.global.kaspad_address.clone(),
+            config.global.block_wait_time,
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?
     };
 
     let mut instance_handles = Vec::new();
@@ -255,7 +288,11 @@ async fn main() -> Result<(), anyhow::Error> {
             let instance_id_prom = instance_id_str.clone();
             tokio::spawn(async move {
                 if let Err(e) = prom::start_prom_server(&prom_port, &instance_id_prom).await {
-                    tracing::error!("[Instance {}] Prometheus server error: {}", instance_num_prom, e);
+                    tracing::error!(
+                        "[Instance {}] Prometheus server error: {}",
+                        instance_num_prom,
+                        e
+                    );
                 }
             });
         }
@@ -264,7 +301,11 @@ async fn main() -> Result<(), anyhow::Error> {
             tracing_setup::register_instance(instance_id_str.clone(), instance_num);
 
             let colored_instance_id = LogColors::format_instance_id(instance_num);
-            tracing::info!("{} Starting on stratum port {}", colored_instance_id, instance.stratum_port);
+            tracing::info!(
+                "{} Starting on stratum port {}",
+                colored_instance_id,
+                instance.stratum_port
+            );
 
             let bridge_config = StratumBridgeConfig {
                 instance_id: instance_id_str.clone(),
@@ -283,14 +324,25 @@ async fn main() -> Result<(), anyhow::Error> {
                 pow2_clamp: instance.pow2_clamp.unwrap_or(global.pow2_clamp),
             };
 
-            listen_and_serve(bridge_config, Arc::clone(&kaspa_api_clone), if is_first_instance { Some(kaspa_api_clone) } else { None })
-                .await
-                .map_err(|e| format!("[Instance {}] Bridge server error: {}", instance_num, e))
+            listen_and_serve(
+                bridge_config,
+                Arc::clone(&kaspa_api_clone),
+                if is_first_instance {
+                    Some(kaspa_api_clone)
+                } else {
+                    None
+                },
+            )
+            .await
+            .map_err(|e| format!("[Instance {}] Bridge server error: {}", instance_num, e))
         });
         instance_handles.push(handle);
     }
 
-    tracing::info!("All {} instance(s) started, waiting for completion...", config.instances.len());
+    tracing::info!(
+        "All {} instance(s) started, waiting for completion...",
+        config.instances.len()
+    );
 
     let bridge_fut = async {
         let result = try_join_all(instance_handles).await;

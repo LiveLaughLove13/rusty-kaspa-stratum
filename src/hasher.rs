@@ -29,7 +29,11 @@ pub struct KaspaDiff {
 
 impl Default for KaspaDiff {
     fn default() -> Self {
-        Self { hash_value: 0.0, diff_value: 0.0, target_value: BigUint::zero() }
+        Self {
+            hash_value: 0.0,
+            diff_value: 0.0,
+            target_value: BigUint::zero(),
+        }
     }
 }
 
@@ -99,10 +103,14 @@ pub fn stratum_difficulty_to_target_kaspa(stratum_diff: u64) -> BigUint {
 /// Based on: https://github.com/tmrlvi/kaspa-miner/blob/bf361d02a46c580f55f46b5dfa773477634a5753/src/client/stratum.rs#L375
 pub fn diff_to_target(diff: f64) -> BigUint {
     // Check environment variable to use alternative implementation for testing
-    let use_alternative = std::env::var("USE_ALTERNATIVE_TARGET_CALC").unwrap_or_default().eq_ignore_ascii_case("true");
+    let use_alternative = std::env::var("USE_ALTERNATIVE_TARGET_CALC")
+        .unwrap_or_default()
+        .eq_ignore_ascii_case("true");
 
     // Check if we should use stratum-specific calculation (for integer difficulties)
-    let use_stratum_alt = std::env::var("USE_STRATUM_TARGET_CALC").unwrap_or_default().eq_ignore_ascii_case("true");
+    let use_stratum_alt = std::env::var("USE_STRATUM_TARGET_CALC")
+        .unwrap_or_default()
+        .eq_ignore_ascii_case("true");
 
     if use_stratum_alt {
         // Use stratum-specific calculation (takes u64, which is what ASICs receive)
@@ -188,7 +196,9 @@ pub fn diff_to_hash(diff: f64) -> f64 {
 /// This creates the pre-PoW hash (hash WITHOUT timestamp and nonce)
 /// Uses kaspa_hashes::BlockHash to match the working stratum implementation
 /// Returns the Hash type directly (not bytes) to match working stratum code
-pub fn serialize_block_header(block: &kaspa_consensus_core::block::Block) -> Result<kaspa_hashes::Hash, Box<dyn std::error::Error>> {
+pub fn serialize_block_header(
+    block: &kaspa_consensus_core::block::Block,
+) -> Result<kaspa_hashes::Hash, Box<dyn std::error::Error>> {
     let header = &block.header;
     let mut hasher = BlockHash::new();
 
@@ -222,7 +232,10 @@ pub fn serialize_block_header(block: &kaspa_consensus_core::block::Block) -> Res
     let _ = header.pruning_point.as_bytes();
 
     // Write header fields
-    hasher.update(header.hash_merkle_root).update(header.accepted_id_merkle_root).update(header.utxo_commitment);
+    hasher
+        .update(header.hash_merkle_root)
+        .update(header.accepted_id_merkle_root)
+        .update(header.utxo_commitment);
 
     // Write the struct fields EXACTLY like Go does (lines 74-93 in hasher.go)
     // Go writes: TS(0) + Bits + Nonce(0) + DAAScore + BlueScore as one struct
@@ -235,7 +248,11 @@ pub fn serialize_block_header(block: &kaspa_consensus_core::block::Block) -> Res
 
     // Write blue_work (big endian bytes without leading zeros) - matches working stratum code
     let be_bytes = header.blue_work.to_be_bytes();
-    let start = be_bytes.iter().copied().position(|byte| byte != 0).unwrap_or(be_bytes.len());
+    let start = be_bytes
+        .iter()
+        .copied()
+        .position(|byte| byte != 0)
+        .unwrap_or(be_bytes.len());
     let blue_work_bytes = &be_bytes[start..];
     hasher.update((blue_work_bytes.len() as u64).to_le_bytes());
     hasher.update(blue_work_bytes);
@@ -258,7 +275,9 @@ pub fn generate_job_header(header_data: &[u8]) -> Vec<u64> {
         let offset = i * 8;
         if offset + 8 <= header_data.len() {
             let bytes = &header_data[offset..offset + 8];
-            let value = u64::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]]);
+            let value = u64::from_le_bytes([
+                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            ]);
             ids.push(value);
         }
     }
@@ -282,7 +301,11 @@ pub fn generate_iceriver_job_params(pre_pow_hash: &kaspa_hashes::Hash, timestamp
 
     // Verify hash format
     tracing::debug!("[HASH] Pre-PoW hash bytes: {:?}", pre_pow_hash.as_bytes());
-    tracing::debug!("[HASH] Pre-PoW hash hex string: {} (length: {})", hash_hex, hash_hex.len());
+    tracing::debug!(
+        "[HASH] Pre-PoW hash hex string: {} (length: {})",
+        hash_hex,
+        hash_hex.len()
+    );
 
     // Verify it's lowercase (pool uses lowercase hex)
     if hash_hex != hash_hex.to_lowercase() {
@@ -293,7 +316,10 @@ pub fn generate_iceriver_job_params(pre_pow_hash: &kaspa_hashes::Hash, timestamp
 
     // Verify length is exactly 64 hex characters (32 bytes)
     if hash_hex.len() != 64 {
-        tracing::error!("[HASH] ERROR: Hash hex length is {} (expected 64)", hash_hex.len());
+        tracing::error!(
+            "[HASH] ERROR: Hash hex length is {} (expected 64)",
+            hash_hex.len()
+        );
     } else {
         tracing::debug!("[HASH] Hash hex length is correct: 64 chars");
     }
@@ -305,13 +331,19 @@ pub fn generate_iceriver_job_params(pre_pow_hash: &kaspa_hashes::Hash, timestamp
 
     // Debug: Verify timestamp conversion matches pool format
     // Pool uses: timestampLE.writeBigUInt64LE(timestamp) which is exactly what to_le_bytes() does
-    tracing::debug!("[TIMESTAMP] Input timestamp (u64): {} (milliseconds)", timestamp);
+    tracing::debug!(
+        "[TIMESTAMP] Input timestamp (u64): {} (milliseconds)",
+        timestamp
+    );
     tracing::debug!("[TIMESTAMP] Little-endian bytes: {:?}", timestamp_le);
     tracing::debug!("[TIMESTAMP] Hex string (16 chars): {}", timestamp_hex);
 
     // Verify hex length is exactly 16 characters (8 bytes)
     if timestamp_hex.len() != 16 {
-        tracing::warn!("[TIMESTAMP] WARNING: Timestamp hex length is {} (expected 16)", timestamp_hex.len());
+        tracing::warn!(
+            "[TIMESTAMP] WARNING: Timestamp hex length is {} (expected 16)",
+            timestamp_hex.len()
+        );
     } else {
         tracing::debug!("[TIMESTAMP] Timestamp hex length is correct: 16 chars");
     }
@@ -328,7 +360,11 @@ pub fn generate_iceriver_job_params(pre_pow_hash: &kaspa_hashes::Hash, timestamp
         timestamp_le[7],
     ]);
     if decoded_timestamp != timestamp {
-        tracing::error!("[TIMESTAMP] ERROR: Timestamp round-trip failed! Original: {}, Decoded: {}", timestamp, decoded_timestamp);
+        tracing::error!(
+            "[TIMESTAMP] ERROR: Timestamp round-trip failed! Original: {}, Decoded: {}",
+            timestamp,
+            decoded_timestamp
+        );
     } else {
         tracing::debug!("[TIMESTAMP] Timestamp round-trip verification: PASSED");
     }
@@ -338,7 +374,10 @@ pub fn generate_iceriver_job_params(pre_pow_hash: &kaspa_hashes::Hash, timestamp
 
     // Verify total length
     if result.len() != 80 {
-        tracing::warn!("[TIMESTAMP] WARNING: Total job data length is {} (expected 80)", result.len());
+        tracing::warn!(
+            "[TIMESTAMP] WARNING: Total job data length is {} (expected 80)",
+            result.len()
+        );
     } else {
         tracing::debug!("[TIMESTAMP] Total job data length is correct: 80 chars");
     }
@@ -372,7 +411,9 @@ pub fn generate_large_job_params(header_data: &[u8], timestamp: u64) -> String {
         let offset = i * 8;
         if offset + 8 <= header_data.len() {
             let bytes = &header_data[offset..offset + 8];
-            let value = u64::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]]);
+            let value = u64::from_be_bytes([
+                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            ]);
             ids.push(value);
         }
     }
@@ -386,7 +427,10 @@ pub fn generate_large_job_params(header_data: &[u8], timestamp: u64) -> String {
     ids.push(timestamp_swapped);
 
     // Format as hex string (80 chars = 5 * 16)
-    format!("{:016x}{:016x}{:016x}{:016x}{:016x}", ids[0], ids[1], ids[2], ids[3], ids[4])
+    format!(
+        "{:016x}{:016x}{:016x}{:016x}{:016x}",
+        ids[0], ids[1], ids[2], ids[3], ids[4]
+    )
 }
 
 /// Calculate target from bits (compact format)
@@ -452,7 +496,11 @@ mod tests {
         // For difficulty 8192 = 2^13, target should be approximately 2^243
         // Let's verify it's in the right ballpark
         let target_hex = format!("{:x}", target_8192);
-        println!("Target for difficulty 8192: {} ({} hex digits)", target_hex, target_hex.len());
+        println!(
+            "Target for difficulty 8192: {} ({} hex digits)",
+            target_hex,
+            target_hex.len()
+        );
         assert!(target_hex.len() <= 64); // Should be 64 hex digits or less
 
         // Test comparison with a sample pow_value
@@ -463,20 +511,35 @@ mod tests {
         let target_bytes = target_8192.to_bytes_be();
 
         println!("pow_value: {:x} ({} bytes)", pow_value, pow_bytes.len());
-        println!("pool_target: {:x} ({} bytes)", target_8192, target_bytes.len());
+        println!(
+            "pool_target: {:x} ({} bytes)",
+            target_8192,
+            target_bytes.len()
+        );
 
         // Format with leading zeros for accurate comparison
         let pow_hex_full = format!("{:064x}", pow_value);
         let target_hex_full = format!("{:064x}", target_8192);
-        println!("pow_value (full): {} ({} hex digits)", pow_hex_full, pow_hex_full.len());
-        println!("pool_target (full): {} ({} hex digits)", target_hex_full, target_hex_full.len());
+        println!(
+            "pow_value (full): {} ({} hex digits)",
+            pow_hex_full,
+            pow_hex_full.len()
+        );
+        println!(
+            "pool_target (full): {} ({} hex digits)",
+            target_hex_full,
+            target_hex_full.len()
+        );
 
         let is_valid_share = pow_value < target_8192;
         println!("pow_value < pool_target (valid share): {}", is_valid_share);
 
         // Verify the comparison logic works correctly
         // For this specific pow_value, it should be less than target_8192 for difficulty 8192
-        assert!(pow_value != target_8192, "pow_value should not equal target");
+        assert!(
+            pow_value != target_8192,
+            "pow_value should not equal target"
+        );
 
         // Verify byte lengths are consistent
         assert_eq!(pow_bytes.len(), 32, "pow_value should be 32 bytes");
@@ -495,14 +558,22 @@ mod tests {
         let devnet_bits = 505527324u64;
         let devnet_target = calculate_target(devnet_bits);
         println!("Devnet bits: {} (0x{:x})", devnet_bits, devnet_bits);
-        println!("Devnet target: {:x} ({} bytes)", devnet_target, devnet_target.to_bytes_be().len());
+        println!(
+            "Devnet target: {:x} ({} bytes)",
+            devnet_target,
+            devnet_target.to_bytes_be().len()
+        );
 
         // Test comparison with actual pow_value that should pass
         use num_traits::Num;
         let pow_value_hex = "1411c29a4bb46627f3f225eff3a6334d61b8700568364aa7a36e9f16b49e12a0";
         let pow_value = <BigUint as Num>::from_str_radix(pow_value_hex, 16).unwrap();
 
-        println!("pow_value: {:x} ({} bytes)", pow_value, pow_value.to_bytes_be().len());
+        println!(
+            "pow_value: {:x} ({} bytes)",
+            pow_value,
+            pow_value.to_bytes_be().len()
+        );
 
         // Print with leading zeros to see actual bit positions
         println!("pow_value (64 hex chars):      {:064x}", pow_value);
@@ -511,8 +582,16 @@ mod tests {
         // Check raw byte comparison
         let pow_bytes = pow_value.to_bytes_be();
         let target_bytes = devnet_target.to_bytes_be();
-        println!("pow_value bytes (len={}): {:?}...", pow_bytes.len(), &pow_bytes[0..4.min(pow_bytes.len())]);
-        println!("target bytes (len={}): {:?}...", target_bytes.len(), &target_bytes[0..4.min(target_bytes.len())]);
+        println!(
+            "pow_value bytes (len={}): {:?}...",
+            pow_bytes.len(),
+            &pow_bytes[0..4.min(pow_bytes.len())]
+        );
+        println!(
+            "target bytes (len={}): {:?}...",
+            target_bytes.len(),
+            &target_bytes[0..4.min(target_bytes.len())]
+        );
 
         // The key insight: BigUint compares by MAGNITUDE, not lexicographically!
         // A 32-byte number 0x1411c29a... has magnitude approximately 1.41 × 2^252
@@ -520,8 +599,14 @@ mod tests {
         // Since 2^252 >> 2^232, the 32-byte number is LARGER!
 
         println!("\nMagnitude comparison:");
-        println!("32-byte pow_value magnitude ≈ {:e}", pow_value.to_f64().unwrap_or(0.0));
-        println!("30-byte target magnitude ≈ {:e}", devnet_target.to_f64().unwrap_or(0.0));
+        println!(
+            "32-byte pow_value magnitude ≈ {:e}",
+            pow_value.to_f64().unwrap_or(0.0)
+        );
+        println!(
+            "30-byte target magnitude ≈ {:e}",
+            devnet_target.to_f64().unwrap_or(0.0)
+        );
 
         println!("pow_value <= devnet_target: {}", pow_value <= devnet_target);
         println!("pow_value < devnet_target: {}", pow_value < devnet_target);
@@ -540,7 +625,10 @@ mod tests {
         println!("pow_value < target_padded: {}", pow_value < target_padded);
 
         // This should now be true!
-        assert!(pow_value < target_padded, "After padding target to 32 bytes, pow_value should be less than target");
+        assert!(
+            pow_value < target_padded,
+            "After padding target to 32 bytes, pow_value should be less than target"
+        );
     }
 
     #[test]
@@ -558,8 +646,16 @@ mod tests {
         let target_hex = format!("{:x}", target_8192);
 
         println!("\n=== Share Validation Test ===");
-        println!("pow_value: {} (starts with {:02x})", pow_value_hex, pow_value.to_bytes_be()[0]);
-        println!("pool_target: {} (starts with {:02x})", target_hex, target_8192.to_bytes_be()[0]);
+        println!(
+            "pow_value: {} (starts with {:02x})",
+            pow_value_hex,
+            pow_value.to_bytes_be()[0]
+        );
+        println!(
+            "pool_target: {} (starts with {:02x})",
+            target_hex,
+            target_8192.to_bytes_be()[0]
+        );
         println!("pow_value bytes: {}", pow_value.to_bytes_be().len());
         println!("pool_target bytes: {}", target_8192.to_bytes_be().len());
 
@@ -570,7 +666,10 @@ mod tests {
         println!("pool_target (full): {}", target_full);
 
         let comparison = pow_value < target_8192;
-        println!("pow_value < pool_target (should be true for valid share): {}", comparison);
+        println!(
+            "pow_value < pool_target (should be true for valid share): {}",
+            comparison
+        );
         println!("pow_value >= pool_target: {}", pow_value >= target_8192);
 
         // This pow_value starts with 0x38 < 0x7f, so it should be valid

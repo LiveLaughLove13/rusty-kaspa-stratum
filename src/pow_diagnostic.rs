@@ -25,7 +25,11 @@ pub fn diagnose_pow_issue(header: &Header, nonce: u64) {
     tracing::debug!("\n[TARGET CALCULATION]");
     tracing::debug!("  Exponent: {} (0x{:x})", exponent, exponent);
     tracing::debug!("  Mantissa: {} (0x{:06x})", mantissa, mantissa);
-    tracing::debug!("  Shift: 8 * ({} - 3) = {} bits", exponent, 8 * (exponent - 3));
+    tracing::debug!(
+        "  Shift: 8 * ({} - 3) = {} bits",
+        exponent,
+        8 * (exponent - 3)
+    );
 
     let shift = if exponent > 3 { 8 * (exponent - 3) } else { 0 };
     let target = BigUint::from(mantissa) << shift;
@@ -41,8 +45,14 @@ pub fn diagnose_pow_issue(header: &Header, nonce: u64) {
     let pow_value1 = BigUint::from_bytes_be(&value1.to_be_bytes());
     tracing::debug!("  Result: {}", if passed1 { "PASS" } else { "FAIL" });
     tracing::debug!("  Pow value: 0x{:064x}", pow_value1);
-    tracing::debug!("  Pow magnitude: {:.3e}", pow_value1.to_f64().unwrap_or(0.0));
-    tracing::debug!("  Ratio to target: {:.2e}", pow_value1.to_f64().unwrap_or(0.0) / target.to_f64().unwrap_or(1.0));
+    tracing::debug!(
+        "  Pow magnitude: {:.3e}",
+        pow_value1.to_f64().unwrap_or(0.0)
+    );
+    tracing::debug!(
+        "  Ratio to target: {:.2e}",
+        pow_value1.to_f64().unwrap_or(0.0) / target.to_f64().unwrap_or(1.0)
+    );
 
     // Method 2: PowState with nonce=0 in header, passing nonce to check_pow
     tracing::debug!("\n[METHOD 2: PowState with nonce passed to check_pow]");
@@ -53,8 +63,14 @@ pub fn diagnose_pow_issue(header: &Header, nonce: u64) {
     let pow_value2 = BigUint::from_bytes_be(&value2.to_be_bytes());
     tracing::debug!("  Result: {}", if passed2 { "PASS" } else { "FAIL" });
     tracing::debug!("  Pow value: 0x{:064x}", pow_value2);
-    tracing::debug!("  Pow magnitude: {:.3e}", pow_value2.to_f64().unwrap_or(0.0));
-    tracing::debug!("  Ratio to target: {:.2e}", pow_value2.to_f64().unwrap_or(0.0) / target.to_f64().unwrap_or(1.0));
+    tracing::debug!(
+        "  Pow magnitude: {:.3e}",
+        pow_value2.to_f64().unwrap_or(0.0)
+    );
+    tracing::debug!(
+        "  Ratio to target: {:.2e}",
+        pow_value2.to_f64().unwrap_or(0.0) / target.to_f64().unwrap_or(1.0)
+    );
 
     // Method 3: Test with nonce=0
     tracing::debug!("\n[METHOD 3: Test with nonce=0]");
@@ -65,7 +81,10 @@ pub fn diagnose_pow_issue(header: &Header, nonce: u64) {
     let pow_value3 = BigUint::from_bytes_be(&value3.to_be_bytes());
     tracing::debug!("  Result: {}", if passed3 { "PASS" } else { "FAIL" });
     tracing::debug!("  Pow value: 0x{:064x}", pow_value3);
-    tracing::debug!("  Pow magnitude: {:.3e}", pow_value3.to_f64().unwrap_or(0.0));
+    tracing::debug!(
+        "  Pow magnitude: {:.3e}",
+        pow_value3.to_f64().unwrap_or(0.0)
+    );
 
     // Method 4: Try minimum possible nonce
     tracing::debug!("\n[METHOD 4: Trying nonce=1]");
@@ -76,7 +95,10 @@ pub fn diagnose_pow_issue(header: &Header, nonce: u64) {
     let pow_value4 = BigUint::from_bytes_be(&value4.to_be_bytes());
     tracing::debug!("  Result: {}", if passed4 { "PASS" } else { "FAIL" });
     tracing::debug!("  Pow value: 0x{:064x}", pow_value4);
-    tracing::debug!("  Ratio to target: {:.2e}", pow_value4.to_f64().unwrap_or(0.0) / target.to_f64().unwrap_or(1.0));
+    tracing::debug!(
+        "  Ratio to target: {:.2e}",
+        pow_value4.to_f64().unwrap_or(0.0) / target.to_f64().unwrap_or(1.0)
+    );
 
     // Check if ANY nonce in a small range would pass
     tracing::debug!("\n[BRUTE FORCE TEST: First 1000 nonces]");
@@ -97,7 +119,9 @@ pub fn diagnose_pow_issue(header: &Header, nonce: u64) {
 
     if !found_valid {
         tracing::debug!("  ✗ No valid nonce found in range 0-999");
-        tracing::debug!("  This confirms the issue: even with devnet difficulty, we can't find valid blocks");
+        tracing::debug!(
+            "  This confirms the issue: even with devnet difficulty, we can't find valid blocks"
+        );
     }
 
     // Statistical analysis
@@ -108,8 +132,14 @@ pub fn diagnose_pow_issue(header: &Header, nonce: u64) {
     let bits_off = factor.log2();
     tracing::debug!("  Factor off: {:.2e} ({:.1}x)", factor, factor);
     tracing::debug!("  Bits off: {:.2} bits", bits_off);
-    tracing::debug!("  Expected probability: 1 in {:.2e}", 2.0_f64.powf(256.0) / target_f64);
-    tracing::debug!("  Actual (if working): Should find valid block in ~{} hashes", (2.0_f64.powf(256.0) / target_f64) as u64);
+    tracing::debug!(
+        "  Expected probability: 1 in {:.2e}",
+        2.0_f64.powf(256.0) / target_f64
+    );
+    tracing::debug!(
+        "  Actual (if working): Should find valid block in ~{} hashes",
+        (2.0_f64.powf(256.0) / target_f64) as u64
+    );
 
     tracing::debug!("\n========================================");
     tracing::debug!("END DIAGNOSTIC");

@@ -1,5 +1,7 @@
 use prometheus::proto::MetricFamily;
-use prometheus::{register_counter_vec, register_gauge, register_gauge_vec, CounterVec, Gauge, GaugeVec};
+use prometheus::{
+    register_counter_vec, register_gauge, register_gauge_vec, CounterVec, Gauge, GaugeVec,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
@@ -11,7 +13,16 @@ const WORKER_LABELS: &[&str] = &["instance", "worker", "miner", "wallet", "ip"];
 const INVALID_LABELS: &[&str] = &["instance", "worker", "miner", "wallet", "ip", "type"];
 
 /// Block labels
-const BLOCK_LABELS: &[&str] = &["instance", "worker", "miner", "wallet", "ip", "nonce", "bluescore", "hash"];
+const BLOCK_LABELS: &[&str] = &[
+    "instance",
+    "worker",
+    "miner",
+    "wallet",
+    "ip",
+    "nonce",
+    "bluescore",
+    "hash",
+];
 
 /// Error labels
 const ERROR_LABELS: &[&str] = &["instance", "wallet", "error"];
@@ -65,19 +76,40 @@ static WORKER_START_TIME: OnceLock<GaugeVec> = OnceLock::new();
 /// Initialize Prometheus metrics
 pub fn init_metrics() {
     SHARE_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_valid_share_counter", "Number of shares found by worker over time", WORKER_LABELS).unwrap()
+        register_counter_vec!(
+            "ks_valid_share_counter",
+            "Number of shares found by worker over time",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     SHARE_DIFF_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_valid_share_diff_counter", "Total difficulty of shares found by worker over time", WORKER_LABELS)
-            .unwrap()
+        register_counter_vec!(
+            "ks_valid_share_diff_counter",
+            "Total difficulty of shares found by worker over time",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     INVALID_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_invalid_share_counter", "Number of stale shares found by worker over time", INVALID_LABELS).unwrap()
+        register_counter_vec!(
+            "ks_invalid_share_counter",
+            "Number of stale shares found by worker over time",
+            INVALID_LABELS
+        )
+        .unwrap()
     });
 
-    BLOCK_COUNTER.get_or_init(|| register_counter_vec!("ks_blocks_mined", "Number of blocks mined over time", WORKER_LABELS).unwrap());
+    BLOCK_COUNTER.get_or_init(|| {
+        register_counter_vec!(
+            "ks_blocks_mined",
+            "Number of blocks mined over time",
+            WORKER_LABELS
+        )
+        .unwrap()
+    });
 
     BLOCK_ACCEPTED_COUNTER.get_or_init(|| {
         register_counter_vec!(
@@ -98,15 +130,30 @@ pub fn init_metrics() {
     });
 
     BLOCK_GAUGE.get_or_init(|| {
-        register_gauge_vec!("ks_mined_blocks_gauge", "Gauge containing 1 unique instance per block mined", BLOCK_LABELS).unwrap()
+        register_gauge_vec!(
+            "ks_mined_blocks_gauge",
+            "Gauge containing 1 unique instance per block mined",
+            BLOCK_LABELS
+        )
+        .unwrap()
     });
 
     DISCONNECT_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_worker_disconnect_counter", "Number of disconnects by worker", WORKER_LABELS).unwrap()
+        register_counter_vec!(
+            "ks_worker_disconnect_counter",
+            "Number of disconnects by worker",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     JOB_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_worker_job_counter", "Number of jobs sent to the miner by worker over time", WORKER_LABELS).unwrap()
+        register_counter_vec!(
+            "ks_worker_job_counter",
+            "Number of jobs sent to the miner by worker over time",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     BALANCE_GAUGE.get_or_init(|| {
@@ -118,21 +165,46 @@ pub fn init_metrics() {
         .unwrap()
     });
 
-    ERROR_BY_WALLET
-        .get_or_init(|| register_counter_vec!("ks_worker_errors", "Gauge representing errors by worker", ERROR_LABELS).unwrap());
-
-    ESTIMATED_NETWORK_HASHRATE.get_or_init(|| {
-        register_gauge!("ks_estimated_network_hashrate_gauge", "Gauge representing the estimated network hashrate").unwrap()
+    ERROR_BY_WALLET.get_or_init(|| {
+        register_counter_vec!(
+            "ks_worker_errors",
+            "Gauge representing errors by worker",
+            ERROR_LABELS
+        )
+        .unwrap()
     });
 
-    NETWORK_DIFFICULTY
-        .get_or_init(|| register_gauge!("ks_network_difficulty_gauge", "Gauge representing the network difficulty").unwrap());
+    ESTIMATED_NETWORK_HASHRATE.get_or_init(|| {
+        register_gauge!(
+            "ks_estimated_network_hashrate_gauge",
+            "Gauge representing the estimated network hashrate"
+        )
+        .unwrap()
+    });
 
-    NETWORK_BLOCK_COUNT
-        .get_or_init(|| register_gauge!("ks_network_block_count", "Gauge representing the network block count").unwrap());
+    NETWORK_DIFFICULTY.get_or_init(|| {
+        register_gauge!(
+            "ks_network_difficulty_gauge",
+            "Gauge representing the network difficulty"
+        )
+        .unwrap()
+    });
+
+    NETWORK_BLOCK_COUNT.get_or_init(|| {
+        register_gauge!(
+            "ks_network_block_count",
+            "Gauge representing the network block count"
+        )
+        .unwrap()
+    });
 
     WORKER_START_TIME.get_or_init(|| {
-        register_gauge_vec!("ks_worker_start_time", "Unix timestamp (seconds) when worker first connected", WORKER_LABELS).unwrap()
+        register_gauge_vec!(
+            "ks_worker_start_time",
+            "Unix timestamp (seconds) when worker first connected",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 }
 
@@ -147,7 +219,13 @@ pub struct WorkerContext {
 
 impl WorkerContext {
     pub fn labels(&self) -> Vec<&str> {
-        vec![&self.instance_id, &self.worker_name, &self.miner, &self.wallet, &self.ip]
+        vec![
+            &self.instance_id,
+            &self.worker_name,
+            &self.miner,
+            &self.wallet,
+            &self.ip,
+        ]
     }
 }
 
@@ -169,7 +247,9 @@ pub fn record_share_found(worker: &WorkerContext, share_diff: f64) {
         counter.with_label_values(&worker.labels()).inc();
     }
     if let Some(counter) = SHARE_DIFF_COUNTER.get() {
-        counter.with_label_values(&worker.labels()).inc_by(share_diff);
+        counter
+            .with_label_values(&worker.labels())
+            .inc_by(share_diff);
     }
 }
 
@@ -255,7 +335,9 @@ pub fn record_network_stats(hashrate: u64, block_count: u64, difficulty: f64) {
 /// Record a worker error
 pub fn record_worker_error(instance_id: &str, wallet: &str, error: &str) {
     if let Some(counter) = ERROR_BY_WALLET.get() {
-        counter.with_label_values(&[instance_id, wallet, error]).inc();
+        counter
+            .with_label_values(&[instance_id, wallet, error])
+            .inc();
     }
 }
 
@@ -265,21 +347,33 @@ pub fn record_balances(instance_id: &str, balances: &[(String, u64)]) {
         for (address, balance) in balances {
             // Convert from sompi to KAS (divide by 100000000)
             let balance_kas = *balance as f64 / 100_000_000.0;
-            gauge.with_label_values(&[instance_id, address]).set(balance_kas);
+            gauge
+                .with_label_values(&[instance_id, address])
+                .set(balance_kas);
         }
     }
 }
 
 fn metric_matches_instance(metric: &prometheus::proto::Metric, instance_id: &str) -> bool {
-    metric.get_label().iter().any(|label| label.get_name() == "instance" && label.get_value() == instance_id)
+    metric
+        .get_label()
+        .iter()
+        .any(|label| label.get_name() == "instance" && label.get_value() == instance_id)
 }
 
-fn filter_metric_families_for_instance(metric_families: Vec<MetricFamily>, instance_id: &str) -> Vec<MetricFamily> {
+fn filter_metric_families_for_instance(
+    metric_families: Vec<MetricFamily>,
+    instance_id: &str,
+) -> Vec<MetricFamily> {
     let mut out = Vec::with_capacity(metric_families.len());
 
     for family in metric_families {
-        let has_instance_label =
-            family.get_metric().iter().any(|metric| metric.get_label().iter().any(|label| label.get_name() == "instance"));
+        let has_instance_label = family.get_metric().iter().any(|metric| {
+            metric
+                .get_label()
+                .iter()
+                .any(|label| label.get_name() == "instance")
+        });
 
         if !has_instance_label {
             out.push(family);
@@ -287,7 +381,9 @@ fn filter_metric_families_for_instance(metric_families: Vec<MetricFamily>, insta
         }
 
         let mut filtered_family = family.clone();
-        filtered_family.mut_metric().retain(|metric| metric_matches_instance(metric, instance_id));
+        filtered_family
+            .mut_metric()
+            .retain(|metric| metric_matches_instance(metric, instance_id));
         if !filtered_family.get_metric().is_empty() {
             out.push(filtered_family);
         }
@@ -328,7 +424,10 @@ pub fn init_worker_counters(worker: &WorkerContext) {
     }
     // Set worker start time (Unix timestamp in seconds)
     if let Some(gauge) = WORKER_START_TIME.get() {
-        let start_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as f64;
+        let start_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as f64;
         gauge.with_label_values(&worker.labels()).set(start_time);
     }
 }
@@ -410,7 +509,13 @@ async fn get_stats_json(instance_id: &str) -> StatsResponse {
 
                     if !hash.is_empty() && !block_set.contains(&hash) {
                         block_set.insert(hash.clone());
-                        stats.blocks.push(BlockInfo { worker: worker.clone(), wallet: wallet.clone(), hash, nonce, bluescore });
+                        stats.blocks.push(BlockInfo {
+                            worker: worker.clone(),
+                            wallet: wallet.clone(),
+                            hash,
+                            nonce,
+                            bluescore,
+                        });
                         stats.totalBlocks += 1;
                     }
                 }
@@ -472,15 +577,17 @@ async fn get_stats_json(instance_id: &str) -> StatsResponse {
                     // Store hash value for hashrate calculation
                     worker_hash_values.insert(key.clone(), total_hash_value);
                     // Ensure worker exists in stats
-                    worker_stats.entry(key.clone()).or_insert_with(|| WorkerInfo {
-                        worker: worker_key,
-                        wallet,
-                        hashrate: 0.0,
-                        shares: 0,
-                        stale: 0,
-                        invalid: 0,
-                        blocks: 0,
-                    });
+                    worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| WorkerInfo {
+                            worker: worker_key,
+                            wallet,
+                            hashrate: 0.0,
+                            shares: 0,
+                            stale: 0,
+                            invalid: 0,
+                            blocks: 0,
+                        });
                 }
             }
         }
@@ -540,15 +647,17 @@ async fn get_stats_json(instance_id: &str) -> StatsResponse {
                 if !worker_key.is_empty() {
                     let key = format!("{}:{}", worker_key, wallet);
                     let count = metric.get_counter().get_value() as u64;
-                    let worker = worker_stats.entry(key.clone()).or_insert_with(|| WorkerInfo {
-                        worker: worker_key,
-                        wallet,
-                        hashrate: 0.0,
-                        shares: 0,
-                        stale: 0,
-                        invalid: 0,
-                        blocks: 0,
-                    });
+                    let worker = worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| WorkerInfo {
+                            worker: worker_key,
+                            wallet,
+                            hashrate: 0.0,
+                            shares: 0,
+                            stale: 0,
+                            invalid: 0,
+                            blocks: 0,
+                        });
 
                     if share_type == "stale" {
                         worker.stale = count;
@@ -586,28 +695,35 @@ async fn get_stats_json(instance_id: &str) -> StatsResponse {
                     let start_time_secs = metric.get_gauge().get_value();
                     worker_start_times.insert(key.clone(), start_time_secs);
                     // Ensure worker exists in stats
-                    worker_stats.entry(key.clone()).or_insert_with(|| WorkerInfo {
-                        worker: worker_key,
-                        wallet,
-                        hashrate: 0.0,
-                        shares: 0,
-                        stale: 0,
-                        invalid: 0,
-                        blocks: 0,
-                    });
+                    worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| WorkerInfo {
+                            worker: worker_key,
+                            wallet,
+                            hashrate: 0.0,
+                            shares: 0,
+                            stale: 0,
+                            invalid: 0,
+                            blocks: 0,
+                        });
                 }
             }
         }
     }
 
     // Calculate hashrate for workers using share_diff_counter and start_time
-    let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as f64;
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as f64;
 
     let mut total_worker_hashrate_ghs = 0.0;
 
     // Calculate hashrate for each worker
     for (key, worker) in worker_stats.iter_mut() {
-        if let (Some(&total_hash_value), Some(&start_time_secs)) = (worker_hash_values.get(key), worker_start_times.get(key)) {
+        if let (Some(&total_hash_value), Some(&start_time_secs)) =
+            (worker_hash_values.get(key), worker_start_times.get(key))
+        {
             let elapsed = current_time - start_time_secs;
             // Calculate hashrate: total_hash_value / elapsed_time (in GH/s)
             // Matches console stats: hashrate = shares_diff / elapsed
@@ -653,13 +769,22 @@ async fn get_config_json() -> String {
                 let mut config = serde_json::Map::new();
 
                 if let Some(port) = doc["stratum_port"].as_str() {
-                    config.insert("stratum_port".to_string(), serde_json::Value::String(port.to_string()));
+                    config.insert(
+                        "stratum_port".to_string(),
+                        serde_json::Value::String(port.to_string()),
+                    );
                 }
                 if let Some(addr) = doc["kaspad_address"].as_str() {
-                    config.insert("kaspad_address".to_string(), serde_json::Value::String(addr.to_string()));
+                    config.insert(
+                        "kaspad_address".to_string(),
+                        serde_json::Value::String(addr.to_string()),
+                    );
                 }
                 if let Some(port) = doc["prom_port"].as_str() {
-                    config.insert("prom_port".to_string(), serde_json::Value::String(port.to_string()));
+                    config.insert(
+                        "prom_port".to_string(),
+                        serde_json::Value::String(port.to_string()),
+                    );
                 }
                 if let Some(stats) = doc["print_stats"].as_bool() {
                     config.insert("print_stats".to_string(), serde_json::Value::Bool(stats));
@@ -668,25 +793,40 @@ async fn get_config_json() -> String {
                     config.insert("log_to_file".to_string(), serde_json::Value::Bool(log));
                 }
                 if let Some(port) = doc["health_check_port"].as_str() {
-                    config.insert("health_check_port".to_string(), serde_json::Value::String(port.to_string()));
+                    config.insert(
+                        "health_check_port".to_string(),
+                        serde_json::Value::String(port.to_string()),
+                    );
                 }
                 if let Some(diff) = doc["min_share_diff"].as_i64() {
-                    config.insert("min_share_diff".to_string(), serde_json::Value::Number(serde_json::Number::from(diff)));
+                    config.insert(
+                        "min_share_diff".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(diff)),
+                    );
                 }
                 if let Some(vd) = doc["var_diff"].as_bool() {
                     config.insert("var_diff".to_string(), serde_json::Value::Bool(vd));
                 }
                 if let Some(spm) = doc["shares_per_min"].as_i64() {
-                    config.insert("shares_per_min".to_string(), serde_json::Value::Number(serde_json::Number::from(spm)));
+                    config.insert(
+                        "shares_per_min".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(spm)),
+                    );
                 }
                 if let Some(vds) = doc["var_diff_stats"].as_bool() {
                     config.insert("var_diff_stats".to_string(), serde_json::Value::Bool(vds));
                 }
                 if let Some(bwt) = doc["block_wait_time"].as_i64() {
-                    config.insert("block_wait_time".to_string(), serde_json::Value::Number(serde_json::Number::from(bwt)));
+                    config.insert(
+                        "block_wait_time".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(bwt)),
+                    );
                 }
                 if let Some(ens) = doc["extranonce_size"].as_i64() {
-                    config.insert("extranonce_size".to_string(), serde_json::Value::Number(serde_json::Number::from(ens)));
+                    config.insert(
+                        "extranonce_size".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(ens)),
+                    );
                 }
                 if let Some(clamp) = doc["pow2_clamp"].as_bool() {
                     config.insert("pow2_clamp".to_string(), serde_json::Value::Bool(clamp));
@@ -700,7 +840,9 @@ async fn get_config_json() -> String {
 }
 
 /// Update config from JSON
-async fn update_config_from_json(json_body: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn update_config_from_json(
+    json_body: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use std::fs;
 
     let config: serde_json::Value = serde_json::from_str(json_body)?;
@@ -709,14 +851,18 @@ async fn update_config_from_json(json_body: &str) -> Result<(), Box<dyn std::err
     // Build YAML content directly from JSON values
     let mut out_str = String::new();
     out_str.push_str("# RustBridge Configuration\n");
-    out_str.push_str("# This file configures the stratum bridge that connects miners to the Kaspa node\n\n");
+    out_str.push_str(
+        "# This file configures the stratum bridge that connects miners to the Kaspa node\n\n",
+    );
 
     if let Some(port) = config.get("stratum_port").and_then(|v| v.as_str()) {
         out_str.push_str("# Stratum server port (format: \":PORT\" or \"HOST:PORT\")\n");
         out_str.push_str(&format!("stratum_port: {}\n\n", port));
     }
     if let Some(addr) = config.get("kaspad_address").and_then(|v| v.as_str()) {
-        out_str.push_str("# Kaspa node gRPC address (format: \"HOST:PORT\" or \"grpc://HOST:PORT\")\n");
+        out_str.push_str(
+            "# Kaspa node gRPC address (format: \"HOST:PORT\" or \"grpc://HOST:PORT\")\n",
+        );
         out_str.push_str(&format!("kaspad_address: {}\n\n", addr));
     }
     if let Some(port) = config.get("prom_port").and_then(|v| v.as_str()) {
@@ -772,7 +918,10 @@ async fn update_config_from_json(json_body: &str) -> Result<(), Box<dyn std::err
 }
 
 /// Start Prometheus metrics server
-pub async fn start_prom_server(port: &str, instance_id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn start_prom_server(
+    port: &str,
+    instance_id: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use std::net::SocketAddr;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
@@ -782,7 +931,11 @@ pub async fn start_prom_server(port: &str, instance_id: &str) -> Result<(), Box<
     let instance_id = instance_id.to_string();
 
     // Handle ":PORT" format by prepending "0.0.0.0"
-    let addr_str = if port.starts_with(':') { format!("0.0.0.0{}", port) } else { port.to_string() };
+    let addr_str = if port.starts_with(':') {
+        format!("0.0.0.0{}", port)
+    } else {
+        port.to_string()
+    };
 
     let addr: SocketAddr = addr_str.parse()?;
     let listener = TcpListener::bind(addr).await?;
@@ -799,7 +952,8 @@ pub async fn start_prom_server(port: &str, instance_id: &str) -> Result<(), Box<
             if request.starts_with("GET /metrics") {
                 use prometheus::Encoder;
                 let encoder = prometheus::TextEncoder::new();
-                let metric_families = filter_metric_families_for_instance(prometheus::gather(), &instance_id);
+                let metric_families =
+                    filter_metric_families_for_instance(prometheus::gather(), &instance_id);
                 let mut buffer = Vec::new();
                 encoder.encode(&metric_families, &mut buffer)?;
 

@@ -73,14 +73,19 @@ impl Default for InstanceConfig {
 
 impl Default for BridgeConfig {
     fn default() -> Self {
-        Self { global: GlobalConfig::default(), instances: vec![InstanceConfig::default()] }
+        Self {
+            global: GlobalConfig::default(),
+            instances: vec![InstanceConfig::default()],
+        }
     }
 }
 
 impl BridgeConfig {
     pub(crate) fn from_yaml(content: &str) -> Result<Self, anyhow::Error> {
         let docs = YamlLoader::load_from_str(content)?;
-        let doc = docs.first().ok_or_else(|| anyhow::anyhow!("empty YAML document"))?;
+        let doc = docs
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("empty YAML document"))?;
 
         // Parse global config
         let mut global = GlobalConfig::default();
@@ -146,14 +151,20 @@ impl BridgeConfig {
                         port.to_string()
                     };
                 } else {
-                    return Err(anyhow::anyhow!("Instance {} missing required 'stratum_port'", idx));
+                    return Err(anyhow::anyhow!(
+                        "Instance {} missing required 'stratum_port'",
+                        idx
+                    ));
                 }
 
                 // Required: min_share_diff
                 if let Some(diff) = instance_yaml["min_share_diff"].as_i64() {
                     instance.min_share_diff = diff as u32;
                 } else {
-                    return Err(anyhow::anyhow!("Instance {} missing required 'min_share_diff'", idx));
+                    return Err(anyhow::anyhow!(
+                        "Instance {} missing required 'min_share_diff'",
+                        idx
+                    ));
                 }
 
                 // Optional: prom_port (per-instance)
@@ -200,7 +211,10 @@ impl BridgeConfig {
             let mut ports = HashSet::new();
             for instance in &instances {
                 if !ports.insert(&instance.stratum_port) {
-                    return Err(anyhow::anyhow!("Duplicate stratum_port: {}", instance.stratum_port));
+                    return Err(anyhow::anyhow!(
+                        "Duplicate stratum_port: {}",
+                        instance.stratum_port
+                    ));
                 }
             }
 
@@ -236,7 +250,10 @@ impl BridgeConfig {
             // Single-instance mode: use global log_to_file as instance default
             instance.log_to_file = Some(global.log_to_file);
 
-            Ok(BridgeConfig { global, instances: vec![instance] })
+            Ok(BridgeConfig {
+                global,
+                instances: vec![instance],
+            })
         }
     }
 }
