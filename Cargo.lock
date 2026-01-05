@@ -2650,7 +2650,7 @@ dependencies = [
 
 [[package]]
 name = "kaspa-stratum-bridge"
-version = "1.0.1"
+version = "1.0.9"
 dependencies = [
  "anyhow",
  "async-trait",

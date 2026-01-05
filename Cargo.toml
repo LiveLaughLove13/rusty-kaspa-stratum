@@ -1,6 +1,6 @@
 [package]
 name = "kaspa-stratum-bridge"
-version = "1.0.1"
+version = "1.0.9"
 edition = "2021"
 authors = ["Kaspa developers"]
 description = "Kaspa Stratum Bridge - Mining pool connectivity for Kaspa ASIC miners"
