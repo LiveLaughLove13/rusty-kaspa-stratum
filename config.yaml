@@ -1,4 +1,4 @@
-# RustBridge Multi-Instance Test Configuration
+# RKStratum Multi-Instance Test Configuration
 # This configuration runs 4 instances for testing the multi-instance feature
 # All instances share the same Kaspa node (kaspad_address)
 
@@ -26,6 +26,15 @@ log_to_file: true
 # This is a GLOBAL health check endpoint
 health_check_port: ""
 
+# Global Web UI / aggregated metrics server port (optional).
+# If set, the bridge will host a single dashboard that aggregates ALL instances.
+# Example: web_port: ":3030" then open http://127.0.0.1:3030/
+#
+# If you run TWO `stratum-bridge` processes at the same time (e.g. one `--node-mode inprocess`
+# and one `--node-mode external`), they cannot bind the same web_port. Keep this at :3030 for one
+# process and start the other with a CLI override, e.g. `--web-port :3031`.
+web_port: ":3030"
+
 # Variable difficulty settings (defaults, can be overridden per-instance)
 var_diff: false
 shares_per_min: 20
@@ -37,6 +46,15 @@ pow2_clamp: true
 # Extranonce size (auto-detected per client, this is just for backward compatibility)
 extranonce_size: 2
 
+# Optional: append a custom identifier to the built-in coinbase tag (applies to BOTH node modes).
+# You CANNOT change/override the built-in base tag; you can only append a suffix.
+# Built-in base tag is fixed:
+# - "RK-Stratum"
+# Set this to a short identifier (no leading slash). It will be appended as `/SUFFIX`.
+# Examples (if coinbase_tag_suffix: "supertypo"):
+# - "RK-Stratum/supertypo"
+coinbase_tag_suffix: ""
+
 # ============================================
 # INSTANCE CONFIGURATIONS
 # ============================================
@@ -47,25 +65,43 @@ extranonce_size: 2
 # - Log to file (OPTIONAL, per-instance, defaults to global setting)
 
 instances:
-  # Instance 1: Low difficulty pool (for smaller miners or testing)
+  # Instance 1: Very low difficulty pool
+  - stratum_port: ":5559"
+    min_share_diff: 4
+    prom_port: ":2118"
+    log_to_file: true
+
+  # Instance 2: Low difficulty pool
+  - stratum_port: ":5560"
+    min_share_diff: 512
+    prom_port: ":2119"
+    log_to_file: true
+
+  # Instance 3: Low difficulty pool
+  - stratum_port: ":5561"
+    min_share_diff: 1024
+    prom_port: ":2120"
+    log_to_file: true
+
+  # Instance 4: Low difficulty pool (for smaller miners or testing)
   - stratum_port: ":5555"
     min_share_diff: 2048
     prom_port: ":2114"
     log_to_file: true
 
-  # Instance 2: Medium difficulty pool
+  # Instance 5: Medium difficulty pool
   - stratum_port: ":5556"
     min_share_diff: 4096
     prom_port: ":2115"
     log_to_file: true
 
-  # Instance 3: High difficulty pool (for powerful miners)
+  # Instance 6: High difficulty pool (for powerful miners)
   - stratum_port: ":5557"
     min_share_diff: 8192
     prom_port: ":2116"
     log_to_file: true
 
-  # Instance 4: Very high difficulty pool (for very powerful miners)
+  # Instance 7: Very high difficulty pool (for very powerful miners)
   - stratum_port: ":5558"
     min_share_diff: 16384
     prom_port: ":2117"
@@ -73,26 +109,3 @@ instances:
     # Optional: instance-specific overrides
     # var_diff: true
     # shares_per_min: 30
-
-# ============================================
-# TESTING NOTES
-# ============================================
-# To test this configuration:
-# 1. Ensure your Kaspa node is running on 127.0.0.1:16110
-# 2. Run: cargo run --release (or ./target/release/rustbridge.exe on Windows)
-# 3. You should see logs showing all 4 instances starting:
-#    - [Instance 1] Starting on stratum port :5555
-#    - [Instance 2] Starting on stratum port :5556
-#    - [Instance 3] Starting on stratum port :5557
-#    - [Instance 4] Starting on stratum port :5558
-# 4. Connect miners to:
-#    - Instance 1: localhost:5555 (min_share_diff: 2048) - Low difficulty
-#    - Instance 2: localhost:5556 (min_share_diff: 4096) - Medium difficulty
-#    - Instance 3: localhost:5557 (min_share_diff: 8192) - High difficulty
-#    - Instance 4: localhost:5558 (min_share_diff: 16384) - Very high difficulty
-# 5. Check Prometheus metrics:
-#    - Instance 1: http://localhost:2114/metrics
-#    - Instance 2: http://localhost:2115/metrics
-#    - Instance 3: http://localhost:2116/metrics
-#    - Instance 4: http://localhost:2117/metrics
-# 6. All logs will include instance identifiers like [Instance 1], [Instance 2], etc.
