@@ -1,604 +1,151 @@
 use clap::Parser;
 use futures_util::future::try_join_all;
+use kaspa_alloc::init_allocator_with_default_settings;
 use kaspa_stratum_bridge::log_colors::LogColors;
-use kaspa_stratum_bridge::*;
-use once_cell::sync::Lazy;
-use std::collections::HashMap;
+use kaspa_stratum_bridge::{BridgeConfig as StratumBridgeConfig, KaspaApi, listen_and_serve_with_shutdown, prom};
 use std::ffi::OsString;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::Mutex as StdMutex;
+use std::path::{Path, PathBuf};
+#[cfg(windows)]
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, OnceLock};
+#[cfg(feature = "rkstratum_cpu_miner")]
 use std::time::Duration;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use yaml_rust::YamlLoader;
+use tokio::sync::watch;
+use tracing_subscriber::EnvFilter;
 
-use kaspa_core::signals::Shutdown;
-use kaspa_utils::fd_budget;
-use kaspad_lib::{args as kaspad_args, daemon as kaspad_daemon};
+#[cfg(windows)]
+use windows_sys::Win32::System::Console::{CTRL_C_EVENT, SetConsoleCtrlHandler};
 
-// Global registry mapping instance_id strings to instance numbers
-// This persists across async boundaries and thread switches
-// Format: "[Instance 1]" -> 1, "[Instance 2]" -> 2, etc.
-static INSTANCE_REGISTRY: Lazy<StdMutex<HashMap<String, usize>>> = Lazy::new(|| StdMutex::new(HashMap::new()));
+use kaspad_lib::args as kaspad_args;
 
-#[derive(Debug, Parser)]
-#[command(author, version, about)]
-struct Cli {
-    #[arg(long, default_value = "config.yaml")]
-    config: PathBuf,
+mod app_config;
+mod app_dirs;
+mod cli;
+mod health_check;
+mod inprocess_node;
+mod tracing_setup;
 
-    #[arg(long, value_enum)]
-    node_mode: Option<NodeMode>,
+use app_config::BridgeConfig;
+use cli::{Cli, NodeMode, apply_cli_overrides};
+use inprocess_node::InProcessNode;
 
-    #[arg(long)]
-    node_args: Option<String>,
+static CONFIG_LOADED_FROM: OnceLock<Option<PathBuf>> = OnceLock::new();
+static REQUESTED_CONFIG_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-    #[arg(long, action = clap::ArgAction::Append)]
-    node_arg: Vec<String>,
+#[cfg(windows)]
+struct CtrlHandlerState {
+    presses: AtomicUsize,
+    last_event_ms: AtomicU64,
+    shutdown_tx: watch::Sender<bool>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-enum NodeMode {
-    External,
-    Inprocess,
-}
+#[cfg(windows)]
+static CTRL_HANDLER_STATE: OnceLock<CtrlHandlerState> = OnceLock::new();
 
-fn split_shell_words(input: &str) -> Result<Vec<String>, anyhow::Error> {
-    let mut out = Vec::new();
-    let mut cur = String::new();
-    let mut chars = input.chars().peekable();
-    let mut quote: Option<char> = None;
-
-    while let Some(ch) = chars.next() {
-        match quote {
-            Some(q) => {
-                if ch == q {
-                    quote = None;
-                } else if ch == '\\' {
-                    if let Some(next) = chars.next() {
-                        cur.push(next);
-                    }
-                } else {
-                    cur.push(ch);
-                }
-            }
-            None => {
-                if ch.is_whitespace() {
-                    if !cur.is_empty() {
-                        out.push(std::mem::take(&mut cur));
-                    }
-                } else if ch == '\'' || ch == '"' {
-                    quote = Some(ch);
-                } else if ch == '\\' {
-                    if let Some(next) = chars.next() {
-                        cur.push(next);
-                    }
-                } else {
-                    cur.push(ch);
-                }
-            }
-        }
+#[cfg(windows)]
+unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> i32 {
+    if ctrl_type != CTRL_C_EVENT {
+        return 0;
     }
 
-    if quote.is_some() {
-        return Err(anyhow::anyhow!("unterminated quote in --node-args"));
+    let Some(state) = CTRL_HANDLER_STATE.get() else {
+        return 0;
+    };
+
+    let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+
+    // Debounce: Windows can invoke the handler multiple times for a single keypress.
+    // Treat multiple invocations within a short window as the same press.
+    const DEBOUNCE_MS: u64 = 500;
+
+    let last_ms = state.last_event_ms.load(Ordering::SeqCst);
+    if last_ms != 0 && now_ms.saturating_sub(last_ms) < DEBOUNCE_MS {
+        return 1;
     }
+    state.last_event_ms.store(now_ms, Ordering::SeqCst);
 
-    if !cur.is_empty() {
-        out.push(cur);
+    let prev = state.presses.fetch_add(1, Ordering::SeqCst);
+    if prev == 0 {
+        let _ = state.shutdown_tx.send(true);
+        1
+    } else {
+        std::process::exit(130);
     }
-
-    Ok(out)
 }
 
-async fn kaspa_api_with_retry(
-    kaspad_address: String,
-    block_wait_time: Duration,
-) -> Result<Arc<kaspa_stratum_bridge::KaspaApi>, anyhow::Error> {
-    let mut last_err: Option<anyhow::Error> = None;
-    for _ in 0..60 {
-        match kaspa_stratum_bridge::KaspaApi::new(kaspad_address.clone(), block_wait_time).await {
-            Ok(api) => return Ok(api),
-            Err(e) => {
-                last_err = Some(anyhow::anyhow!("{}", e));
-                tokio::time::sleep(Duration::from_millis(500)).await;
-            }
-        }
+#[cfg(windows)]
+fn install_windows_ctrl_handler(shutdown_tx: watch::Sender<bool>) -> Result<(), anyhow::Error> {
+    let _ = CTRL_HANDLER_STATE.set(CtrlHandlerState { presses: AtomicUsize::new(0), last_event_ms: AtomicU64::new(0), shutdown_tx });
+
+    let ok = unsafe { SetConsoleCtrlHandler(Some(console_ctrl_handler), 1) };
+    if ok == 0 {
+        return Err(anyhow::anyhow!("failed to install Windows console control handler"));
     }
-    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("failed to connect to kaspad")))
+    Ok(())
 }
 
-/// Instance-specific configuration
-#[derive(Debug, Clone)]
-struct InstanceConfig {
-    stratum_port: String,
-    min_share_diff: u32,
-    prom_port: Option<String>, // Optional per-instance prom port
-    log_to_file: Option<bool>, // Optional per-instance logging
-    // Instance-specific settings that can override global defaults
-    var_diff: Option<bool>,
-    shares_per_min: Option<u32>,
-    var_diff_stats: Option<bool>,
-    pow2_clamp: Option<bool>,
-}
-
-/// Global configuration (shared across all instances)
-#[derive(Debug, Clone)]
-struct GlobalConfig {
-    kaspad_address: String,
-    block_wait_time: Duration,
-    print_stats: bool,
-    log_to_file: bool, // Default for instances that don't specify
-    health_check_port: String,
-    var_diff: bool,
-    shares_per_min: u32,
-    var_diff_stats: bool,
-    extranonce_size: u8,
-    pow2_clamp: bool,
-}
-
-/// Bridge configuration (supports both single and multi-instance modes)
-#[derive(Debug)]
-struct BridgeConfig {
-    global: GlobalConfig,
-    instances: Vec<InstanceConfig>,
-}
-
-impl Default for GlobalConfig {
-    fn default() -> Self {
-        Self {
-            kaspad_address: "localhost:16110".to_string(),
-            block_wait_time: Duration::from_millis(1000),
-            print_stats: true,
-            log_to_file: true,
-            health_check_port: String::new(),
-            var_diff: true,
-            shares_per_min: 20,
-            var_diff_stats: false,
-            extranonce_size: 0,
-            pow2_clamp: false,
+async fn shutdown_inprocess_with_timeout(node: InProcessNode) {
+    let timeout = std::time::Duration::from_secs(10);
+    match tokio::time::timeout(timeout, inprocess_node::shutdown_inprocess(node)).await {
+        Ok(()) => {}
+        Err(_) => {
+            tracing::warn!("Timed out waiting for embedded node shutdown; exiting");
+            std::process::exit(0);
         }
     }
 }
 
-impl Default for InstanceConfig {
-    fn default() -> Self {
-        Self {
-            stratum_port: ":5555".to_string(),
-            min_share_diff: 8192,
-            prom_port: None,
-            log_to_file: None,
-            var_diff: None,
-            shares_per_min: None,
-            var_diff_stats: None,
-            pow2_clamp: None,
-        }
-    }
-}
-
-impl BridgeConfig {
-    fn from_yaml(content: &str) -> Result<Self, anyhow::Error> {
-        let docs = YamlLoader::load_from_str(content)?;
-        let doc = docs.first().ok_or_else(|| anyhow::anyhow!("empty YAML document"))?;
-
-        // Parse global config
-        let mut global = GlobalConfig::default();
-
-        if let Some(addr) = doc["kaspad_address"].as_str() {
-            global.kaspad_address = addr.to_string();
-        }
-
-        if let Some(stats) = doc["print_stats"].as_bool() {
-            global.print_stats = stats;
-        }
-
-        if let Some(log) = doc["log_to_file"].as_bool() {
-            global.log_to_file = log;
-        }
-
-        if let Some(port) = doc["health_check_port"].as_str() {
-            global.health_check_port = port.to_string();
-        }
-
-        if let Some(vd) = doc["var_diff"].as_bool() {
-            global.var_diff = vd;
-        }
-
-        if let Some(spm) = doc["shares_per_min"].as_i64() {
-            global.shares_per_min = spm as u32;
-        }
-
-        if let Some(vds) = doc["var_diff_stats"].as_bool() {
-            global.var_diff_stats = vds;
-        }
-
-        if let Some(ens) = doc["extranonce_size"].as_i64() {
-            global.extranonce_size = ens as u8;
-        }
-
-        if let Some(clamp) = doc["pow2_clamp"].as_bool() {
-            global.pow2_clamp = clamp;
-        }
-
-        // Parse block_wait_time from config (in milliseconds, convert to Duration)
-        if let Some(bwt) = doc["block_wait_time"].as_i64() {
-            global.block_wait_time = Duration::from_millis(bwt as u64);
-        } else if let Some(bwt) = doc["block_wait_time"].as_f64() {
-            global.block_wait_time = Duration::from_millis(bwt as u64);
-        }
-
-        // Check if multi-instance mode (instances array exists)
-        if let Some(instances_yaml) = doc["instances"].as_vec() {
-            // Multi-instance mode
-            let mut instances = Vec::new();
-
-            for (idx, instance_yaml) in instances_yaml.iter().enumerate() {
-                let mut instance = InstanceConfig::default();
-
-                // Required: stratum_port
-                if let Some(port) = instance_yaml["stratum_port"].as_str() {
-                    instance.stratum_port = if port.starts_with(':') { port.to_string() } else { format!(":{}", port) };
-                } else {
-                    return Err(anyhow::anyhow!("Instance {} missing required 'stratum_port'", idx));
-                }
-
-                // Required: min_share_diff
-                if let Some(diff) = instance_yaml["min_share_diff"].as_i64() {
-                    instance.min_share_diff = diff as u32;
-                } else {
-                    return Err(anyhow::anyhow!("Instance {} missing required 'min_share_diff'", idx));
-                }
-
-                // Optional: prom_port (per-instance)
-                if let Some(port) = instance_yaml["prom_port"].as_str() {
-                    instance.prom_port = Some(if port.starts_with(':') { port.to_string() } else { format!(":{}", port) });
-                }
-
-                // Optional: log_to_file (per-instance)
-                if let Some(log) = instance_yaml["log_to_file"].as_bool() {
-                    instance.log_to_file = Some(log);
-                }
-
-                // Optional: instance-specific overrides
-                if let Some(vd) = instance_yaml["var_diff"].as_bool() {
-                    instance.var_diff = Some(vd);
-                }
-
-                if let Some(spm) = instance_yaml["shares_per_min"].as_i64() {
-                    instance.shares_per_min = Some(spm as u32);
-                }
-
-                if let Some(vds) = instance_yaml["var_diff_stats"].as_bool() {
-                    instance.var_diff_stats = Some(vds);
-                }
-
-                if let Some(clamp) = instance_yaml["pow2_clamp"].as_bool() {
-                    instance.pow2_clamp = Some(clamp);
-                }
-
-                instances.push(instance);
-            }
-
-            if instances.is_empty() {
-                return Err(anyhow::anyhow!("instances array cannot be empty"));
-            }
-
-            // Validate unique ports
-            let mut ports = std::collections::HashSet::new();
-            for instance in &instances {
-                if !ports.insert(&instance.stratum_port) {
-                    return Err(anyhow::anyhow!("Duplicate stratum_port: {}", instance.stratum_port));
-                }
-            }
-
-            Ok(BridgeConfig { global, instances })
-        } else {
-            // Single-instance mode (backward compatible)
-            let mut instance = InstanceConfig::default();
-
-            if let Some(port) = doc["stratum_port"].as_str() {
-                instance.stratum_port = if port.starts_with(':') { port.to_string() } else { format!(":{}", port) };
-            }
-
-            if let Some(diff) = doc["min_share_diff"].as_i64() {
-                instance.min_share_diff = diff as u32;
-            }
-
-            if let Some(port) = doc["prom_port"].as_str() {
-                instance.prom_port = Some(if port.starts_with(':') { port.to_string() } else { format!(":{}", port) });
-            }
-
-            // Single-instance mode: use global log_to_file as instance default
-            instance.log_to_file = Some(global.log_to_file);
-
-            Ok(BridgeConfig { global, instances: vec![instance] })
-        }
-    }
-}
-
-struct InProcessNode {
-    core: Arc<kaspa_core::core::Core>,
-    workers: Vec<std::thread::JoinHandle<()>>,
-}
-
-impl InProcessNode {
-    fn start_from_args(args: kaspad_args::Args) -> Result<Self, anyhow::Error> {
-        let _ = fd_budget::try_set_fd_limit(kaspad_daemon::DESIRED_DAEMON_SOFT_FD_LIMIT);
-
-        let runtime = kaspad_daemon::Runtime::from_args(&args);
-        let fd_total_budget =
-            fd_budget::limit() - args.rpc_max_clients as i32 - args.inbound_limit as i32 - args.outbound_target as i32;
-        let (core, _) = kaspad_daemon::create_core_with_runtime(&runtime, &args, fd_total_budget);
-        let workers = core.start();
-        Ok(Self { core, workers })
-    }
-
-    fn shutdown(self) {
-        self.core.shutdown();
-        self.core.join(self.workers);
-    }
-}
-
-async fn shutdown_inprocess(node: InProcessNode) {
-    let _ = tokio::task::spawn_blocking(move || node.shutdown()).await;
-}
-
-#[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
-    let cli = Cli::parse();
-
-    let mut node_args: Vec<String> = Vec::new();
-    if let Some(node_args_str) = cli.node_args.as_deref() {
-        node_args.extend(split_shell_words(node_args_str)?);
-    }
-    node_args.extend(cli.node_arg.iter().cloned());
-
-    let inferred_mode = if !node_args.is_empty() { NodeMode::Inprocess } else { NodeMode::External };
-    let node_mode = cli.node_mode.unwrap_or(inferred_mode);
-
+fn initialize_config() -> BridgeConfig {
+    let config_path = REQUESTED_CONFIG_PATH.get().map(PathBuf::as_path).unwrap_or_else(|| Path::new("config.yaml"));
     // Load config first to check if file logging is enabled
-    let config_path = cli.config.as_path();
-    let config = if config_path.exists() {
-        let content = std::fs::read_to_string(config_path)?;
-        BridgeConfig::from_yaml(&content)?
-    } else {
-        // Create default single-instance config
-        BridgeConfig { global: GlobalConfig::default(), instances: vec![InstanceConfig::default()] }
-    };
+    let fallback_path = Path::new("bridge").join(config_path);
+    // Build candidate paths for config file search:
+    // 1. Direct path as specified
+    // 2. Fallback path under ./bridge/
+    // 3-5. Paths relative to executable directory (for different deployment scenarios)
+    let exe_base = std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let exe_root = exe_base.as_ref().and_then(|p| p.parent()).and_then(|p| p.parent()).map(|p| p.to_path_buf());
 
-    // Initialize color support detection
-    kaspa_stratum_bridge::log_colors::LogColors::init();
+    let mut candidates: Vec<std::path::PathBuf> = vec![config_path.to_path_buf(), fallback_path.clone()];
 
-    // Initialize tracing with WARN level by default (less verbose)
-    // Can be overridden with RUST_LOG environment variable (e.g., RUST_LOG=info,debug)
-    // To see more details, set RUST_LOG=info or RUST_LOG=debug
-    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        // Default: warn level, but allow info from rustbridge module for important messages
-        EnvFilter::new("warn,kaspa_stratum_bridge=info")
-    });
-
-    // Custom formatter that applies colors directly to the Writer (like tracing-subscriber does for levels)
-    // We create two formatters: one with colors (for console) and one without (for file)
-    use std::fmt;
-    use tracing_subscriber::fmt::format::{FormatEvent, FormatFields, Writer};
-
-    struct CustomFormatter {
-        apply_colors: bool,
-    }
-
-    impl<S, N> FormatEvent<S, N> for CustomFormatter
-    where
-        S: tracing::Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
-        N: for<'a> FormatFields<'a> + 'static,
-    {
-        fn format_event(
-            &self,
-            ctx: &tracing_subscriber::fmt::FmtContext<'_, S, N>,
-            mut writer: Writer<'_>,
-            event: &tracing::Event<'_>,
-        ) -> fmt::Result {
-            // Write level (with built-in ANSI colors from tracing-subscriber)
-            let level = *event.metadata().level();
-            write!(writer, "{:5} ", level)?;
-
-            // Write target with capitalization
-            let target = event.metadata().target();
-            let formatted_target =
-                if let Some(rest) = target.strip_prefix("rustbridge") { format!("rustbridge{}", rest) } else { target.to_string() };
-            write!(writer, "{}: ", formatted_target)?;
-
-            // Collect the message into a string first so we can analyze it for color patterns
-            let mut message_buf = String::new();
-            {
-                let mut message_writer = Writer::new(&mut message_buf);
-                ctx.format_fields(message_writer.by_ref(), event)?;
-            }
-            let original_message = message_buf;
-
-            // Check global registry for instance number based on instance_id in message
-            // This works across async boundaries and thread switches
-            let mut instance_num: Option<usize> = None;
-
-            // Try to find instance_id in the message and look it up in registry
-            if let Some(instance_start) = original_message.find("[Instance ") {
-                if let Some(instance_end) = original_message[instance_start..].find("]") {
-                    let instance_id_str = &original_message[instance_start..instance_start + instance_end + 1];
-                    if let Ok(registry) = INSTANCE_REGISTRY.lock() {
-                        if let Some(&num) = registry.get(instance_id_str) {
-                            instance_num = Some(num);
-                        }
-                    }
-                }
-            }
-
-            // Check if message already contains colored instance identifier
-            // If it does, preserve it and write as-is (don't strip ANSI codes)
-            let has_colored_instance = original_message.contains("\x1b[") && original_message.contains("[Instance ");
-
-            if has_colored_instance && self.apply_colors {
-                // Message already has instance colors, write it as-is
-                write!(writer, "{}", original_message)?;
-                writeln!(writer)?;
-                return Ok(());
-            }
-
-            // Strip any existing ANSI codes from the message for pattern matching
-            let mut cleaned_message = String::new();
-            let mut chars = original_message.chars().peekable();
-            while let Some(ch) = chars.next() {
-                if ch == '\x1b' {
-                    // Skip ANSI escape sequence: \x1b[ followed by numbers and letters until 'm'
-                    if chars.peek() == Some(&'[') {
-                        chars.next(); // consume '['
-                        while let Some(&c) = chars.peek() {
-                            if c == 'm' {
-                                chars.next(); // consume 'm'
-                                break;
-                            }
-                            chars.next();
-                        }
-                    }
-                } else {
-                    cleaned_message.push(ch);
-                }
-            }
-            let message = cleaned_message;
-
-            // Apply colors based on message content patterns (only if this formatter has colors enabled)
-            if self.apply_colors {
-                // First priority: Use instance number from thread-local (applies to ALL logs from that instance)
-                if let Some(inst_num) = instance_num {
-                    // Apply instance color to the entire message
-                    let color_code = kaspa_stratum_bridge::log_colors::LogColors::instance_color_code(inst_num);
-                    write!(writer, "{}{}\x1b[0m", color_code, &message)?;
-                    writeln!(writer)?;
-                    return Ok(());
-                }
-
-                // Fallback: Check for instance pattern in message
-                if let Some(instance_start) = message.find("[Instance ") {
-                    if let Some(instance_end) = message[instance_start..].find("]") {
-                        let instance_str = &message[instance_start + 10..instance_start + instance_end];
-                        if let Ok(inst_num) = instance_str.parse::<usize>() {
-                            // Apply instance color to the entire message
-                            let color_code = kaspa_stratum_bridge::log_colors::LogColors::instance_color_code(inst_num);
-                            write!(writer, "{}{}\x1b[0m", color_code, &message)?;
-                            writeln!(writer)?;
-                            return Ok(());
-                        }
-                    }
-                }
-                if message.contains("[ASIC->BRIDGE]") {
-                    write!(writer, "\x1b[96m{}\x1b[0m", &message)?; // Cyan
-                } else if message.contains("[BRIDGE->ASIC]") {
-                    write!(writer, "\x1b[92m{}\x1b[0m", &message)?; // Green
-                } else if message.contains("[VALIDATION]") {
-                    write!(writer, "\x1b[93m{}\x1b[0m", &message)?; // Yellow
-                } else if message.contains("===== BLOCK") || message.contains("[BLOCK]") {
-                    write!(writer, "\x1b[95m{}\x1b[0m", &message)?; // Magenta
-                } else if message.contains("[API]") {
-                    write!(writer, "\x1b[94m{}\x1b[0m", &message)?; // Blue
-                } else if message.contains("Error") || message.contains("ERROR") {
-                    write!(writer, "\x1b[91m{}\x1b[0m", &message)?; // Red
-                } else if message.contains("----------------------------------") {
-                    write!(writer, "\x1b[96m{}\x1b[0m", &message)?; // Bright Cyan for separator lines
-                } else if message.contains("initializing bridge") {
-                    write!(writer, "\x1b[92m{}\x1b[0m", &message)?; // Bright Green for initialization
-                } else if message.contains("Starting RustBridge") {
-                    write!(writer, "\x1b[92m{}\x1b[0m", &message)?; // Bright Green for startup
-                } else if message.starts_with("\t") && message.contains(":") {
-                    // Configuration lines - color the label part (e.g., "\tkaspad:          value")
-                    if let Some(colon_pos) = message.find(':') {
-                        // Find the end of the label (colon + whitespace)
-                        let label_end = message[colon_pos + 1..].chars().take_while(|c| c.is_whitespace()).count();
-                        let label_end_pos = colon_pos + 1 + label_end;
-                        let label = &message[..label_end_pos];
-                        let value = &message[label_end_pos..];
-                        write!(writer, "\x1b[94m{}\x1b[0m{}", label, value)?; // Blue for labels
-                    } else {
-                        write!(writer, "{}", &message)?;
-                    }
-                } else {
-                    write!(writer, "{}", &message)?; // No color
-                }
-            } else {
-                write!(writer, "{}", &message)?;
-            }
-
-            writeln!(writer)
+    if config_path.is_relative() {
+        if let Some(exe_base) = exe_base.as_ref() {
+            candidates.push(exe_base.join(config_path));
+        }
+        if let Some(exe_root) = exe_root.as_ref() {
+            candidates.push(exe_root.join(config_path));
+            candidates.push(exe_root.join("bridge").join(config_path));
         }
     }
 
-    // Setup file logging if enabled (check if any instance has logging enabled)
-    // For multi-instance, we use global log_to_file setting or first instance's setting
-    let should_log_to_file = config.global.log_to_file || config.instances.first().and_then(|i| i.log_to_file).unwrap_or(false);
+    let mut loaded_from: Option<std::path::PathBuf> = None;
+    let mut config: Option<BridgeConfig> = None;
+    for path in candidates.iter() {
+        if path.exists() {
+            let content = std::fs::read_to_string(path).unwrap_or_else(|e| {
+                eprintln!("Failed to read config file {}: {}", path.display(), e);
+                std::process::exit(1);
+            });
 
-    // Note: The file_guard must be kept alive for the lifetime of the program
-    // to ensure logs are flushed to the file
-    let _file_guard: Option<tracing_appender::non_blocking::WorkerGuard> = if should_log_to_file {
-        // Create log file with timestamp
-        use std::time::SystemTime;
-        let timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-        let log_filename = format!("rustbridge_{}.log", timestamp);
-        let log_path = std::path::Path::new(".").join(&log_filename);
+            let parsed = BridgeConfig::from_yaml(&content).unwrap_or_else(|e| {
+                eprintln!("Failed to parse config file {}: {}", path.display(), e);
+                std::process::exit(1);
+            });
 
-        // Use tracing-appender for file logging
-        let file_appender = tracing_appender::rolling::never(".", &log_filename);
-        let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-
-        let subscriber = tracing_subscriber::registry()
-            .with(filter)
-            .with(
-                tracing_subscriber::fmt::layer()
-                    .with_ansi(LogColors::should_colorize())
-                    .event_format(CustomFormatter { apply_colors: LogColors::should_colorize() }),
-            )
-            .with(
-                tracing_subscriber::fmt::layer()
-                    .with_writer(non_blocking)
-                    .with_ansi(false)
-                    .event_format(CustomFormatter { apply_colors: false }),
-            );
-
-        match subscriber.try_init() {
-            Ok(()) => {
-                eprintln!("Logging to file: {}", log_path.display());
-                Some(_guard)
-            }
-            Err(e) => {
-                eprintln!("Failed to initialize tracing subscriber (already initialized?): {}", e);
-                None
-            }
+            config = Some(parsed);
+            loaded_from = Some(path.clone());
+            break;
         }
-    } else {
-        let subscriber = tracing_subscriber::registry().with(filter).with(
-            tracing_subscriber::fmt::layer()
-                .with_ansi(LogColors::should_colorize())
-                .event_format(CustomFormatter { apply_colors: LogColors::should_colorize() }),
-        );
-
-        if let Err(e) = subscriber.try_init() {
-            eprintln!("Failed to initialize tracing subscriber (already initialized?): {}", e);
-        }
-
-        None
-    };
-
-    // Start in-process node after tracing is initialized so bridge logs (including the stats table)
-    // are not filtered out by a tracing subscriber installed by kaspad.
-    let mut inprocess_node: Option<InProcessNode> = None;
-    if node_mode == NodeMode::Inprocess {
-        let mut argv: Vec<OsString> = Vec::with_capacity(node_args.len() + 1);
-        argv.push(OsString::from("kaspad"));
-        argv.extend(node_args.iter().map(OsString::from));
-        let args = kaspad_args::Args::parse(argv).map_err(|e| anyhow::anyhow!("{}", e))?;
-        inprocess_node = Some(InProcessNode::start_from_args(args)?);
     }
 
-    if !config_path.exists() {
-        tracing::warn!("config.yaml not found, using defaults");
+    if CONFIG_LOADED_FROM.set(loaded_from).is_err() {
+        tracing::warn!("Failed to set config loaded from path - may already be initialized");
     }
+    config.unwrap_or_default()
+}
 
+/// Log the bridge configuration at startup
+fn log_bridge_configuration(config: &app_config::BridgeConfig) {
     let instance_count = config.instances.len();
     tracing::info!("----------------------------------");
     tracing::info!("initializing bridge ({} instance{})", instance_count, if instance_count > 1 { "s" } else { "" });
@@ -624,39 +171,218 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     }
     tracing::info!("----------------------------------");
+}
+
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
+    init_allocator_with_default_settings();
+
+    let cli = Cli::parse();
+
+    // Single-config model: default to `config.yaml` for both mainnet and testnet runs.
+    // `--testnet` affects the network behavior, but does not imply a different config file.
+    let requested_config = cli.config.clone().unwrap_or_else(|| PathBuf::from("config.yaml"));
+
+    if REQUESTED_CONFIG_PATH.set(requested_config.clone()).is_err() {
+        tracing::warn!("Failed to set requested config path - may already be initialized");
+    }
+
+    let node_mode = cli.node_mode.unwrap_or(NodeMode::Inprocess);
+
+    let mut config = initialize_config();
+    apply_cli_overrides(&mut config, &cli)?;
+
+    // Initialize color support detection
+    LogColors::init();
+
+    // Provide web/prom status endpoints with the *actual* effective config (after CLI overrides),
+    // instead of having the server re-read `config.yaml` from disk.
+    // This is best-effort and does not affect any mining logic.
+    prom::set_web_status_config(config.global.kaspad_address.clone(), config.instances.len());
+    // Point the web config endpoint at the actual config file path the bridge is using.
+    prom::set_web_config_path(requested_config.clone());
+
+    // Initialize tracing with WARN level by default (less verbose)
+    // Can be overridden with RUST_LOG environment variable (e.g., RUST_LOG=info,debug)
+    // To see more details, set RUST_LOG=info or RUST_LOG=debug
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        // Default: warn level, but allow info from the bridge. In inprocess mode we also
+        // enable info-level logs from the embedded node (which uses the `log` crate).
+        if node_mode == NodeMode::Inprocess {
+            EnvFilter::new("warn,kaspa_stratum_bridge=info,kaspa=info,kaspad=info,kaspad_lib=info,log=info")
+        } else {
+            EnvFilter::new("warn,kaspa_stratum_bridge=info")
+        }
+    });
+
+    // Note: The file_guard must be kept alive for the lifetime of the program
+    // to ensure logs are flushed to the file
+    // Store it in a OnceLock to prevent it from being dropped
+    static FILE_GUARD: std::sync::OnceLock<tracing_appender::non_blocking::WorkerGuard> = std::sync::OnceLock::new();
+    if let Some(guard) = tracing_setup::init_tracing(&config, filter, false) {
+        let _ = FILE_GUARD.set(guard);
+    }
+
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+
+    // Start in-process node after tracing is initialized so bridge logs (including the stats table)
+    // are not filtered out by a tracing subscriber installed by kaspad.
+    let mut inprocess_node: Option<InProcessNode> = None;
+    if node_mode == NodeMode::Inprocess {
+        let mut node_args: Vec<String> = cli.kaspad_args;
+
+        // Add appdir if not provided in kaspad_args
+        if !node_args.iter().any(|arg| arg.starts_with("--appdir")) {
+            let default_appdir = app_dirs::default_inprocess_kaspad_appdir();
+            let appdir_to_use = cli.appdir.as_ref().cloned().unwrap_or(default_appdir);
+
+            // Create the directory if it doesn't exist
+            let _ = std::fs::create_dir_all(&appdir_to_use);
+
+            node_args.push("--appdir".to_string());
+            node_args.push(appdir_to_use.to_string_lossy().to_string());
+        } else {
+            assert!(cli.appdir.is_none(), "appdir should not be specified both in bridge args and kaspad args");
+        }
+
+        let mut argv: Vec<OsString> = Vec::with_capacity(node_args.len() + 1);
+        argv.push(OsString::from("kaspad"));
+        argv.extend(node_args.iter().map(OsString::from));
+        let args = kaspad_args::Args::parse(argv).map_err(|e| anyhow::anyhow!("{}", e))?;
+        inprocess_node = Some(InProcessNode::start_from_args(args)?);
+
+        // Install our handler after the embedded node starts so we run first (Windows calls handlers LIFO).
+        // This prevents the embedded node's ctrl handler from consuming Ctrl+C and bypassing our graceful shutdown.
+        #[cfg(windows)]
+        install_windows_ctrl_handler(shutdown_tx.clone())?;
+    } else {
+        // In external mode on Windows, tokio's Ctrl+C handling is usually fine, but we install our handler
+        // anyway to keep behavior consistent across modes.
+        #[cfg(windows)]
+        install_windows_ctrl_handler(shutdown_tx.clone())?;
+    }
+
+    if CONFIG_LOADED_FROM.get().and_then(|p| p.as_ref()).is_none() {
+        let config_path = requested_config.as_path();
+        let cwd = std::env::current_dir().ok();
+        tracing::warn!("config.yaml not found, using defaults (requested: {:?}, cwd: {:?})", config_path, cwd);
+    }
+
+    log_bridge_configuration(&config);
 
     // Start global health check server if port is specified
     if !config.global.health_check_port.is_empty() {
         let health_port = config.global.health_check_port.clone();
-        tokio::spawn(async move {
-            use tokio::io::{AsyncReadExt, AsyncWriteExt};
-            use tokio::net::TcpListener;
+        health_check::spawn_health_check_server(health_port);
+    }
 
-            if let Ok(listener) = TcpListener::bind(&health_port).await {
-                tracing::info!("Health check server started on {}", health_port);
-                loop {
-                    if let Ok((mut stream, _)) = listener.accept().await {
-                        let mut buffer = [0; 1024];
-                        if stream.read(&mut buffer).await.is_ok() {
-                            let response = "HTTP/1.1 200 OK\r\n\r\n";
-                            let _ = stream.write_all(response.as_bytes()).await;
-                        }
-                    }
-                }
+    // Create shared kaspa API client (all instances use the same node)
+    let kaspa_api = KaspaApi::new_with_shutdown(
+        config.global.kaspad_address.clone(),
+        config.global.block_wait_time,
+        config.global.coinbase_tag_suffix.clone(),
+        Some(shutdown_rx.clone()),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?;
+
+    if !config.global.web_port.is_empty() {
+        let web_port = config.global.web_port.clone();
+        tokio::spawn(async move {
+            if let Err(e) = prom::start_web_server_all(&web_port).await {
+                tracing::error!("Aggregated web server error: {}", e);
             }
         });
     }
 
-    // Create shared kaspa API client (all instances use the same node)
-    let kaspa_api = if inprocess_node.is_some() {
-        kaspa_api_with_retry(config.global.kaspad_address.clone(), config.global.block_wait_time)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?
-    } else {
-        kaspa_stratum_bridge::KaspaApi::new(config.global.kaspad_address.clone(), config.global.block_wait_time)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?
-    };
+    tracing::info!("Waiting for node to fully sync before starting stratum listeners");
+    kaspa_api
+        .wait_for_sync_with_shutdown(true, shutdown_rx.clone())
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed while waiting for node sync: {}", e))?;
+    tracing::info!("Node is synced, starting stratum listeners");
+
+    // Optional: internal CPU miner (feature-gated)
+    #[cfg(feature = "rkstratum_cpu_miner")]
+    #[cfg(feature = "rkstratum_cpu_miner")]
+    {
+        if cli.internal_cpu_miner {
+            let mining_address = cli
+                .internal_cpu_miner_address
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("--internal-cpu-miner requires --internal-cpu-miner-address <kaspa:...>"))?;
+
+            let threads = cli.internal_cpu_miner_threads.unwrap_or(1);
+            let throttle = cli.internal_cpu_miner_throttle_ms.map(Duration::from_millis);
+            let template_poll_interval = Duration::from_millis(cli.internal_cpu_miner_template_poll_ms.unwrap_or(250));
+
+            let cfg = kaspa_stratum_bridge::InternalCpuMinerConfig {
+                enabled: true,
+                mining_address,
+                threads,
+                throttle,
+                template_poll_interval,
+            };
+
+            tracing::info!(
+                "[InternalMiner] enabled: threads={}, throttle_ms={:?}, template_poll_ms={}",
+                cfg.threads,
+                cli.internal_cpu_miner_throttle_ms,
+                cfg.template_poll_interval.as_millis()
+            );
+
+            kaspa_stratum_bridge::prom::set_internal_cpu_mining_address(cfg.mining_address.clone());
+
+            let metrics = kaspa_stratum_bridge::spawn_internal_cpu_miner(Arc::clone(&kaspa_api), cfg, shutdown_rx.clone())?;
+            kaspa_stratum_bridge::set_rkstratum_cpu_miner_metrics(metrics);
+
+            // Periodically export internal miner stats to Prometheus (if a /metrics server is running).
+            // This is best-effort and does not affect mining.
+            {
+                let mut prom_shutdown_rx = shutdown_rx.clone();
+                let internal_metrics = kaspa_stratum_bridge::RKSTRATUM_CPU_MINER_METRICS.lock().as_ref().cloned();
+
+                tokio::spawn(async move {
+                    let Some(internal_metrics) = internal_metrics else { return };
+
+                    let mut last_hashes: u64 = 0;
+                    let mut last_ts = tokio::time::Instant::now();
+                    let mut interval = tokio::time::interval(Duration::from_secs(5));
+                    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+                    loop {
+                        tokio::select! {
+                            _ = prom_shutdown_rx.changed() => {
+                                if *prom_shutdown_rx.borrow() { break; }
+                            }
+                            _ = interval.tick() => {}
+                        }
+
+                        let now = tokio::time::Instant::now();
+                        let dt = (now - last_ts).as_secs_f64().max(0.001);
+                        last_ts = now;
+
+                        let hashes_tried = internal_metrics.hashes_tried.load(std::sync::atomic::Ordering::Relaxed);
+                        let blocks_submitted = internal_metrics.blocks_submitted.load(std::sync::atomic::Ordering::Relaxed);
+                        let blocks_accepted = internal_metrics.blocks_accepted.load(std::sync::atomic::Ordering::Relaxed);
+
+                        let dh = hashes_tried.saturating_sub(last_hashes);
+                        last_hashes = hashes_tried;
+
+                        // Hashrate as GH/s
+                        let hashrate_ghs = (dh as f64 / dt) / 1e9;
+
+                        kaspa_stratum_bridge::prom::record_internal_cpu_miner_snapshot(
+                            hashes_tried,
+                            blocks_submitted,
+                            blocks_accepted,
+                            hashrate_ghs,
+                        );
+                    }
+                });
+            }
+        }
+    }
 
     let mut instance_handles = Vec::new();
     for (idx, instance_config) in config.instances.iter().enumerate() {
@@ -664,31 +390,30 @@ async fn main() -> Result<(), anyhow::Error> {
         let instance = instance_config.clone();
         let global = config.global.clone();
         let kaspa_api_clone = Arc::clone(&kaspa_api);
+        let instance_shutdown_rx = shutdown_rx.clone();
 
         let is_first_instance = idx == 0;
+
+        let instance_id_str = LogColors::format_instance_id(instance_num);
 
         if let Some(ref prom_port) = instance.prom_port {
             let prom_port = prom_port.clone();
             let instance_num_prom = instance_num;
+            let instance_id_prom = instance_id_str.clone();
             tokio::spawn(async move {
-                if let Err(e) = prom::start_prom_server(&prom_port).await {
+                if let Err(e) = prom::start_prom_server(&prom_port, &instance_id_prom).await {
                     tracing::error!("[Instance {}] Prometheus server error: {}", instance_num_prom, e);
                 }
             });
         }
 
         let handle = tokio::spawn(async move {
-            let instance_id_str = kaspa_stratum_bridge::log_colors::LogColors::format_instance_id(instance_num);
-            {
-                if let Ok(mut registry) = INSTANCE_REGISTRY.lock() {
-                    registry.insert(instance_id_str.clone(), instance_num);
-                }
-            }
+            tracing_setup::register_instance(instance_id_str.clone(), instance_num);
 
-            let colored_instance_id = kaspa_stratum_bridge::log_colors::LogColors::format_instance_id(instance_num);
+            let colored_instance_id = LogColors::format_instance_id(instance_num);
             tracing::info!("{} Starting on stratum port {}", colored_instance_id, instance.stratum_port);
 
-            let bridge_config = kaspa_stratum_bridge::BridgeConfig {
+            let bridge_config = StratumBridgeConfig {
                 instance_id: instance_id_str.clone(),
                 stratum_port: instance.stratum_port.clone(),
                 kaspad_address: global.kaspad_address.clone(),
@@ -696,19 +421,21 @@ async fn main() -> Result<(), anyhow::Error> {
                 print_stats: global.print_stats,
                 log_to_file: instance.log_to_file.unwrap_or(global.log_to_file),
                 health_check_port: String::new(),
-                block_wait_time: global.block_wait_time,
+                block_wait_time: instance.block_wait_time.unwrap_or(global.block_wait_time),
                 min_share_diff: instance.min_share_diff,
                 var_diff: instance.var_diff.unwrap_or(global.var_diff),
                 shares_per_min: instance.shares_per_min.unwrap_or(global.shares_per_min),
                 var_diff_stats: instance.var_diff_stats.unwrap_or(global.var_diff_stats),
-                extranonce_size: global.extranonce_size,
+                extranonce_size: instance.extranonce_size.unwrap_or(global.extranonce_size),
                 pow2_clamp: instance.pow2_clamp.unwrap_or(global.pow2_clamp),
+                coinbase_tag_suffix: global.coinbase_tag_suffix.clone(),
             };
 
-            kaspa_stratum_bridge::listen_and_serve(
+            listen_and_serve_with_shutdown(
                 bridge_config,
                 Arc::clone(&kaspa_api_clone),
                 if is_first_instance { Some(kaspa_api_clone) } else { None },
+                instance_shutdown_rx,
             )
             .await
             .map_err(|e| format!("[Instance {}] Bridge server error: {}", instance_num, e))
@@ -716,7 +443,7 @@ async fn main() -> Result<(), anyhow::Error> {
         instance_handles.push(handle);
     }
 
-    tracing::info!("All {} instance(s) started, waiting for completion...", instance_count);
+    tracing::info!("All {} instance(s) started, waiting for completion...", config.instances.len());
 
     let bridge_fut = async {
         let result = try_join_all(instance_handles).await;
@@ -732,18 +459,77 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     };
 
+    tokio::pin!(bridge_fut);
+
+    #[cfg(windows)]
+    let mut shutdown_wait_rx = shutdown_rx.clone();
+    let ctrl_c_fut = async move {
+        #[cfg(windows)]
+        {
+            let _ = shutdown_wait_rx.wait_for(|v| *v).await;
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = tokio::signal::ctrl_c().await;
+        }
+    };
+
+    tokio::pin!(ctrl_c_fut);
+
     tokio::select! {
-        res = bridge_fut => {
+        res = &mut bridge_fut => {
             if let Some(node) = inprocess_node {
-                shutdown_inprocess(node).await;
+                shutdown_inprocess_with_timeout(node).await;
             }
             res
         }
-        _ = tokio::signal::ctrl_c() => {
-            if let Some(node) = inprocess_node {
-                shutdown_inprocess(node).await;
+        _ = &mut ctrl_c_fut => {
+            tracing::info!("Ctrl+C received, starting shutdown");
+
+            #[cfg(not(windows))]
+            {
+                let _ = shutdown_tx.send(true);
+                let res = tokio::select! {
+                    res = &mut bridge_fut => res,
+                    _ = tokio::signal::ctrl_c() => {
+                        tracing::warn!("Second Ctrl+C received, forcing exit");
+                        std::process::exit(130);
+                    }
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => {
+                        tracing::warn!("Shutdown drain window elapsed, exiting");
+                        Ok(())
+                    }
+                };
+
+                if let Some(node) = inprocess_node {
+                    shutdown_inprocess_with_timeout(node).await;
+                }
+
+                if let Err(e) = res {
+                    tracing::warn!("Shutdown completed with error: {e}");
+                }
+                return Ok(());
             }
-            Ok(())
+
+            #[cfg(windows)]
+            {
+                let res = tokio::select! {
+                    res = &mut bridge_fut => res,
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => {
+                        tracing::warn!("Shutdown drain window elapsed, exiting");
+                        Ok(())
+                    }
+                };
+
+                if let Some(node) = inprocess_node {
+                    shutdown_inprocess_with_timeout(node).await;
+                }
+
+                if let Err(e) = res {
+                    tracing::warn!("Shutdown completed with error: {e}");
+                }
+                return Ok(());
+            }
         }
     }
 }

@@ -2,8 +2,8 @@ use crate::jsonrpc_event::{JsonRpcEvent, JsonRpcResponse};
 use crate::log_colors::LogColors;
 use hex;
 use parking_lot::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -77,11 +77,7 @@ impl StratumContext {
     /// Get client ID
     pub fn id(&self) -> Option<i32> {
         let id = *self.id.lock();
-        if id > 0 {
-            Some(id)
-        } else {
-            None
-        }
+        if id > 0 { Some(id) } else { None }
     }
 
     /// Set client ID
@@ -571,7 +567,27 @@ impl StratumContext {
     /// Disconnect the client
     pub fn disconnect(&self) {
         if !self.disconnecting.swap(true, Ordering::Release) {
-            tracing::info!("disconnecting client {}", self.remote_addr);
+            let worker_name = self.worker_name.lock().clone();
+            let remote_app = self.remote_app.lock().clone();
+            let wallet_addr = self.wallet_addr.lock().clone();
+            let is_pre_handshake = worker_name.is_empty() && remote_app.is_empty() && wallet_addr.is_empty();
+            if is_pre_handshake {
+                tracing::debug!(
+                    "disconnecting client {}:{} worker='{}' app='{}'",
+                    self.remote_addr,
+                    self.remote_port,
+                    worker_name,
+                    remote_app
+                );
+            } else {
+                tracing::info!(
+                    "disconnecting client {}:{} worker='{}' app='{}'",
+                    self.remote_addr,
+                    self.remote_port,
+                    worker_name,
+                    remote_app
+                );
+            }
 
             // Close the write half
             let write_half_opt = {

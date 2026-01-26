@@ -3,6 +3,7 @@ use crate::stratum_context::StratumContext;
 use kaspa_addresses::Address;
 use regex::Regex;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
 /// Regex for matching miners that use big job format
@@ -19,8 +20,8 @@ pub fn default_logger() {
 }
 
 /// Default handler map
-pub fn default_handlers() -> std::collections::HashMap<String, crate::stratum_listener::EventHandler> {
-    let mut handlers = std::collections::HashMap::new();
+pub fn default_handlers() -> HashMap<String, crate::stratum_listener::EventHandler> {
+    let mut handlers = HashMap::new();
 
     handlers.insert(
         "mining.subscribe".to_string(),
@@ -78,6 +79,13 @@ pub async fn handle_subscribe(
     tracing::debug!("[SUBSCRIBE] Event ID: {:?}", event.id);
     tracing::debug!("[SUBSCRIBE] Params count: {}", event.params.len());
 
+    tracing::info!(
+        "[HANDSHAKE] subscribe from {}:{} params_count={} (before app parse)",
+        ctx.remote_addr,
+        ctx.remote_port,
+        event.params.len()
+    );
+
     // Extract remote app from params if present
     if let Some(Value::String(app)) = event.params.first() {
         *ctx.remote_app.lock() = app.clone();
@@ -87,6 +95,8 @@ pub async fn handle_subscribe(
     }
 
     let remote_app = ctx.remote_app.lock().clone();
+
+    tracing::info!("[HANDSHAKE] subscribe parsed app='{}' from {}:{}", remote_app, ctx.remote_addr, ctx.remote_port);
 
     // Auto-detect miner type and assign appropriate extranonce
     if let Some(handler) = client_handler {
@@ -164,7 +174,7 @@ async fn handle_extranonce_subscribe(
     Ok(())
 }
 
-/// Handle authorize request (v0.1 canxium-patch)
+/// Handle authorize request
 /// If client_handler and kaspa_api are provided, sends immediate job after authorization
 pub async fn handle_authorize(
     ctx: Arc<StratumContext>,
@@ -176,6 +186,8 @@ pub async fn handle_authorize(
     tracing::debug!("[AUTHORIZE] Event ID: {:?}", event.id);
     tracing::debug!("[AUTHORIZE] Params count: {}", event.params.len());
     tracing::debug!("[AUTHORIZE] Full params: {:?}", event.params);
+
+    tracing::info!("[HANDSHAKE] authorize from {}:{} params_count={}", ctx.remote_addr, ctx.remote_port, event.params.len());
 
     if event.params.is_empty() {
         tracing::error!("[AUTHORIZE] ERROR: Empty params from {}", ctx.remote_addr);
@@ -213,6 +225,9 @@ pub async fn handle_authorize(
 
     *ctx.wallet_addr.lock() = address.clone();
     *ctx.worker_name.lock() = worker_name.clone();
+
+    let remote_app = ctx.remote_app.lock().clone();
+    tracing::info!("[HANDSHAKE] authorized {}:{} worker='{}' app='{}'", ctx.remote_addr, ctx.remote_port, worker_name, remote_app);
 
     if !canxium_address.is_empty() {
         *ctx.canxium_addr.lock() = canxium_address.clone();
@@ -260,7 +275,9 @@ pub async fn handle_authorize(
         client_handler.send_immediate_job_to_client(ctx.clone(), kaspa_api).await;
     } else {
         // Fallback: let polling loop handle it (may cause disconnects for IceRiver)
-        tracing::warn!("[AUTHORIZE] WARNING: No client_handler/kaspa_api available - job will be sent by polling loop (may cause IceRiver disconnect)");
+        tracing::warn!(
+            "[AUTHORIZE] WARNING: No client_handler/kaspa_api available - job will be sent by polling loop (may cause IceRiver disconnect)"
+        );
     }
 
     tracing::debug!("[AUTHORIZE] ===== AUTHORIZE COMPLETE FOR {} =====", ctx.remote_addr);

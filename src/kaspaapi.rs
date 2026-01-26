@@ -7,16 +7,108 @@ use kaspa_grpc_client::GrpcClient;
 use kaspa_notify::{listener::ListenerId, scope::NewBlockTemplateScope};
 use kaspa_rpc_core::notify::mode::NotificationMode;
 use kaspa_rpc_core::{
-    api::rpc::RpcApi, GetBlockDagInfoRequest, GetBlockTemplateRequest, GetConnectedPeerInfoRequest, GetInfoRequest,
-    GetServerInfoRequest, Notification, RpcRawBlock, SubmitBlockRequest, SubmitBlockResponse,
+    GetBlockDagInfoRequest, GetBlockTemplateRequest, GetConnectedPeerInfoRequest, GetCurrentBlockColorRequest, GetInfoRequest,
+    GetServerInfoRequest, Notification, RpcHash, RpcRawBlock, SubmitBlockRequest, SubmitBlockResponse, api::rpc::RpcApi,
 };
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
+use std::collections::{HashMap, VecDeque};
+use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
+use tokio::sync::watch;
 use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
+
+const STRATUM_COINBASE_TAG_BYTES: &[u8] = b"RK-Stratum";
+const MAX_COINBASE_TAG_SUFFIX_LEN: usize = 64;
+
+fn sanitize_coinbase_tag_suffix(suffix: &str) -> Option<String> {
+    let suffix = suffix.trim().trim_start_matches('/');
+    if suffix.is_empty() {
+        return None;
+    }
+
+    let mut out = String::with_capacity(suffix.len().min(MAX_COINBASE_TAG_SUFFIX_LEN));
+    for ch in suffix.chars() {
+        if out.len() >= MAX_COINBASE_TAG_SUFFIX_LEN {
+            break;
+        }
+        if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-') {
+            out.push(ch);
+        } else if ch.is_ascii_whitespace() {
+            out.push('_');
+        }
+    }
+
+    let out = out.trim_matches('_').to_string();
+    if out.is_empty() { None } else { Some(out) }
+}
+
+fn build_coinbase_tag_bytes(suffix: Option<&str>) -> Vec<u8> {
+    let mut tag = STRATUM_COINBASE_TAG_BYTES.to_vec();
+    if let Some(suffix) = suffix.and_then(sanitize_coinbase_tag_suffix) {
+        tag.push(b'/');
+        tag.extend_from_slice(suffix.as_bytes());
+    }
+    tag
+}
+
+struct BlockSubmitGuard {
+    ttl: Duration,
+    max_entries: usize,
+    entries: HashMap<String, Instant>,
+    order: VecDeque<String>,
+}
+
+impl BlockSubmitGuard {
+    fn new(ttl: Duration, max_entries: usize) -> Self {
+        Self { ttl, max_entries, entries: HashMap::new(), order: VecDeque::new() }
+    }
+
+    fn prune(&mut self, now: Instant) {
+        while let Some(front) = self.order.front() {
+            let remove = match self.entries.get(front) {
+                Some(ts) => now.duration_since(*ts) > self.ttl,
+                None => true,
+            };
+            if remove {
+                if let Some(key) = self.order.pop_front() {
+                    self.entries.remove(&key);
+                }
+            } else {
+                break;
+            }
+        }
+
+        while self.entries.len() > self.max_entries {
+            if let Some(key) = self.order.pop_front() {
+                self.entries.remove(&key);
+            } else {
+                break;
+            }
+        }
+    }
+
+    fn try_mark(&mut self, hash: &str, now: Instant) -> bool {
+        self.prune(now);
+        if self.entries.contains_key(hash) {
+            return false;
+        }
+        self.entries.insert(hash.to_string(), now);
+        self.order.push_back(hash.to_string());
+        true
+    }
+
+    fn remove(&mut self, hash: &str, now: Instant) {
+        self.prune(now);
+        self.entries.remove(hash);
+    }
+}
+
+static BLOCK_SUBMIT_GUARD: Lazy<Mutex<BlockSubmitGuard>> =
+    Lazy::new(|| Mutex::new(BlockSubmitGuard::new(Duration::from_secs(600), 50_000)));
 
 #[derive(Clone, Debug, Default)]
 pub struct NodeStatusSnapshot {
@@ -42,11 +134,21 @@ pub struct KaspaApi {
     client: Arc<GrpcClient>,
     notification_rx: Arc<Mutex<Option<mpsc::UnboundedReceiver<Notification>>>>,
     connected: Arc<Mutex<bool>>,
+    coinbase_tag: Vec<u8>,
 }
 
 impl KaspaApi {
     /// Create a new Kaspa API client
-    pub async fn new(address: String, _block_wait_time: Duration) -> Result<Arc<Self>> {
+    pub async fn new(address: String, _block_wait_time: Duration, coinbase_tag_suffix: Option<String>) -> Result<Arc<Self>> {
+        Self::new_with_shutdown(address, _block_wait_time, coinbase_tag_suffix, None).await
+    }
+
+    pub async fn new_with_shutdown(
+        address: String,
+        _block_wait_time: Duration,
+        coinbase_tag_suffix: Option<String>,
+        shutdown_rx: Option<watch::Receiver<bool>>,
+    ) -> Result<Arc<Self>> {
         info!("Connecting to Kaspa node at {}", address);
 
         // GrpcClient requires explicit "grpc://" prefix for connection
@@ -54,13 +156,17 @@ impl KaspaApi {
         let grpc_address = if address.starts_with("grpc://") { address.clone() } else { format!("grpc://{}", address) };
 
         // Log connection attempt (detailed logs moved to debug)
-        tracing::debug!("{} {}", LogColors::api("[API]"), LogColors::label("Establishing RPC connection to Kaspa node:"));
-        tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Address:"), &grpc_address);
-        tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Protocol:"), "gRPC (via RPC client wrapper)");
+        debug!("{} {}", LogColors::api("[API]"), LogColors::label("Establishing RPC connection to Kaspa node:"));
+        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Address:"), &grpc_address);
+        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Protocol:"), "gRPC (via RPC client wrapper)");
 
-        // Connect to Kaspa node with grpc:// prefix, using extended request timeout and reconnection support
-        let client = Arc::new(
-            GrpcClient::connect_with_args(
+        let mut attempt: u64 = 0;
+        let mut backoff_ms: u64 = 250;
+        let mut shutdown_rx = shutdown_rx;
+
+        let client = loop {
+            attempt += 1;
+            let connect_fut = GrpcClient::connect_with_args(
                 NotificationMode::Direct,
                 grpc_address.clone(),
                 None,
@@ -69,29 +175,99 @@ impl KaspaApi {
                 false,
                 Some(500_000),
                 Default::default(),
-            )
-            .await
-            .context("Failed to connect to Kaspa node")?,
-        );
+            );
+
+            let res = if let Some(rx) = shutdown_rx.as_mut() {
+                tokio::select! {
+                    _ = rx.wait_for(|v| *v) => {
+                        return Err(anyhow::anyhow!("shutdown requested"));
+                    }
+                    res = connect_fut => res,
+                }
+            } else {
+                connect_fut.await
+            };
+
+            match res {
+                Ok(client) => break Arc::new(client),
+                Err(e) => {
+                    let backoff = Duration::from_millis(backoff_ms);
+                    warn!(
+                        "failed to connect to kaspa node at {} (attempt {}): {}, retrying in {:.2}s",
+                        grpc_address,
+                        attempt,
+                        e,
+                        backoff.as_secs_f64()
+                    );
+
+                    if let Some(rx) = shutdown_rx.as_mut() {
+                        tokio::select! {
+                            _ = rx.wait_for(|v| *v) => {
+                                return Err(anyhow::anyhow!("shutdown requested"));
+                            }
+                            _ = sleep(backoff) => {}
+                        }
+                    } else {
+                        sleep(backoff).await;
+                    }
+
+                    backoff_ms = (backoff_ms.saturating_mul(2)).min(5_000);
+                }
+            }
+        };
 
         // Log successful connection (detailed logs moved to debug)
-        tracing::debug!("{} {}", LogColors::api("[API]"), LogColors::block("✓ RPC Connection Established Successfully"));
-        tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Connected to:"), &grpc_address);
-        tracing::debug!(
-            "{} {} {}",
-            LogColors::api("[API]"),
-            LogColors::label("  - Connection Type:"),
-            "gRPC (via RPC client wrapper)"
-        );
+        debug!("{} {}", LogColors::api("[API]"), LogColors::block("RPC Connection Established Successfully"));
+        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Connected to:"), &grpc_address);
+        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Connection Type:"), "gRPC (via RPC client wrapper)");
 
         // Start the client (no notify needed for Direct mode)
         client.start(None).await;
 
         // Subscribe to block template notifications
-        client
-            .start_notify(ListenerId::default(), NewBlockTemplateScope {}.into())
-            .await
-            .context("Failed to subscribe to block template notifications")?;
+        // Some nodes may take time to accept notification subscriptions; retry until it succeeds.
+        let mut attempt: u64 = 0;
+        let mut backoff_ms: u64 = 250;
+        loop {
+            attempt += 1;
+            let notify_fut = client.start_notify(ListenerId::default(), NewBlockTemplateScope {}.into());
+
+            let res = if let Some(rx) = shutdown_rx.as_mut() {
+                tokio::select! {
+                    _ = rx.wait_for(|v| *v) => {
+                        return Err(anyhow::anyhow!("shutdown requested"));
+                    }
+                    res = notify_fut => res,
+                }
+            } else {
+                notify_fut.await
+            };
+
+            match res {
+                Ok(_) => break,
+                Err(e) => {
+                    let backoff = Duration::from_millis(backoff_ms);
+                    warn!(
+                        "failed to subscribe to block template notifications (attempt {}): {}, retrying in {:.2}s",
+                        attempt,
+                        e,
+                        backoff.as_secs_f64()
+                    );
+
+                    if let Some(rx) = shutdown_rx.as_mut() {
+                        tokio::select! {
+                            _ = rx.wait_for(|v| *v) => {
+                                return Err(anyhow::anyhow!("shutdown requested"));
+                            }
+                            _ = sleep(backoff) => {}
+                        }
+                    } else {
+                        sleep(backoff).await;
+                    }
+                    backoff_ms = (backoff_ms.saturating_mul(2)).min(5_000);
+                }
+            }
+        }
 
         // Start receiving notifications
         let notification_rx = {
@@ -107,10 +283,8 @@ impl KaspaApi {
             Arc::new(Mutex::new(Some(rx)))
         };
 
-        let api = Arc::new(Self { client, notification_rx, connected: Arc::new(Mutex::new(true)) });
-
-        // Wait for node to sync
-        api.wait_for_sync(true).await?;
+        let coinbase_tag = build_coinbase_tag_bytes(coinbase_tag_suffix.as_deref());
+        let api = Arc::new(Self { client, notification_rx, connected: Arc::new(Mutex::new(true)), coinbase_tag });
 
         // Start network stats thread
         let api_clone = Arc::clone(&api);
@@ -238,28 +412,73 @@ impl KaspaApi {
         let timestamp = block.header.timestamp;
         let nonce = block.header.nonce;
 
-        tracing::debug!(
+        {
+            let now = Instant::now();
+            let mut guard = BLOCK_SUBMIT_GUARD.lock();
+            if !guard.try_mark(&block_hash, now) {
+                return Err(anyhow::anyhow!("ErrDuplicateBlock: block already submitted"));
+            }
+        }
+
+        debug!(
             "{} {}",
             LogColors::api("[API]"),
-            LogColors::api(&format!("✓ ===== ATTEMPTING BLOCK SUBMISSION TO KASPA NODE ===== Hash: {}", block_hash))
+            LogColors::api(&format!("===== ATTEMPTING BLOCK SUBMISSION TO KASPA NODE ===== Hash: {}", block_hash))
         );
-        tracing::debug!("{} {}", LogColors::api("[API]"), LogColors::label("Block Details:"));
-        tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Hash:"), block_hash);
-        tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Blue Score:"), blue_score);
-        tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Timestamp:"), timestamp);
-        tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Nonce:"), format!("{:x} ({})", nonce, nonce));
-        tracing::debug!("{} {}", LogColors::api("[API]"), "Converting block to RPC format and sending to node...");
+        debug!("{} {}", LogColors::api("[API]"), LogColors::label("Block Details:"));
+        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Hash:"), block_hash);
+        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Blue Score:"), blue_score);
+        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Timestamp:"), timestamp);
+        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Nonce:"), format!("{:x} ({})", nonce, nonce));
+        debug!("{} {}", LogColors::api("[API]"), "Converting block to RPC format and sending to node...");
 
         // Convert Block to RpcRawBlock (use reference)
         let rpc_block: RpcRawBlock = (&block).into();
 
         // Submit block (don't allow non-DAA blocks)
-        tracing::debug!("{} {}", LogColors::api("[API]"), "Calling submit_block via RPC client...");
+        debug!("{} {}", LogColors::api("[API]"), "Calling submit_block via RPC client...");
         let result =
             self.client.submit_block_call(None, SubmitBlockRequest::new(rpc_block, false)).await.context("Failed to submit block");
 
+        if let Err(e) = &result {
+            let error_str = e.to_string();
+            let is_duplicate = error_str.contains("ErrDuplicateBlock") || error_str.contains("duplicate");
+            if !is_duplicate {
+                let now = Instant::now();
+                let mut guard = BLOCK_SUBMIT_GUARD.lock();
+                guard.remove(&block_hash, now);
+            }
+        }
+
         match &result {
             Ok(response) => {
+                // IMPORTANT: The RPC call can succeed while the node still rejects the block.
+                // Only treat SubmitBlockReport::Success as accepted.
+                if !response.report.is_success() {
+                    let now = Instant::now();
+                    let mut guard = BLOCK_SUBMIT_GUARD.lock();
+                    guard.remove(&block_hash, now);
+
+                    warn!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        LogColors::validation(&format!("===== BLOCK REJECTED BY KASPA NODE ===== Hash: {}", block_hash))
+                    );
+                    warn!(
+                        "{} {} {}",
+                        LogColors::api("[API]"),
+                        LogColors::label("REJECTION REASON:"),
+                        format!("{:?}", response.report)
+                    );
+                    warn!(
+                        "{} {} {}",
+                        LogColors::api("[API]"),
+                        LogColors::label("  - Blue Score:"),
+                        format!("{}, Timestamp: {}, Nonce: {:x}", blue_score, timestamp, nonce)
+                    );
+                    return Err(anyhow::anyhow!("Block rejected by node: {:?}", response.report));
+                }
+
                 // Keep block accepted message at info (important operational event)
                 info!(
                     "{} {}",
@@ -267,23 +486,18 @@ impl KaspaApi {
                     LogColors::block(&format!("===== BLOCK ACCEPTED BY KASPA NODE ===== Hash: {}", block_hash))
                 );
                 // Detailed acceptance logs moved to debug
-                tracing::debug!(
+                debug!(
                     "{} {} {}",
                     LogColors::api("[API]"),
                     LogColors::label("ACCEPTANCE REASON:"),
                     "Block passed all node validation checks"
                 );
-                tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Block structure:"), "VALID");
-                tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Block header:"), "VALID");
-                tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Transactions:"), "VALID");
-                tracing::debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - DAA validation:"), "PASSED");
-                tracing::debug!(
-                    "{} {} {}",
-                    LogColors::api("[API]"),
-                    LogColors::label("  - Node Response:"),
-                    format!("{:?}", response)
-                );
-                tracing::debug!(
+                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Block structure:"), "VALID");
+                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Block header:"), "VALID");
+                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Transactions:"), "VALID");
+                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - DAA validation:"), "PASSED");
+                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Node Response:"), format!("{:?}", response));
+                debug!(
                     "{} {} {}",
                     LogColors::api("[API]"),
                     LogColors::label("  - Blue Score:"),
@@ -308,7 +522,7 @@ impl KaspaApi {
                             info!(
                                 "{} {} {}",
                                 LogColors::api("[API]"),
-                                LogColors::block("✓ Block appears in tip hashes (good sign for propagation)"),
+                                LogColors::block("Block appears in tip hashes (good sign for propagation)"),
                                 format!("Hash: {}", block_hash_clone)
                             );
                         } else {
@@ -316,7 +530,7 @@ impl KaspaApi {
                             info!(
                                 "{} {} {}",
                                 LogColors::api("[API]"),
-                                LogColors::label("ℹ Block not yet in tip hashes (may still propagate)"),
+                                LogColors::label("Block not yet in tip hashes (may still propagate)"),
                                 format!("Hash: {}", block_hash_clone)
                             );
                             info!(
@@ -388,7 +602,7 @@ impl KaspaApi {
     /// Wait for node to sync
     async fn wait_for_sync(&self, verbose: bool) -> Result<()> {
         if verbose {
-            tracing::debug!("checking kaspad sync state");
+            debug!("checking kaspad sync state");
         }
 
         loop {
@@ -396,20 +610,71 @@ impl KaspaApi {
                 Ok(is_synced) => {
                     if is_synced {
                         if verbose {
-                            tracing::debug!("kaspad synced, starting server");
+                            debug!("kaspad synced, starting server");
                         }
                         break;
                     }
                 }
                 Err(e) => {
-                    warn!("failed to get sync status: {}, retrying...", e);
+                    if verbose {
+                        warn!("failed to get sync status: {}, retrying...", e);
+                    } else {
+                        debug!("failed to get sync status: {}, retrying...", e);
+                    }
                 }
             }
 
             if verbose {
                 warn!("Kaspa is not synced, waiting for sync before starting bridge");
             }
-            sleep(Duration::from_secs(5)).await;
+            sleep(Duration::from_secs(10)).await;
+        }
+
+        Ok(())
+    }
+
+    pub async fn wait_for_sync_with_shutdown(&self, verbose: bool, mut shutdown_rx: watch::Receiver<bool>) -> Result<()> {
+        if verbose {
+            debug!("checking kaspad sync state");
+        }
+
+        loop {
+            let sync_fut = self.client.get_sync_status();
+            let sync_res = tokio::select! {
+                _ = shutdown_rx.wait_for(|v| *v) => {
+                    return Err(anyhow::anyhow!("shutdown requested"));
+                }
+                res = sync_fut => res,
+            };
+
+            match sync_res {
+                Ok(is_synced) => {
+                    if is_synced {
+                        if verbose {
+                            debug!("kaspad synced, starting server");
+                        }
+                        break;
+                    }
+                }
+                Err(e) => {
+                    if verbose {
+                        warn!("failed to get sync status: {}, retrying...", e);
+                    } else {
+                        debug!("failed to get sync status: {}, retrying...", e);
+                    }
+                }
+            }
+
+            if verbose {
+                warn!("Kaspa is not synced, waiting for sync before starting bridge");
+            }
+
+            tokio::select! {
+                _ = shutdown_rx.wait_for(|v| *v) => {
+                    return Err(anyhow::anyhow!("shutdown requested"));
+                }
+                _ = sleep(Duration::from_secs(10)) => {}
+            }
         }
 
         Ok(())
@@ -433,7 +698,11 @@ impl KaspaApi {
                 Address::try_from(wallet_addr).map_err(|e| anyhow::anyhow!("Could not decode address {}: {}", wallet_addr, e))?;
 
             // Request block template using RPC client wrapper
-            let response = match self.client.get_block_template_call(None, GetBlockTemplateRequest::new(address, vec![])).await {
+            let response = match self
+                .client
+                .get_block_template_call(None, GetBlockTemplateRequest::new(address, self.coinbase_tag.clone()))
+                .await
+            {
                 Ok(r) => r,
                 Err(e) => {
                     if attempt < max_retries - 1 {
@@ -494,7 +763,11 @@ impl KaspaApi {
                     }
                     // If the error contains "Odd number of digits", provide more context
                     if error_str.contains("Odd number of digits") {
-                        return Err(anyhow::anyhow!("Failed to convert RPC block to Block after {} attempts: {} - This usually indicates a malformed hash field in the block template from the Kaspa node. The block may have a hash with an odd-length hex string.", max_retries, error_str));
+                        return Err(anyhow::anyhow!(
+                            "Failed to convert RPC block to Block after {} attempts: {} - This usually indicates a malformed hash field in the block template from the Kaspa node. The block may have a hash with an odd-length hex string.",
+                            max_retries,
+                            error_str
+                        ));
                     } else {
                         return Err(anyhow::anyhow!("Failed to convert RPC block to Block: {}", error_str));
                     }
@@ -520,7 +793,6 @@ impl KaspaApi {
 
         // Calculate balances from UTXOs
         // Group entries by address
-        use std::collections::HashMap;
         let mut balance_map: HashMap<String, u64> = HashMap::new();
         for entry in utxos.entries {
             if let Some(address) = entry.address {
@@ -532,6 +804,16 @@ impl KaspaApi {
         let balances: Vec<(String, u64)> = balance_map.into_iter().collect();
 
         Ok(balances)
+    }
+
+    pub async fn get_current_block_color(&self, block_hash: &str) -> Result<bool> {
+        let hash = RpcHash::from_str(block_hash).context("Failed to parse block hash")?;
+        let resp = self
+            .client
+            .get_current_block_color_call(None, GetCurrentBlockColorRequest { hash })
+            .await
+            .context("Failed to query current block color")?;
+        Ok(resp.blue)
     }
 
     /// Start listening for block template notifications
@@ -605,6 +887,69 @@ impl KaspaApi {
 
         Ok(())
     }
+
+    pub async fn start_block_template_listener_with_shutdown<F>(
+        self: Arc<Self>,
+        block_wait_time: Duration,
+        mut shutdown_rx: watch::Receiver<bool>,
+        mut block_cb: F,
+    ) -> Result<()>
+    where
+        F: FnMut() + Send + 'static,
+    {
+        let mut rx = self.notification_rx.lock().take().ok_or_else(|| anyhow::anyhow!("Notification receiver already taken"))?;
+
+        let api_clone = Arc::clone(&self);
+        tokio::spawn(async move {
+            let mut restart_channel = true;
+            let mut ticker = tokio::time::interval(block_wait_time);
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+            loop {
+                if *shutdown_rx.borrow() {
+                    break;
+                }
+
+                if let Err(e) = api_clone.wait_for_sync(false).await {
+                    error!("error checking kaspad sync state, attempting reconnect: {}", e);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    restart_channel = true;
+                }
+
+                if restart_channel {
+                    restart_channel = false;
+                }
+
+                tokio::select! {
+                    _ = shutdown_rx.changed() => {
+                        if *shutdown_rx.borrow() {
+                            break;
+                        }
+                    }
+                    notification_result = rx.recv() => {
+                        match notification_result {
+                            Some(Notification::NewBlockTemplate(_)) => {
+                                while rx.try_recv().is_ok() {}
+                                block_cb();
+                                ticker = tokio::time::interval(block_wait_time);
+                                ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                            }
+                            Some(_) => {}
+                            None => {
+                                warn!("Block template notification channel closed");
+                                break;
+                            }
+                        }
+                    }
+                    _ = ticker.tick() => {
+                        block_cb();
+                    }
+                }
+            }
+        });
+
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
@@ -635,6 +980,12 @@ impl KaspaApiTrait for KaspaApi {
         addresses: &[String],
     ) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error + Send + Sync>> {
         KaspaApi::get_balances_by_addresses(self, addresses)
+            .await
+            .map_err(|e| Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
+    }
+
+    async fn get_current_block_color(&self, block_hash: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+        KaspaApi::get_current_block_color(self, block_hash)
             .await
             .map_err(|e| Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error + Send + Sync>)
     }
