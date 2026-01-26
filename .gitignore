@@ -5,7 +5,7 @@
 
 # Rust build artifacts
 target/
-Cargo.lock
+!Cargo.lock
 
 # Log files (runtime artifacts)
 *.log
