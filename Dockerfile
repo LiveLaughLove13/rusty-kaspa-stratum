@@ -30,6 +30,7 @@ RUN rm -f target/release/deps/stratum_bridge* target/release/deps/kaspa_stratum_
 
 # Copy the actual source code
 COPY src ./src
+COPY static ./static
 COPY config.yaml ./
 
 # Build the actual binary
