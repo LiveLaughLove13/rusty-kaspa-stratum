@@ -1,27 +1,43 @@
-FROM rust:1.92-alpine AS builder
+# ---------------------------------------- Builder image ----------------------------------------
+FROM rust:1.90-alpine AS builder
 
-RUN apk add --no-cache build-base protoc clang llvm15-dev pkgconfig
-ENV LIBCLANG_PATH=/usr/lib/llvm15/lib
-ENV BINDGEN_EXTRA_CLANG_ARGS="-I/usr/include"
+RUN apk --no-cache add \
+  musl-dev \
+  protobuf-dev \
+  g++ \
+  clang15-dev \
+  linux-headers \
+  openssl-dev \
+  pkgconfig
+
+ENV RUSTFLAGS="-C target-feature=-crt-static" \
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 WORKDIR /usr/src/rustbridge
 
+# Copy dependency files first for better caching
 COPY Cargo.toml Cargo.lock ./
-
-COPY config.yaml ./
 
 # Create a dummy src/main.rs to build only the dependencies.
 # This avoids rebuilding all dependencies when only the source code changes.
 RUN mkdir src && echo "fn main() {}" > src/main.rs
-RUN cargo build --release --bin stratum-bridge
+
+# Build dependencies - this layer will be cached if Cargo.toml/Cargo.lock don't change
+RUN cargo build --release --features rkstratum_cpu_miner --bin stratum-bridge
 
 # Dependencies are now cached, we can remove the dummy source and build the real one
 RUN rm -f target/release/deps/stratum_bridge* target/release/deps/kaspa_stratum_bridge*
+
+# Copy the actual source code
 COPY src ./src
+COPY config.yaml ./
 
-RUN cargo build --release --bin stratum-bridge
+# Build the actual binary
+RUN cargo build --release --features rkstratum_cpu_miner --bin stratum-bridge \
+  && cp target/release/stratum-bridge /stratum-bridge
 
-FROM alpine:latest
+# ---------------------------------------- Runtime image ----------------------------------------
+FROM alpine AS runtime
 
 WORKDIR /app
 
@@ -32,11 +48,20 @@ LABEL org.opencontainers.image.title="Kaspa Rust Stratum Bridge" \
     org.opencontainers.image.vendor="Kluster" \
     org.opencontainers.image.licenses="ISC"
 
-# Copy the binary from the builder stage
-COPY --from=builder /usr/src/rustbridge/target/release/stratum-bridge .
-COPY LICENSE .
+RUN apk --no-cache add \
+  libgcc \
+  libstdc++ \
+  tini \
+  ca-certificates \
+  && addgroup -S kaspa \
+  && adduser -S -G kaspa -h /home/kaspa -s /sbin/nologin kaspa \
+  && mkdir -p /home/kaspa /app \
+  && chown -R kaspa:kaspa /home/kaspa /app
 
-COPY --from=builder /usr/src/rustbridge/config.yaml ./config.yaml
+# Copy the binary from the builder stage
+COPY --from=builder --chown=kaspa:kaspa /stratum-bridge .
+COPY --from=builder --chown=kaspa:kaspa /usr/src/rustbridge/config.yaml ./config.yaml
+COPY LICENSE .
 
 # Expose the default stratum and prometheus ports from the config
 # Stratum ports
@@ -50,6 +75,9 @@ EXPOSE 2115
 EXPOSE 2116
 EXPOSE 2117
 
-# Set the entrypoint to run the bridge
-ENTRYPOINT ["./stratum-bridge", "--config", "/app/config.yaml", "--node-mode", "external"]
+ENV HOME=/home/kaspa
+USER kaspa
+
+ENTRYPOINT [ "/sbin/tini", "--" ]
+CMD [ "./stratum-bridge", "--config", "/app/config.yaml", "--node-mode", "external" ]
 
