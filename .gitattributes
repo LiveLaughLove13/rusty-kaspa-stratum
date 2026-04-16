@@ -1,1 +1,3 @@
 musl-toolchain/*.sh text eol=lf
+# Override: preset.sh must stay byte-identical to kaspanet (musl-toolchain-v1 preset hash); no EOF newline.
+musl-toolchain/preset.sh -text
