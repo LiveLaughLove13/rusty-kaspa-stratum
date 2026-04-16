@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RK-Stratum — Session Charts</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <nav class="rk-main-nav border-b border-card relative rounded-b-2xl shadow-lg shadow-black/25">
+    <div class="container mx-auto px-4 sm:px-5 py-4 sm:py-5 max-w-[1680px]">
+      <div class="rk-nav-top flex flex-col gap-3 sm:gap-4">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+          <div id="rkNavClockSlot" class="shrink-0"></div>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          <nav class="rk-dash-subnav flex flex-wrap items-center gap-1 sm:gap-1.5 rounded-xl border border-white/[0.08] bg-black/25 px-2 py-1.5 sm:px-2.5" aria-label="Dashboard pages">
+            <a class="rk-dash-subnav__link" href="index.html">Overview</a>
+            <a class="rk-dash-subnav__link" href="metrics.html">Metrics</a>
+            <a class="rk-dash-subnav__link" href="node.html">Node</a>
+            <a class="rk-dash-subnav__link" href="trends.html">Trends</a>
+            <a class="rk-dash-subnav__link rk-dash-subnav__link--active" href="session-charts.html">Session Charts</a>
+            <a class="rk-dash-subnav__link" href="blocks.html">Blocks</a>
+            <a class="rk-dash-subnav__link" href="workers.html">Workers</a>
+          </nav>
+            <a class="rk-nav-cta rk-nav-cta--ghost" href="raw.html">Raw</a>
+            <a class="rk-nav-cta rk-nav-cta--primary" href="https://github.com/kaspanet" target="_blank" rel="noopener noreferrer">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="currentColor"><path d="M12 .297a12 12 0 0 0-3.793 23.405c.6.111.793-.261.793-.58v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.757-1.333-1.757-1.089-.745.083-.73.083-.73 1.205.084 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.604-2.665-.3-5.466-1.334-5.466-5.932 0-1.31.468-2.381 1.235-3.221-.123-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 6.003 0c2.29-1.552 3.297-1.23 3.297-1.23.654 1.653.242 2.873.119 3.176.77.84 1.233 1.911 1.233 3.221 0 4.61-2.807 5.628-5.479 5.922.43.372.823 1.102.823 2.222v3.293c0 .322.192.694.801.576A12 12 0 0 0 12 .297z"/></svg>
+              </span>
+              GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="container mx-auto px-4 pt-4 pb-6 max-w-[1680px]">
+    <div class="bg-surface-2 rounded-xl p-4 sm:p-6 border border-card rk-panel-chart rk-trends-panel">
+      <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+        <div>
+          <h3 class="text-lg font-semibold kaspa-primary rk-panel-title">Session charts</h3>
+          <p id="trendsIntroText" class="text-xs text-gray-500 mt-1 max-w-3xl leading-relaxed">
+            Live charts (~2s refresh), kept only for this tab session.
+          </p>
+        </div>
+        <div id="trendsSessionControls" class="flex flex-wrap items-center gap-2 shrink-0">
+          <label class="text-xs text-gray-400 whitespace-nowrap" for="trendsWindowSelect">Window</label>
+          <select id="trendsWindowSelect" class="bg-surface-1 border border-card px-2 py-1.5 rounded-lg text-xs text-white hover:border-kaspa-primary focus:outline-none focus:border-kaspa-primary">
+            <option value="300000">Last 5 min</option>
+            <option value="900000" selected>Last 15 min</option>
+            <option value="1800000">Last 30 min</option>
+            <option value="3600000">Last 1 h</option>
+          </select>
+          <button type="button" id="trendsClearBtn" class="bg-surface-1 border border-card px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary">Clear series</button>
+        </div>
+      </div>
+      <div id="trendsSessionChartsSub" class="rk-subcollapsible">
+        <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Session charts</span>
+          <button type="button" class="rk-subcollapsible-toggle bg-surface-1 border border-card px-2 py-1 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-1.5 shrink-0" data-collapsible-toggle="trendsSessionChartsBody" aria-expanded="true" title="Collapse or expand live session charts">
+            <svg class="h-3.5 w-3.5 transition-transform" data-collapsible-icon="trendsSessionChartsBody" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+            <span data-collapsible-label="trendsSessionChartsBody" class="hidden sm:inline">Collapse</span>
+          </button>
+        </div>
+        <div data-collapsible-body="trendsSessionChartsBody">
+          <div id="trendsSessionChartsWrap">
+            <div id="trendsChartsEmpty" class="hidden text-sm text-gray-500 border border-dashed border-card rounded-lg px-4 py-8 text-center">
+              No trend samples yet. Wait for host metrics from the bridge, or enable <code class="text-gray-300">rkstratum_host_metrics</code>.
+            </div>
+            <div id="trendsChartsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head"><span class="rk-trends-chart-title">CPU (Bridge host)</span><span class="rk-trends-chart-stats" id="trendsStatsCpu"></span></div>
+                <div class="rk-trends-canvas-wrap"><canvas id="trendChartCpu" aria-label="CPU trend"></canvas></div>
+              </div>
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head"><span class="rk-trends-chart-title">Memory (host &amp; RSS)</span><span class="rk-trends-chart-stats" id="trendsStatsMem"></span></div>
+                <div class="rk-trends-canvas-wrap"><canvas id="trendChartMem" aria-label="Memory trend"></canvas></div>
+              </div>
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head"><span class="rk-trends-chart-title">Network (all interfaces)</span><span class="rk-trends-chart-stats" id="trendsStatsNet"></span></div>
+                <div class="rk-trends-canvas-wrap"><canvas id="trendChartNet" aria-label="Network trend"></canvas></div>
+              </div>
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head"><span class="rk-trends-chart-title">Bridge process disk I/O</span><span class="rk-trends-chart-stats" id="trendsStatsDisk"></span></div>
+                <div class="rk-trends-canvas-wrap"><canvas id="trendChartDisk" aria-label="Disk trend"></canvas></div>
+              </div>
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head"><span class="rk-trends-chart-title">Node: peers &amp; mempool</span><span class="rk-trends-chart-stats" id="trendsStatsRpc"></span></div>
+                <div class="rk-trends-canvas-wrap"><canvas id="trendChartRpc" aria-label="Peers and mempool trend"></canvas></div>
+              </div>
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head"><span class="rk-trends-chart-title">Sync &amp; data volume</span><span class="rk-trends-chart-stats" id="trendsStatsSync"></span></div>
+                <div class="rk-trends-canvas-wrap"><canvas id="trendChartSync" aria-label="Sync and volume trend"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="js/api-base.js"></script>
+  <script src="js/dashboard.js"></script>
+
+  <div id="toast" class="hidden fixed right-4 top-4 z-50 bg-surface-1 border border-card px-4 py-2 rounded-lg text-sm text-white"></div>
+</body>
+</html>

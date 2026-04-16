@@ -1,0 +1,16 @@
+{
+  "name": "rkstratum-bridge-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Tauri 1.x desktop shell for the RK Stratum bridge dashboard (WebView2 on Windows)",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "gen:icons": "node scripts/generate-tauri-icons.cjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.14",
+    "sharp": "^0.33.5"
+  }
+}

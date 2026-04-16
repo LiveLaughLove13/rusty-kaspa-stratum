@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RK-Stratum — Recent blocks</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <nav class="rk-main-nav border-b border-card relative rounded-b-2xl shadow-lg shadow-black/25">
+    <div class="container mx-auto px-4 sm:px-5 py-4 sm:py-5 max-w-[1680px]">
+      <div class="rk-nav-top flex flex-col gap-3 sm:gap-4">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+          <div id="rkNavClockSlot" class="shrink-0"></div>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          <nav class="rk-dash-subnav flex flex-wrap items-center gap-1 sm:gap-1.5 rounded-xl border border-white/[0.08] bg-black/25 px-2 py-1.5 sm:px-2.5" aria-label="Dashboard pages">
+            <a class="rk-dash-subnav__link" href="index.html">Overview</a>
+            <a class="rk-dash-subnav__link" href="metrics.html">Metrics</a>
+            <a class="rk-dash-subnav__link" href="node.html">Node</a>
+            <a class="rk-dash-subnav__link" href="trends.html">Trends</a>
+            <a class="rk-dash-subnav__link rk-dash-subnav__link--active" href="blocks.html">Blocks</a>
+            <a class="rk-dash-subnav__link" href="workers.html">Workers</a>
+          </nav>
+            <a class="rk-nav-cta rk-nav-cta--ghost" href="raw.html">Raw</a>
+            <a class="rk-nav-cta rk-nav-cta--primary"
+               href="https://github.com/kaspanet" target="_blank" rel="noopener noreferrer">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="currentColor"><path d="M12 .297a12 12 0 0 0-3.793 23.405c.6.111.793-.261.793-.58v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.757-1.333-1.757-1.089-.745.083-.73.083-.73 1.205.084 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.604-2.665-.3-5.466-1.334-5.466-5.932 0-1.31.468-2.381 1.235-3.221-.123-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 6.003 0c2.29-1.552 3.297-1.23 3.297-1.23.654 1.653.242 2.873.119 3.176.77.84 1.233 1.911 1.233 3.221 0 4.61-2.807 5.628-5.479 5.922.43.372.823 1.102.823 2.222v3.293c0 .322.192.694.801.576A12 12 0 0 0 12 .297z"/></svg>
+              </span>
+              GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="container mx-auto px-4 pt-4 pb-6 max-w-[1680px]">
+    <div class="rk-recent-blocks-panel rk-panel-chart bg-surface-2 rounded-xl p-4 sm:p-6 border border-card">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4">
+          <div class="min-w-0">
+            <h3 class="text-lg font-semibold kaspa-primary rk-panel-title">Recent blocks</h3>
+          </div>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <div class="flex items-center gap-2">
+              <label for="blocksDayFilter" class="text-xs text-gray-400 whitespace-nowrap">Filter by days:</label>
+              <select id="blocksDayFilter" class="flex-1 sm:flex-none bg-surface-1 border border-card px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm text-white hover:border-kaspa-primary focus:outline-none focus:border-kaspa-primary min-w-0">
+                <option value="0">All</option>
+                <option value="1">Last 1 day</option>
+                <option value="3">Last 3 days</option>
+                <option value="7">Last 7 days</option>
+                <option value="14">Last 14 days</option>
+                <option value="30">Last 30 days</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" class="bg-surface-1 border border-card px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-1.5 sm:gap-2" data-collapsible-toggle="recentBlocks" aria-expanded="true">
+                <svg class="h-3.5 w-3.5 sm:h-4 sm:w-4 transition-transform" data-collapsible-icon="recentBlocks" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+                <span data-collapsible-label="recentBlocks" class="hidden sm:inline">Collapse</span>
+              </button>
+              <button id="downloadBlocksCsv" type="button" class="flex-1 sm:flex-none bg-surface-1 border border-card px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium text-white hover:border-kaspa-primary whitespace-nowrap">Download CSV</button>
+            </div>
+          </div>
+        </div>
+        <div data-collapsible-body="recentBlocks">
+          <div class="rk-subcollapsible mb-4 sm:mb-5">
+            <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+              <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Charts &amp; summary</span>
+              <button type="button" class="rk-subcollapsible-toggle bg-surface-1 border border-card px-2 py-1 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-1.5 shrink-0" data-collapsible-toggle="recentBlocksViz" aria-expanded="true" title="Collapse or expand charts and summary">
+                <svg class="h-3.5 w-3.5 transition-transform" data-collapsible-icon="recentBlocksViz" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+                <span data-collapsible-label="recentBlocksViz" class="hidden sm:inline">Collapse</span>
+              </button>
+            </div>
+            <div data-collapsible-body="recentBlocksViz">
+          <div id="recentBlocksVizWrap" class="mb-0 space-y-3">
+            <div class="rk-recent-blocks-stats grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+              <div class="rk-recent-blocks-stat rounded-lg border border-card/80 bg-surface-1/40 px-3 py-2">
+                <div class="text-[0.65rem] uppercase tracking-wide text-gray-500">In view</div>
+                <div id="recentBlocksStatCount" class="text-lg font-semibold text-white tabular-nums">—</div>
+              </div>
+              <div class="rk-recent-blocks-stat rounded-lg border border-card/80 bg-surface-1/40 px-3 py-2">
+                <div class="text-[0.65rem] uppercase tracking-wide text-gray-500">Workers</div>
+                <div id="recentBlocksStatWorkers" class="text-lg font-semibold text-white tabular-nums">—</div>
+              </div>
+              <div class="rk-recent-blocks-stat rounded-lg border border-card/80 bg-surface-1/40 px-3 py-2 col-span-2 lg:col-span-2">
+                <div class="text-[0.65rem] uppercase tracking-wide text-gray-500">Time span (oldest → newest)</div>
+                <div id="recentBlocksStatSpan" class="text-sm font-medium text-gray-200 truncate" title="">—</div>
+              </div>
+            </div>
+            <div id="recentBlocksVizCharts" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head">
+                  <span class="rk-trends-chart-title">Blocks over time</span>
+                  <span class="rk-trends-chart-stats" id="recentBlocksTimelineStats"></span>
+                </div>
+                <div class="rk-trends-canvas-wrap"><canvas id="recentBlocksTimelineChart" aria-label="Blocks over time"></canvas></div>
+              </div>
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head">
+                  <span class="rk-trends-chart-title">By instance / worker</span>
+                  <span class="rk-trends-chart-stats" id="recentBlocksWorkerStats"></span>
+                </div>
+                <div class="rk-trends-canvas-wrap"><canvas id="recentBlocksWorkerChart" aria-label="Blocks by instance and worker"></canvas></div>
+              </div>
+            </div>
+            <p id="recentBlocksVizEmpty" class="hidden text-sm text-gray-500 text-center py-8 border border-dashed border-card rounded-lg bg-surface-1/30">No blocks in the current view. Try another day range or clear the wallet filter.</p>
+          </div>
+            </div>
+          </div>
+          <div class="rk-subcollapsible">
+            <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+              <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Block table</span>
+              <button type="button" class="rk-subcollapsible-toggle bg-surface-1 border border-card px-2 py-1 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-1.5 shrink-0" data-collapsible-toggle="recentBlocksTable" aria-expanded="true" title="Collapse or expand block table">
+                <svg class="h-3.5 w-3.5 transition-transform" data-collapsible-icon="recentBlocksTable" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+                <span data-collapsible-label="recentBlocksTable" class="hidden sm:inline">Collapse</span>
+              </button>
+            </div>
+            <div data-collapsible-body="recentBlocksTable">
+          <div class="sm:hidden text-xs text-gray-400 mb-2">Tip: swipe sideways to see all columns, or tap a row to view full details.</div>
+          <div class="table-wrap rk-recent-blocks-table-wrap">
+            <table class="rk-recent-blocks-table min-w-[980px] w-max text-sm">
+              <colgroup>
+                <col style="width: 12rem;" />
+                <col style="width: 6.5rem;" />
+                <col style="width: 7.5rem;" />
+                <col style="width: 7rem;" />
+                <col style="width: 13rem;" />
+                <col style="width: 11rem;" />
+                <col style="width: 12rem;" />
+              </colgroup>
+              <thead class="text-gray-400">
+                <tr class="border-b border-card">
+                  <th class="text-left py-2 pr-3">Timestamp</th>
+                  <th class="text-left py-2 pr-3">Instance</th>
+                  <th class="text-left py-2 pr-3">Bluescore</th>
+                  <th class="text-left py-2 pr-3">Worker</th>
+                  <th class="text-left py-2 pr-3">Wallet</th>
+                  <th class="text-left py-2 pr-3">Nonce</th>
+                  <th class="text-left py-2 pr-3">Hash</th>
+                </tr>
+              </thead>
+              <tbody id="blocksBody" class="text-gray-200"></tbody>
+            </table>
+          </div>
+            </div>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <div id="rowDetailModal" class="hidden fixed inset-0 z-50">
+    <div id="rowDetailBackdrop" class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
+      <div class="bg-surface-1 border border-card rounded-2xl w-full max-w-xl shadow-xl">
+        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-card">
+          <div class="min-w-0">
+            <div id="rowDetailTitle" class="text-base font-semibold text-white truncate">Details</div>
+            <div class="text-xs text-gray-400">Tap Copy to copy values</div>
+          </div>
+          <button id="rowDetailClose" type="button" class="bg-surface-2 border border-card px-3 py-2 rounded-lg text-sm font-medium text-white hover:border-kaspa-primary">Close</button>
+        </div>
+        <div id="rowDetailBody" class="px-5 py-4 space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="js/api-base.js"></script>
+  <script src="js/dashboard.js"></script>
+
+  <div id="toast" class="hidden fixed right-4 top-4 z-50 bg-surface-1 border border-card px-4 py-2 rounded-lg text-sm text-white"></div>
+</body>
+</html>

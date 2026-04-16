@@ -1,0 +1,35 @@
+[package]
+name = "rkstratum-bridge-desktop"
+version = "0.1.0"
+description = "Desktop shell (Tauri 1.x) for the RK Stratum bridge (embedded kaspa-stratum-bridge)"
+authors = ["Kaspa developers"]
+license = "ISC"
+repository = "https://github.com/LiveLaughLove13/rusty-kaspa-stratum"
+edition = "2021"
+rust-version = "1.88.0"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+# Same library API as `stratum-bridge` in kaspanet/rusty-kaspa (runner, Cli, dashboard URL).
+# Pinned via git so this repo’s standalone `src/` bridge can evolve separately from the desktop shell.
+serde = { version = "1.0.107", features = ["derive"] }
+serde_json = "1.0.107"
+tauri = { version = "1.5", features = ["api-all", "custom-protocol"] }
+# Pin a kaspanet/rusty-kaspa revision so `cargo check` matches a known-good lock (update when bumping bridge).
+kaspa-stratum-bridge = { git = "https://github.com/kaspanet/rusty-kaspa.git", rev = "4871552d21a109ecd94f51f9ec2de4a9b19b5f00", default-features = true }
+kaspa-alloc = { git = "https://github.com/kaspanet/rusty-kaspa.git", rev = "4871552d21a109ecd94f51f9ec2de4a9b19b5f00" }
+tokio = { version = "1.33.0", features = ["rt-multi-thread", "macros"] }
+clap = { version = "4.5.35", features = ["derive"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+# Forward to the bridge crate so `--internal-cpu-miner` and related flags parse (optional build).
+rkstratum_cpu_miner = ["kaspa-stratum-bridge/rkstratum_cpu_miner"]
+
+# `serde_nested_with` was fully yanked on crates.io; pull the same sources from upstream git.
+# See: https://github.com/murar8/serde_nested_with (tag matches published 0.2.6).
+[patch.crates-io]
+serde_nested_with = { git = "https://github.com/murar8/serde_nested_with.git", tag = "0.2.6" }

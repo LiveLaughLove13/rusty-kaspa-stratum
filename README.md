@@ -71,6 +71,12 @@ $env:RUST_LOG="info,kaspa_stratum_bridge=debug"
 
 On Windows, Ctrl+C may show `STATUS_CONTROL_C_EXIT` which is expected.
 
+## Desktop UI (optional)
+
+This repository also includes a **Tauri** desktop shell under [`bridge-tauri/`](bridge-tauri/) that embeds the bridge using the `kaspa-stratum-bridge` library from [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) (pinned by git revision in `bridge-tauri/src-tauri/Cargo.toml`). It does not replace the standalone `stratum-bridge` binary above.
+
+See [`bridge-tauri/README.md`](bridge-tauri/README.md) for build commands and dependency notes.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

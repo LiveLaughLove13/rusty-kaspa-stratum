@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RK-Stratum — Overview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <nav class="rk-main-nav border-b border-card relative rounded-b-2xl shadow-lg shadow-black/25">
+    <div class="container mx-auto px-4 sm:px-5 py-4 sm:py-5 max-w-[1680px]">
+      <div class="rk-nav-top flex flex-col gap-3 sm:gap-4">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+          <div id="rkNavClockSlot" class="shrink-0"></div>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          <nav class="rk-dash-subnav flex flex-wrap items-center gap-1 sm:gap-1.5 rounded-xl border border-white/[0.08] bg-black/25 px-2 py-1.5 sm:px-2.5" aria-label="Dashboard pages">
+            <a class="rk-dash-subnav__link rk-dash-subnav__link--active" href="index.html">Overview</a>
+            <a class="rk-dash-subnav__link" href="metrics.html">Metrics</a>
+            <a class="rk-dash-subnav__link" href="node.html">Node</a>
+            <a class="rk-dash-subnav__link" href="trends.html">Trends</a>
+            <a class="rk-dash-subnav__link" href="blocks.html">Blocks</a>
+            <a class="rk-dash-subnav__link" href="workers.html">Workers</a>
+          </nav>
+            <a class="rk-nav-cta rk-nav-cta--ghost" href="raw.html">Raw</a>
+            <a class="rk-nav-cta rk-nav-cta--primary"
+               href="https://github.com/kaspanet" target="_blank" rel="noopener noreferrer">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="currentColor"><path d="M12 .297a12 12 0 0 0-3.793 23.405c.6.111.793-.261.793-.58v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.757-1.333-1.757-1.089-.745.083-.73.083-.73 1.205.084 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.604-2.665-.3-5.466-1.334-5.466-5.932 0-1.31.468-2.381 1.235-3.221-.123-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 6.003 0c2.29-1.552 3.297-1.23 3.297-1.23.654 1.653.242 2.873.119 3.176.77.84 1.233 1.911 1.233 3.221 0 4.61-2.807 5.628-5.479 5.922.43.372.823 1.102.823 2.222v3.293c0 .322.192.694.801.576A12 12 0 0 0 12 .297z"/></svg>
+              </span>
+              GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <section class="rk-nav-section mt-4" aria-labelledby="rk-nav-bridge-heading">
+        <h2 id="rk-nav-bridge-heading" class="rk-nav-section__label">Bridge</h2>
+        <div class="mt-2 flex flex-col gap-3 lg:flex-row lg:items-stretch lg:justify-between lg:gap-4">
+        <div class="rk-header-bridge-grid flex-1 min-w-0" aria-label="Bridge status">
+          <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card">
+            <div class="rk-stat-card-head">
+              <div class="text-gray-400 text-[11px] uppercase tracking-wide">Kaspad version</div>
+            </div>
+            <div id="kaspadVersion" class="text-base font-semibold tabular-nums leading-tight truncate kaspa-primary">-</div>
+          </div>
+          <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card rk-stat-card--accent">
+            <div class="rk-stat-card-head">
+              <div class="text-gray-400 text-[11px] uppercase tracking-wide">Instances</div>
+            </div>
+            <div id="instances" class="text-base font-semibold tabular-nums leading-tight truncate">-</div>
+          </div>
+          <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card">
+            <div class="rk-stat-card-head">
+              <div class="text-gray-400 text-[11px] uppercase tracking-wide">Last update</div>
+            </div>
+            <div id="lastUpdated" class="text-sm font-semibold leading-tight text-gray-100 line-clamp-2 sm:line-clamp-1 sm:truncate">-</div>
+          </div>
+          <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card rk-stat-card--accent">
+            <div class="rk-stat-card-head">
+              <div class="text-gray-400 text-[11px] uppercase tracking-wide">Bridge uptime</div>
+            </div>
+            <div id="bridgeUptime" class="text-base font-semibold tabular-nums leading-tight truncate">-</div>
+          </div>
+        </div>
+        <div class="rk-header-actions flex flex-wrap items-stretch gap-2 shrink-0 lg:flex-col lg:justify-center lg:min-w-[10rem]">
+          <button type="button" id="refreshBtn" class="rk-btn-header rk-btn-header--primary w-full sm:w-auto lg:w-full">Refresh</button>
+          <button type="button" id="clearCacheBtn" class="rk-btn-header rk-btn-header--ghost w-full sm:w-auto lg:w-full">Clear cache</button>
+        </div>
+        </div>
+      </section>
+
+      <section class="rk-nav-section mt-4" aria-labelledby="rk-nav-mining-heading">
+        <h2 id="rk-nav-mining-heading" class="rk-nav-section__label">Mining &amp; network</h2>
+        <div class="rk-stats-grid mt-2">
+      <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card">
+        <div class="rk-stat-card-head">
+          <div class="text-gray-400 text-[11px] uppercase tracking-wide">Blocks mined</div>
+        </div>
+        <div id="totalBlocks" class="text-base font-semibold tabular-nums leading-tight truncate kaspa-primary">-</div>
+        <div id="blockTotalsSub" class="text-[10px] text-gray-500 tabular-nums leading-tight mt-0.5 truncate" title="Prometheus totals (same instance filter as /metrics)"></div>
+      </div>
+      <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card rk-stat-card--accent">
+        <div class="rk-stat-card-head">
+          <div class="text-gray-400 text-[11px] uppercase tracking-wide">Total shares</div>
+        </div>
+        <div id="totalShares" class="text-base font-semibold tabular-nums leading-tight truncate">-</div>
+      </div>
+      <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card rk-stat-card--accent">
+        <div class="rk-stat-card-head">
+          <div class="text-gray-400 text-[11px] uppercase tracking-wide">Active workers</div>
+        </div>
+        <div class="flex items-baseline gap-2 min-w-0">
+          <div id="activeWorkers" class="text-base font-semibold tabular-nums leading-tight truncate">-</div>
+          <div id="totalWorkerHashrate" class="text-xs text-gray-400 tabular-nums truncate"></div>
+        </div>
+      </div>
+      <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card">
+        <div class="rk-stat-card-head">
+          <div class="text-gray-400 text-[11px] uppercase tracking-wide">Network hashrate</div>
+        </div>
+        <div id="networkHashrate" class="text-base font-semibold tabular-nums leading-tight truncate">-</div>
+      </div>
+      <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card">
+        <div class="rk-stat-card-head">
+          <div class="text-gray-400 text-[11px] uppercase tracking-wide leading-snug">CPU miner hashrate</div>
+        </div>
+        <div id="internalCpuHashrate" class="text-base font-semibold tabular-nums leading-tight truncate">-</div>
+      </div>
+      <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card">
+        <div class="rk-stat-card-head">
+          <div class="text-gray-400 text-[11px] uppercase tracking-wide leading-snug">CPU miner blocks</div>
+        </div>
+        <div id="internalCpuBlocks" class="text-base font-semibold tabular-nums leading-tight truncate">-</div>
+      </div>
+      <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card">
+        <div class="rk-stat-card-head">
+          <div class="text-gray-400 text-[11px] uppercase tracking-wide leading-snug">Network difficulty</div>
+          <div class="text-[10px] text-gray-500 leading-tight">Prometheus / est.</div>
+        </div>
+        <div id="networkDifficulty" class="text-sm font-semibold tabular-nums leading-tight truncate">-</div>
+      </div>
+      <div class="bg-surface-2 px-3 py-2.5 border border-card min-w-0 rk-stat-card">
+        <div class="rk-stat-card-head">
+          <div class="text-gray-400 text-[11px] uppercase tracking-wide">DAG height</div>
+          <div class="text-[10px] text-gray-500 leading-tight">Metrics gauge</div>
+        </div>
+        <div id="networkBlockCount" class="text-base font-semibold tabular-nums leading-tight truncate">-</div>
+      </div>
+        </div>
+      </section>
+    </div>
+  </nav>
+  <div class="container mx-auto px-4 pt-4 pb-6 max-w-[1680px]">
+    <div class="rk-dash-primary-panel rk-panel-chart bg-surface-2 rounded-xl p-4 sm:p-5 border border-card">
+      <h3 class="text-lg font-semibold kaspa-primary rk-panel-title">Bridge overview</h3>
+      <p class="text-xs text-gray-500 mt-1 max-w-2xl leading-snug">
+        Live summaries are in the header. Use the tabs for Metrics, Node, Trends, Blocks, and Workers.
+      </p>
+    </div>
+  </div>
+
+  <div id="rowDetailModal" class="hidden fixed inset-0 z-50">
+    <div id="rowDetailBackdrop" class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
+      <div class="bg-surface-1 border border-card rounded-2xl w-full max-w-xl shadow-xl">
+        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-card">
+          <div class="min-w-0">
+            <div id="rowDetailTitle" class="text-base font-semibold text-white truncate">Details</div>
+            <div class="text-xs text-gray-400">Tap Copy to copy values</div>
+          </div>
+          <button id="rowDetailClose" type="button" class="bg-surface-2 border border-card px-3 py-2 rounded-lg text-sm font-medium text-white hover:border-kaspa-primary">Close</button>
+        </div>
+        <div id="rowDetailBody" class="px-5 py-4 space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="js/api-base.js"></script>
+  <script src="js/dashboard.js"></script>
+
+  <div id="toast" class="hidden fixed right-4 top-4 z-50 bg-surface-1 border border-card px-4 py-2 rounded-lg text-sm text-white"></div>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RK-Stratum — Trends</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <nav class="rk-main-nav border-b border-card relative rounded-b-2xl shadow-lg shadow-black/25">
+    <div class="container mx-auto px-4 sm:px-5 py-4 sm:py-5 max-w-[1680px]">
+      <div class="rk-nav-top flex flex-col gap-3 sm:gap-4">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+          <div id="rkNavClockSlot" class="shrink-0"></div>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          <nav class="rk-dash-subnav flex flex-wrap items-center gap-1 sm:gap-1.5 rounded-xl border border-white/[0.08] bg-black/25 px-2 py-1.5 sm:px-2.5" aria-label="Dashboard pages">
+            <a class="rk-dash-subnav__link" href="index.html">Overview</a>
+            <a class="rk-dash-subnav__link" href="metrics.html">Metrics</a>
+            <a class="rk-dash-subnav__link" href="node.html">Node</a>
+            <a class="rk-dash-subnav__link rk-dash-subnav__link--active" href="trends.html">Trends</a>
+            <a class="rk-dash-subnav__link" href="session-charts.html">Session Charts</a>
+            <a class="rk-dash-subnav__link" href="blocks.html">Blocks</a>
+            <a class="rk-dash-subnav__link" href="workers.html">Workers</a>
+          </nav>
+            <a class="rk-nav-cta rk-nav-cta--ghost" href="raw.html">Raw</a>
+            <a class="rk-nav-cta rk-nav-cta--primary"
+               href="https://github.com/kaspanet" target="_blank" rel="noopener noreferrer">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="currentColor"><path d="M12 .297a12 12 0 0 0-3.793 23.405c.6.111.793-.261.793-.58v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.757-1.333-1.757-1.089-.745.083-.73.083-.73 1.205.084 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.604-2.665-.3-5.466-1.334-5.466-5.932 0-1.31.468-2.381 1.235-3.221-.123-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 6.003 0c2.29-1.552 3.297-1.23 3.297-1.23.654 1.653.242 2.873.119 3.176.77.84 1.233 1.911 1.233 3.221 0 4.61-2.807 5.628-5.479 5.922.43.372.823 1.102.823 2.222v3.293c0 .322.192.694.801.576A12 12 0 0 0 12 .297z"/></svg>
+              </span>
+              GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="container mx-auto px-4 pt-4 pb-6 max-w-[1680px]">
+    <div class="bg-surface-2 rounded-xl p-4 sm:p-6 border border-card rk-panel-chart rk-trends-panel">
+      <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+        <div>
+          <h3 class="text-lg font-semibold kaspa-primary rk-panel-title">Trends &amp; analytics</h3>
+          <p id="trendsIntroText" class="text-xs text-gray-500 mt-1 max-w-3xl leading-relaxed">
+            Live charts were moved to the dedicated <strong class="text-gray-400 font-medium">Session Charts</strong> page.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <a class="bg-surface-1 border border-card px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary" href="session-charts.html">Open Session Charts</a>
+          <button type="button" class="bg-surface-1 border border-card px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-2" data-collapsible-toggle="trendsCharts" aria-expanded="true">
+            <svg class="h-4 w-4 transition-transform" data-collapsible-icon="trendsCharts" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+            <span data-collapsible-label="trendsCharts">Collapse</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="rk-subcollapsible mb-4 sm:mb-5">
+        <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Bridge host</span>
+          <button type="button" class="rk-subcollapsible-toggle bg-surface-1 border border-card px-2 py-1 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-1.5 shrink-0" data-collapsible-toggle="trendsHost" aria-expanded="true" title="Collapse or expand bridge host details">
+            <svg class="h-3.5 w-3.5 transition-transform" data-collapsible-icon="trendsHost" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+            <span data-collapsible-label="trendsHost" class="hidden sm:inline">Collapse</span>
+          </button>
+        </div>
+        <div data-collapsible-body="trendsHost">
+      <div id="hostMetricsBanner" class="hidden text-xs text-gray-400 border border-card rounded-lg px-3 py-2 bg-surface-2/80 mb-4"></div>
+
+      <div id="hostSection" class="hidden rk-trends-host-header mb-0">
+        <div class="rk-trends-host-header__grid">
+          <div class="rk-trends-host-header__col space-y-2 text-sm">
+            <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">Hostname</span><span id="hostHostname" class="text-right min-w-0 break-words font-medium text-gray-100">-</span></div>
+            <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">CPU</span><span id="hostCpu" class="text-right min-w-0 break-words text-gray-200">-</span></div>
+            <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">Logical CPUs</span><span id="hostThreads" class="text-right tabular-nums text-gray-200">-</span></div>
+            <div class="hidden flex justify-between gap-2" id="hostOsRow"><span class="text-gray-400 shrink-0">OS</span><span id="hostOs" class="text-right min-w-0 break-words text-gray-200 text-xs">-</span></div>
+            <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">RAM available / total</span><span id="hostRam" class="text-right tabular-nums text-gray-200">-</span></div>
+            <div class="mt-1 space-y-1">
+              <div class="flex justify-between text-[11px] text-gray-500"><span>Memory in use</span><span id="hostRamPct" class="tabular-nums">-</span></div>
+              <div class="rk-progress-track" aria-hidden="true"><div id="hostRamBar" class="rk-progress-fill" style="width:0%"></div></div>
+            </div>
+            <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">Swap used / total</span><span id="hostSwap" class="text-right tabular-nums text-gray-200">-</span></div>
+            <div class="flex justify-between gap-2 pt-0.5"><span class="text-gray-400 shrink-0">Load / CPU</span><span id="hostLoad" class="text-right tabular-nums text-gray-200">-</span></div>
+            <div class="mt-1 space-y-1">
+              <div class="flex justify-between text-[11px] text-gray-500"><span>CPU usage</span><span id="hostCpuPct" class="tabular-nums">-</span></div>
+              <div class="rk-progress-track" aria-hidden="true"><div id="hostCpuBar" class="rk-progress-fill rk-progress-fill--cpu" style="width:0%"></div></div>
+            </div>
+            <div class="hidden pt-1 border-t border-card/30 space-y-2" id="hostNodeStorageBlock">
+              <div class="text-[11px] text-gray-500 uppercase tracking-wide">Node data &amp; volume</div>
+              <div class="hidden flex justify-between gap-2" id="hostNodeDataRow"><span class="text-gray-400 shrink-0">Data directory</span><span id="hostNodeData" class="text-right min-w-0 break-all text-xs text-gray-200 font-mono" title="">-</span></div>
+              <div class="hidden flex justify-between gap-2" id="hostVolumeRow"><span class="text-gray-400 shrink-0">Volume</span><span id="hostVolume" class="text-right min-w-0 break-words text-xs text-gray-200">-</span></div>
+              <div class="hidden mt-2 space-y-2 border border-card/50 rounded-lg px-2.5 py-2 bg-surface-2/50" id="hostVolumeSpaceBlock">
+                <div>
+                  <div class="text-[11px] text-gray-500 uppercase tracking-wide">Local disk (appdir volume)</div>
+                  <p class="text-[10px] text-gray-600 leading-snug mt-0.5">Matches your OS drive view (e.g. Windows <span class="text-gray-500">This PC → Properties</span>): total size, used, and free on the volume that contains <code class="text-gray-500 font-mono text-[10px]">appdir</code>. Linux / macOS use the same filesystem stats from the bridge host.</p>
+                </div>
+                <div class="hidden flex justify-between gap-2 text-xs" id="hostVolumeFsRow">
+                  <span class="text-gray-400 shrink-0">File system</span>
+                  <span id="hostVolumeFs" class="text-right min-w-0 break-words text-gray-200">—</span>
+                </div>
+                <div class="flex justify-between gap-2 text-xs">
+                  <span class="text-gray-400 shrink-0">Capacity</span>
+                  <span id="hostVolumeCapacity" class="text-right tabular-nums text-gray-200 min-w-0">—</span>
+                </div>
+                <div class="flex justify-between gap-2 text-xs">
+                  <span class="text-gray-400 shrink-0">Used space</span>
+                  <span id="hostVolumeUsed" class="text-right tabular-nums text-gray-200 min-w-0">—</span>
+                </div>
+                <div class="flex justify-between gap-2 text-xs">
+                  <span class="text-gray-400 shrink-0">Free space</span>
+                  <span id="hostVolumeFree" class="text-right tabular-nums text-gray-200 min-w-0">—</span>
+                </div>
+                <div id="hostVolumeSpaceTrack" class="rk-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Used space on the appdir volume">
+                  <div id="hostVolumeSpaceBar" class="rk-progress-fill rk-progress-fill--volume" style="width:0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="rk-trends-host-header__col space-y-2 text-sm pt-2 lg:pt-0 border-t lg:border-t-0 border-card/40 lg:border-l lg:pl-6">
+            <div class="text-[11px] text-gray-500 uppercase tracking-wide">Mining-related processes</div>
+            <div id="hostProcessMetricsWrap" class="space-y-2">
+              <div id="hostBridgeProcBlock" class="space-y-2 pt-0.5">
+                <div class="flex justify-between gap-2 text-sm items-baseline">
+                  <span id="hostBridgeProcLabel" class="text-gray-400 shrink-0">Bridge</span>
+                  <span id="hostBridgeProcTag" class="text-right text-xs text-gray-500 min-w-0"></span>
+                </div>
+                <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">PID</span><span id="hostBridgeProcPid" class="text-right tabular-nums text-gray-200">-</span></div>
+                <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">RSS</span><span id="hostBridgeProcRss" class="text-right tabular-nums text-gray-200">-</span></div>
+                <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">Virtual memory</span><span id="hostBridgeProcVirt" class="text-right tabular-nums text-gray-200">-</span></div>
+                <div class="mt-1 space-y-1">
+                  <div class="flex justify-between text-[11px] text-gray-500"><span>Process CPU (host share)</span><span id="hostBridgeProcCpuPct" class="tabular-nums">-</span></div>
+                  <div class="rk-progress-track" aria-hidden="true"><div id="hostBridgeProcCpuBar" class="rk-progress-fill rk-progress-fill--cpu" style="width:0%"></div></div>
+                </div>
+              </div>
+              <div id="hostKaspadProcRow" class="hidden space-y-2 pt-2 border-t border-card/30">
+                <div class="flex justify-between gap-2 text-sm items-baseline">
+                  <span class="text-gray-400 shrink-0">Kaspad</span>
+                  <span class="text-right text-xs text-gray-500 shrink-0">separate process</span>
+                </div>
+                <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">PID</span><span id="hostKaspadProcPid" class="text-right tabular-nums text-gray-200">-</span></div>
+                <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">RSS</span><span id="hostKaspadProcRss" class="text-right tabular-nums text-gray-200">-</span></div>
+                <div class="flex justify-between gap-2"><span class="text-gray-400 shrink-0">Virtual memory</span><span id="hostKaspadProcVirt" class="text-right tabular-nums text-gray-200">-</span></div>
+                <div class="mt-1 space-y-1">
+                  <div class="flex justify-between text-[11px] text-gray-500"><span>Process CPU (host share)</span><span id="hostKaspadProcCpuPct" class="tabular-nums">-</span></div>
+                  <div class="rk-progress-track" aria-hidden="true"><div id="hostKaspadProcCpuBar" class="rk-progress-fill rk-progress-fill--cpu" style="width:0%"></div></div>
+                </div>
+              </div>
+              <p id="hostProcessProcHint" class="text-[11px] text-gray-500 leading-snug hidden"></p>
+            </div>
+          </div>
+          <div class="rk-trends-host-header__col space-y-2 text-sm pt-2 lg:pt-0 border-t lg:border-t-0 border-card/40 lg:border-l lg:pl-6">
+            <div class="flex justify-between gap-2 hidden" id="hostLocationRow"><span class="text-gray-400 shrink-0">Location (operator)</span><span id="hostLocation" class="text-right min-w-0 break-words [text-wrap:pretty] text-gray-200">-</span></div>
+            <div class="hidden flex justify-between gap-2 rounded px-1 -mx-1 py-0.5 cursor-pointer hover:bg-white/5 transition-colors select-none border border-transparent hover:border-card/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#70c7ba]/50" id="hostGeoRow" role="button" tabindex="-1" title="Click to hide approximate geo (saved in this browser)"><span class="text-gray-400 shrink-0 pointer-events-none">Geo (approx.)</span><span id="hostGeo" class="text-right min-w-0 break-words [text-wrap:pretty] pointer-events-none text-gray-200">-</span></div>
+            <div class="hidden flex justify-end pt-0.5" id="hostGeoShowWrap"><button type="button" id="hostGeoShowBtn" class="text-xs font-medium kaspa-primary hover:underline" title="Show approximate geo again">Show Geo (approx.)</button></div>
+            <div class="flex justify-between gap-2 pt-1 lg:pt-0"><span class="text-gray-400 shrink-0">Host metrics</span><span id="hostPollAge" class="text-right text-xs text-gray-500">-</span></div>
+          </div>
+        </div>
+      </div>
+        </div>
+      </div>
+
+      <div data-collapsible-body="trendsCharts">
+        <div id="trendsLongRangePanel" class="hidden mb-0 space-y-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="rowDetailModal" class="hidden fixed inset-0 z-50">
+    <div id="rowDetailBackdrop" class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
+      <div class="bg-surface-1 border border-card rounded-2xl w-full max-w-xl shadow-xl">
+        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-card">
+          <div class="min-w-0">
+            <div id="rowDetailTitle" class="text-base font-semibold text-white truncate">Details</div>
+            <div class="text-xs text-gray-400">Tap Copy to copy values</div>
+          </div>
+          <button id="rowDetailClose" type="button" class="bg-surface-2 border border-card px-3 py-2 rounded-lg text-sm font-medium text-white hover:border-kaspa-primary">Close</button>
+        </div>
+        <div id="rowDetailBody" class="px-5 py-4 space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="js/api-base.js"></script>
+  <script src="js/dashboard.js"></script>
+
+  <div id="toast" class="hidden fixed right-4 top-4 z-50 bg-surface-1 border border-card px-4 py-2 rounded-lg text-sm text-white"></div>
+</body>
+</html>

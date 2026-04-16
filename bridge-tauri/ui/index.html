@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RKStratum Bridge</title>
+  <style>
+    :root {
+      --bg-deep: #0c0e14;
+      --bg-panel: #141824;
+      --bg-elevated: #1a2030;
+      --border: rgba(100, 140, 180, 0.22);
+      --text: #e8ecf4;
+      --muted: #8b95a8;
+      --teal: #2dd4bf;
+      --teal-dim: rgba(45, 212, 191, 0.15);
+      --green: #34d399;
+      --green-glow: rgba(52, 211, 153, 0.35);
+      --gray-dot: #5c6578;
+      --err: #f87171;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: linear-gradient(165deg, var(--bg-deep) 0%, #101525 45%, #0a0d14 100%);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    #shell {
+      display: none;
+      flex-direction: column;
+      height: 100vh;
+      padding: 0 1.25rem 0.75rem;
+      box-sizing: border-box;
+    }
+    #view-setup {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      max-width: 1180px;
+      width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    /* Scroll forms here so Save / Start stay visible (no hunting with Tab). */
+    .setup-main {
+      flex: 1;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 0 0.15rem 0.5rem 0;
+      scroll-behavior: smooth;
+    }
+    .setup-section-nav {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .setup-section-nav .setup-nav-hint {
+      flex: 1 1 100%;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.35;
+      margin: 0;
+      order: -1;
+      padding-bottom: 0.2rem;
+    }
+    @media (min-width: 720px) {
+      .setup-section-nav .setup-nav-hint {
+        flex: 1 1 auto;
+        order: 0;
+        padding-bottom: 0;
+        margin-right: 0.35rem;
+      }
+    }
+    .setup-nav-btn {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      line-height: 1.2;
+      padding: 0.38rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .setup-nav-btn:hover {
+      color: var(--text);
+      border-color: rgba(45, 212, 191, 0.35);
+    }
+    .setup-nav-btn.is-active {
+      color: #042f2e;
+      background: linear-gradient(135deg, #5eead4 0%, #14b8a6 100%);
+      border-color: rgba(45, 212, 191, 0.55);
+      font-weight: 600;
+    }
+    .setup-nav-btn {
+      align-items: flex-start;
+      text-align: left;
+      line-height: 1.2;
+    }
+    .setup-nav-btn__label { display: block; font-weight: inherit; }
+    .setup-nav-btn__sub {
+      display: block;
+      font-size: 10px;
+      font-weight: 500;
+      opacity: 0.88;
+      max-width: 8.5rem;
+      white-space: normal;
+    }
+    .setup-nav-btn:not(.is-active) .setup-nav-btn__sub { color: var(--muted); }
+    .setup-nav-btn.is-active .setup-nav-btn__sub { color: rgba(4, 47, 46, 0.82); }
+    .first-run-banner {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.65rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid rgba(45, 212, 191, 0.35);
+      background: rgba(45, 212, 191, 0.08);
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .first-run-banner[hidden] { display: none !important; }
+    .first-run-banner p { margin: 0; flex: 1; min-width: 0; }
+    .first-run-banner__dismiss {
+      flex-shrink: 0;
+      width: 1.75rem;
+      height: 1.75rem;
+      border: none;
+      border-radius: 6px;
+      background: rgba(0,0,0,0.2);
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .first-run-banner__dismiss:hover { color: var(--text); background: rgba(0,0,0,0.35); }
+    .quick-start-callout {
+      margin-bottom: 1.1rem;
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      border: 1px solid rgba(45, 212, 191, 0.28);
+      background: linear-gradient(165deg, rgba(20, 28, 40, 0.95) 0%, rgba(15, 20, 32, 0.98) 100%);
+    }
+    .quick-start-steps {
+      margin: 0;
+      padding-left: 1.2rem;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .quick-start-steps li { margin: 0.25rem 0; }
+    .btn-inline-link {
+      padding: 0;
+      border: none;
+      background: none;
+      color: var(--teal);
+      font-size: inherit;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .btn-inline-link:hover { color: #5eead4; }
+    .section-eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 0.2rem;
+      letter-spacing: 0.02em;
+    }
+    .section-eyebrow-hint {
+      margin: 0 0 0.65rem !important;
+      font-size: 12px;
+    }
+    .advanced-fold {
+      margin-top: 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+    }
+    .advanced-fold > summary {
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.35rem 0.75rem;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .advanced-fold > summary::-webkit-details-marker { display: none; }
+    .advanced-fold__title { color: var(--teal); }
+    .advanced-fold__sub {
+      font-weight: 400;
+      font-size: 12px;
+      color: var(--muted);
+      flex: 1 1 100%;
+    }
+    .advanced-fold__body {
+      padding: 0 1rem 1rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .setup-nav-btn[data-setup-jump="detCpu"] { display: none; }
+    .setup-nav-btn[data-setup-jump="detCpu"].is-cpu-nav-visible { display: inline-block; }
+    #view-dashboard {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      min-height: 0;
+      margin-top: 0.35rem;
+    }
+    #view-dashboard.is-visible {
+      display: flex;
+    }
+    #dashFrame {
+      flex: 1;
+      width: 100%;
+      min-height: 240px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #05060a;
+    }
+    .running-chrome {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .running-chrome.is-visible { display: flex; }
+    .setup-hidden { display: none !important; }
+    .btn-danger {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 8px;
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      background: linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%);
+      color: #fecaca;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-danger:hover { filter: brightness(1.08); }
+    .btn-danger:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* Header */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 0 1.1rem;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+    .brand svg { flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(45, 212, 191, 0.45)); }
+    .brand h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-ghost:hover { border-color: rgba(45, 212, 191, 0.4); color: var(--text); }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border);
+    }
+    .status-pill .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--gray-dot);
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
+    }
+    .status-pill.on .dot {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green-glow);
+    }
+    .status-pill.warn .dot { background: #fbbf24; }
+
+    /* Local time (next to Show logs) */
+    .shell-local-time {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.12rem;
+      padding: 0.35rem 0.65rem;
+      border-radius: 10px;
+      border: 1px solid rgba(112, 199, 186, 0.22);
+      background: linear-gradient(165deg, rgba(15, 21, 30, 0.88) 0%, rgba(8, 12, 20, 0.94) 100%);
+      min-width: 0;
+      line-height: 1.25;
+    }
+    .shell-local-time .shell-local-time__label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(112, 199, 186, 0.78);
+    }
+    .shell-local-time .shell-local-time__value {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Log drawer */
+    .log-drawer {
+      display: none;
+      margin: 0 0 1rem;
+      padding: 1rem 1.1rem;
+      border-radius: var(--radius);
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .log-drawer.open { display: block; }
+    .log-drawer p { margin: 0 0 0.65rem; }
+    .log-drawer .btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .log-path {
+      margin: 0.25rem 0 0.65rem;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      word-break: break-all;
+    }
+    .log-stream {
+      margin-top: 0.55rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0b0f17;
+      max-height: 42vh;
+      overflow: auto;
+      padding: 0.6rem 0.7rem;
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #dbe5f4;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Collapsible cards */
+    main { flex: 1; display: flex; flex-direction: column; gap: 0.65rem; min-height: 0; }
+    .setup-grid {
+      display: grid;
+      gap: 0.85rem 1.1rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 960px) {
+      .setup-grid { grid-template-columns: 1fr 1fr; }
+      .setup-grid .field.span-2 { grid-column: 1 / -1; }
+    }
+    .field-grid-3 {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 720px) {
+      .field-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    .field-grid-2 {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 640px) {
+      .field-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(112, 199, 186, 0.85);
+      margin: 0.35rem 0 0.15rem;
+    }
+    details.card {
+      border-radius: var(--radius);
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      scroll-margin-top: 0.6rem;
+    }
+    details.card summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.85rem 1.1rem;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    details.card summary::-webkit-details-marker { display: none; }
+    .summary-left { display: flex; flex-direction: column; gap: 0.2rem; text-align: left; }
+    .summary-sub { font-weight: 400; font-size: 12px; color: var(--muted); }
+    .chev {
+      width: 1.25rem; height: 1.25rem;
+      color: var(--muted);
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+    details.card[open] .chev { transform: rotate(180deg); }
+    /* Nav pills = one full “page”; inactive sections are removed from layout (not just collapsed). */
+    .setup-main.setup-pages-mode > details.setup-page:not(.is-setup-active) {
+      display: none !important;
+    }
+    .setup-main.setup-pages-mode > details.setup-page.is-setup-active {
+      display: block;
+    }
+    .setup-main.setup-pages-mode > details.setup-page.is-setup-active > summary {
+      cursor: default;
+      pointer-events: none;
+    }
+    .setup-main.setup-pages-mode > details.setup-page.is-setup-active .chev {
+      display: none;
+    }
+    .card-body { padding: 0 1.1rem 1.1rem; border-top: 1px solid rgba(255,255,255,0.04); }
+
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 0.35rem; }
+    .field { margin-bottom: 0.85rem; }
+    input[type="text"], select, textarea {
+      width: 100%;
+      background: var(--bg-deep);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.65rem;
+      font-size: 14px;
+    }
+    textarea {
+      min-height: 5.5rem;
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      resize: vertical;
+    }
+    textarea#kaspadArgs { min-height: 7rem; }
+    .row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .row input[type="checkbox"] { width: auto; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 0.35rem; line-height: 1.4; }
+    /* Paired columns (reference: node address + block wait with checkboxes below) */
+    .form-pairs {
+      display: grid;
+      gap: 1rem 1.25rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 720px) {
+      .form-pairs { grid-template-columns: 1fr 1fr; }
+    }
+    .form-pair { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+    .form-pair > label:first-of-type {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0;
+    }
+    .check-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.15rem;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+    .check-line input[type="checkbox"] {
+      width: 1.05rem;
+      height: 1.05rem;
+      accent-color: var(--teal);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .check-grid {
+      display: grid;
+      gap: 0.65rem 1.25rem;
+      grid-template-columns: 1fr;
+      margin-top: 0.5rem;
+    }
+    @media (min-width: 720px) {
+      .check-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .check-grid .check-line { margin-top: 0; }
+
+    /* Stratum instance list (reference: rows + Edit / Remove) */
+    .instances-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.65rem;
+      margin-bottom: 0.75rem;
+    }
+    .btn-add-instance {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.45rem 0.95rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      color: #042f2e;
+      background: linear-gradient(135deg, #5eead4 0%, #14b8a6 100%);
+      box-shadow: 0 0 18px rgba(45, 212, 191, 0.25);
+    }
+    .btn-add-instance:hover { filter: brightness(1.06); }
+    .instance-list { display: flex; flex-direction: column; gap: 0.55rem; }
+    .instance-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.65rem 0.75rem;
+      align-items: start;
+      padding: 0.75rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.22);
+    }
+    @media (max-width: 640px) {
+      .instance-row { grid-template-columns: 1fr; }
+    }
+    .instance-row-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+    .instance-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem 1rem;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .instance-meta em {
+      font-style: normal;
+      font-weight: 600;
+      color: var(--teal);
+      margin-right: 0.25rem;
+    }
+    .instance-row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      justify-content: flex-end;
+    }
+    .btn-instance {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.38rem 0.65rem;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text);
+    }
+    .btn-instance--edit { border-color: rgba(251, 146, 60, 0.45); color: #fdba74; }
+    .btn-instance--edit:hover { background: rgba(251, 146, 60, 0.12); }
+    .btn-instance--remove { border-color: rgba(248, 113, 113, 0.45); color: #fca5a5; }
+    .btn-instance--remove:hover { background: rgba(248, 113, 113, 0.1); }
+    .instance-row-edit {
+      grid-column: 1 / -1;
+      display: none;
+      gap: 0.55rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .instance-row--editing .instance-row-view { display: none; }
+    .instance-row--editing .instance-row-edit { display: grid; }
+    .instance-row-edit .field { margin-bottom: 0; }
+    @media (min-width: 560px) {
+      .instance-row-edit {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+        align-items: end;
+      }
+      .instance-row-edit .instance-edit-actions { grid-column: 4; display: flex; flex-direction: column; gap: 0.35rem; }
+    }
+    .instance-empty {
+      padding: 1rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      border-radius: 10px;
+      border: 1px dashed rgba(100, 140, 180, 0.35);
+    }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-top: 0.5rem; }
+    .btn-teal {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.55rem 1rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+      color: #04120f;
+      box-shadow: 0 0 24px rgba(20, 184, 166, 0.35);
+    }
+    .btn-teal:hover { filter: brightness(1.06); }
+    .btn-muted {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.55rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-muted:hover { border-color: rgba(148, 163, 184, 0.35); }
+
+    /* Footer — pinned to bottom of setup view */
+    .footer-bar {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 0.85rem 0 0.15rem;
+      margin-top: 0;
+      border-top: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(12, 14, 20, 0.2) 0%, rgba(12, 14, 20, 0.92) 35%, var(--bg-deep) 100%);
+    }
+    .btn-save {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.6rem 1.15rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%);
+      color: #051010;
+      box-shadow: 0 4px 20px rgba(45, 212, 191, 0.25);
+    }
+    .btn-start {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.35rem;
+      border-radius: 10px;
+      border: none;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      background: linear-gradient(135deg, #4ade80 0%, #22c55e 55%, #16a34a 100%);
+      color: #052e14;
+      box-shadow: 0 0 28px var(--green-glow), 0 4px 14px rgba(22, 163, 74, 0.35);
+    }
+    .btn-start:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.3); }
+
+    #err {
+      flex-shrink: 0;
+      margin-top: 0.35rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      background: rgba(248, 113, 113, 0.12);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: var(--err);
+      font-size: 13px;
+      display: none;
+      white-space: pre-wrap;
+    }
+    #err.show { display: block; }
+
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(120%);
+      padding: 0.55rem 1.1rem;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      opacity: 0;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      z-index: 100;
+      pointer-events: none;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    #loader {
+      text-align: center;
+      max-width: 28rem;
+      margin: 5rem auto;
+      line-height: 1.6;
+    }
+    #loader p { margin: 0.4rem 0; color: var(--muted); }
+    .loader-title { color: var(--text) !important; font-size: 1.05rem; }
+  </style>
+</head>
+<body>
+  <div id="shell">
+    <header class="top-bar">
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M13 2L3 14h7l-1 8 11-12h-7l0-8z" fill="url(#g)" stroke="#2dd4bf" stroke-width="0.5"/>
+          <defs><linearGradient id="g" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#5eead4"/><stop offset="1" stop-color="#14b8a6"/>
+          </linearGradient></defs>
+        </svg>
+        <h1>RKStratum Bridge</h1>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="btn-ghost" id="btnLogs" title="Toggle log hints">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+          Show logs
+        </button>
+        <div class="shell-local-time" role="status" aria-live="polite" title="Your local time">
+          <span class="shell-local-time__label">Local time</span>
+          <span class="shell-local-time__value" id="shellLocalTime">—</span>
+        </div>
+        <span class="status-pill" id="pillNode"><span class="dot"></span> Node: <span id="txtNode">Not connected</span></span>
+        <span class="status-pill" id="pillBridge"><span class="dot"></span> Bridge: <span id="txtBridge">Stopped</span></span>
+        <div class="running-chrome" id="runningChrome">
+          <button type="button" class="btn-danger" id="btnStop" title="Stop the embedded bridge process">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg>
+            Stop bridge
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="log-drawer" id="logDrawer">
+      <p>Live bridge logs (IBD/sync/progress/accepted blocks) stream below while the bridge is running.</p>
+      <div class="log-path" id="logPath">Log file: —</div>
+      <div class="log-stream" id="logStream">Waiting for log output...</div>
+      <div class="btn-row">
+        <button type="button" class="btn-muted" id="btnRevealExe">Open executable folder</button>
+      </div>
+    </div>
+
+    <div id="view-setup">
+    <nav class="setup-section-nav" aria-label="Setup sections">
+      <p class="setup-nav-hint">Each tab is one screen. <strong>Save</strong> and <strong>Start bridge</strong> stay at the bottom.</p>
+      <button type="button" class="setup-nav-btn is-active" data-setup-jump="detStratum">
+        <span class="setup-nav-btn__label">Mode</span>
+        <span class="setup-nav-btn__sub">Mainnet / testnet</span>
+      </button>
+      <button type="button" class="setup-nav-btn" data-setup-jump="detHow">
+        <span class="setup-nav-btn__label">Help</span>
+        <span class="setup-nav-btn__sub">How to run</span>
+      </button>
+      <button type="button" class="setup-nav-btn" data-setup-jump="detGlobal">
+        <span class="setup-nav-btn__label">Connection</span>
+        <span class="setup-nav-btn__sub">Node &amp; ports</span>
+      </button>
+      <button type="button" class="setup-nav-btn" data-setup-jump="detInstanceDefaults">
+        <span class="setup-nav-btn__label">Extra ports</span>
+        <span class="setup-nav-btn__sub">Defaults for more listeners</span>
+      </button>
+      <button type="button" class="setup-nav-btn" data-setup-jump="detCpu" id="setupNavCpu">
+        <span class="setup-nav-btn__label">CPU miner</span>
+        <span class="setup-nav-btn__sub">Optional</span>
+      </button>
+      <button type="button" class="setup-nav-btn" data-setup-jump="detInstances">
+        <span class="setup-nav-btn__label">Listeners</span>
+        <span class="setup-nav-btn__sub">Ports &amp; kaspad args</span>
+      </button>
+    </nav>
+    <div id="firstRunHint" class="first-run-banner" role="status" hidden>
+      <p>New here? Open <strong>Help</strong> for a short guide, then <strong>Connection</strong> to set the node and mining port.</p>
+      <button type="button" class="first-run-banner__dismiss" id="btnDismissFirstRun" aria-label="Dismiss tip">×</button>
+    </div>
+    <main class="setup-main setup-pages-mode" id="setupScroll">
+      <details class="card setup-page is-setup-active" id="detStratum" open>
+        <summary>
+          <span class="summary-left">Stratum mode</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+        </summary>
+        <div class="card-body">
+          <div class="field row">
+            <input type="checkbox" id="testnet" />
+            <label for="testnet" style="margin:0">Testnet</label>
+          </div>
+          <p class="hint">Use testnet for development. Mainnet is the default when this is off and your config does not override it.</p>
+        </div>
+      </details>
+
+      <details class="card setup-page" id="detHow">
+        <summary>
+          <span class="summary-left">How to start the Stratum bridge</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+        </summary>
+        <div class="card-body">
+          <p class="hint" style="margin-top:0;margin-bottom:1rem">
+            <strong>Short version:</strong> open <strong>Connection</strong>, set your node address and Stratum port, then <strong>Save</strong> and <strong>Start bridge</strong>. The dashboard opens in this window. Use <strong>Stop bridge</strong> when finished (or <strong>Bridge → Stop bridge</strong> in the menu). Reloading (<kbd>F5</kbd>) while the bridge is running reconnects to the dashboard.
+          </p>
+          <div class="cta-row">
+            <button type="button" class="btn-teal" id="btnDocs">
+              View setup instructions
+            </button>
+            <button type="button" class="btn-muted" id="btnRunNode">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 2.5L7 14h3v6h2v-6h3L12 2.5zM6 16H4v3h2v-3zm14 0h-2v3h2v-3z"/>
+              </svg>
+              Run node (in-process)
+            </button>
+          </div>
+        </div>
+      </details>
+
+      <details class="card setup-page" id="detGlobal">
+        <summary>
+          <span class="summary-left">
+            Connection
+            <span class="summary-sub">Node address, mining ports, and optional tuning</span>
+          </span>
+          <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+        </summary>
+        <div class="card-body">
+          <div class="quick-start-callout" role="region" aria-label="Quick start">
+            <strong style="display:block;margin-bottom:0.45rem;font-size:13px;color:var(--teal);">Quick start</strong>
+            <p class="hint" style="margin:0 0 0.55rem">Typical single-listener setup:</p>
+            <ol class="quick-start-steps">
+              <li>Enter your <strong>Kaspa node address</strong> under Essential.</li>
+              <li>Set <strong>Stratum listen port</strong> (and difficulty if needed) under Mining ports.</li>
+              <li><strong>Save configuration</strong>, then <strong>Start bridge</strong> at the bottom.</li>
+            </ol>
+            <p class="hint" style="margin:0.65rem 0 0">Want the full walkthrough? Use the <button type="button" class="btn-inline-link" id="btnJumpHelp">Help</button> tab.</p>
+          </div>
+
+          <div class="field span-2">
+            <label for="config">Config file (optional)</label>
+            <input type="text" id="config" autocomplete="off" placeholder="Path to config.yaml" />
+            <p class="hint" id="configHint"></p>
+          </div>
+
+          <p class="section-eyebrow">Essential</p>
+          <p class="hint section-eyebrow-hint">RPC address of your node and basic bridge timing.</p>
+          <div class="form-pairs">
+            <div class="form-pair">
+              <label for="kaspadAddress">Kaspa node address</label>
+              <input type="text" id="kaspadAddress" autocomplete="off" placeholder="localhost:16110" />
+              <label class="check-line"><input type="checkbox" id="printStatsCb" /><span>Print statistics to console</span></label>
+            </div>
+            <div class="form-pair">
+              <label for="blockWaitTimeMs">Block wait time (ms)</label>
+              <input type="text" id="blockWaitTimeMs" autocomplete="off" placeholder="1000" />
+              <label class="check-line"><input type="checkbox" id="logToFileCb" /><span>Log to file</span></label>
+            </div>
+          </div>
+          <p class="hint" style="margin-top:0.35rem">Checked options turn features on for this run. Leave unchecked to follow your config file (not “force off”).</p>
+
+          <p class="section-eyebrow" style="margin-top:1rem">Mining ports — main listener</p>
+          <p class="hint section-eyebrow-hint">Where miners connect; optional metrics port and starting difficulty.</p>
+          <div class="field-grid-3 span-2">
+            <div class="field" style="margin-bottom:0">
+              <label for="stratumPort">Stratum listen port</label>
+              <input type="text" id="stratumPort" autocomplete="off" placeholder=":5555" />
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="promPort" title="Prometheus scrape / metrics endpoint">Metrics port (Prometheus)</label>
+              <input type="text" id="promPort" autocomplete="off" placeholder=":2114" title="Prometheus metrics port" />
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="minShareDiff" title="Minimum share difficulty for this listener">Min share difficulty</label>
+              <input type="text" id="minShareDiff" autocomplete="off" placeholder="e.g. 8192" />
+            </div>
+          </div>
+          <p class="hint span-2" style="margin-top:0.35rem">For <strong>multiple Stratum ports</strong>, use the <strong>Listeners</strong> tab. To turn options off via file, edit <code>config.yaml</code>.</p>
+
+          <details class="advanced-fold">
+            <summary>
+              <span class="advanced-fold__title">Advanced</span>
+              <span class="advanced-fold__sub">Node mode, data paths, dashboard &amp; health ports, variable difficulty…</span>
+            </summary>
+            <div class="advanced-fold__body">
+              <div class="setup-grid">
+                <div class="field">
+                  <label for="nodeMode">Node mode</label>
+                  <select id="nodeMode">
+                    <option value="">From config / default</option>
+                    <option value="external">External kaspad (RPC)</option>
+                    <option value="inprocess">In-process kaspad</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="appdir">App data directory (optional)</label>
+                  <input type="text" id="appdir" autocomplete="off" placeholder="Kaspa node data dir" />
+                  <p class="hint" id="appdirHint"></p>
+                </div>
+                <div class="field">
+                  <label for="coinbase">Coinbase tag suffix (optional)</label>
+                  <input type="text" id="coinbase" autocomplete="off" />
+                </div>
+                <div class="field">
+                  <label for="webDashboardPort">Web dashboard port (optional)</label>
+                  <input type="text" id="webDashboardPort" autocomplete="off" placeholder=":3030 or 0.0.0.0:3030" />
+                </div>
+                <div class="field">
+                  <label for="healthCheckPort">Health check port (optional)</label>
+                  <input type="text" id="healthCheckPort" autocomplete="off" placeholder=":8080" />
+                </div>
+                <div class="field">
+                  <label for="sharesPerMin">Shares per minute target (optional)</label>
+                  <input type="text" id="sharesPerMin" autocomplete="off" placeholder="30" />
+                </div>
+                <div class="field">
+                  <label for="extranonceSize">Extranonce size (optional)</label>
+                  <input type="text" id="extranonceSize" autocomplete="off" placeholder="2" />
+                </div>
+              </div>
+              <p class="section-label span-2" style="margin-top:0.75rem">Optional bridge flags</p>
+              <div class="check-grid span-2">
+                <label class="check-line"><input type="checkbox" id="varDiffCb" /><span>Variable difficulty</span></label>
+                <label class="check-line"><input type="checkbox" id="varDiffStatsCb" /><span>Variable difficulty stats</span></label>
+                <label class="check-line"><input type="checkbox" id="pow2ClampCb" /><span>Pow2 clamp</span></label>
+                <label class="check-line"><input type="checkbox" id="approximateGeoLookupCb" /><span>Approximate geo lookup</span></label>
+              </div>
+            </div>
+          </details>
+        </div>
+      </details>
+
+      <details class="card setup-page" id="detInstanceDefaults">
+        <summary>
+          <span class="summary-left">
+            Extra port defaults
+            <span class="summary-sub">Optional defaults for additional Stratum listeners</span>
+          </span>
+          <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+        </summary>
+        <div class="card-body">
+          <div class="field-grid-2">
+            <div class="field" style="margin-bottom:0">
+              <label for="instanceSharesPerMin">Instance shares/min (optional)</label>
+              <input type="text" id="instanceSharesPerMin" autocomplete="off" placeholder="30" />
+            </div>
+          </div>
+          <p class="hint" style="margin-top:0.65rem">Applied when you add rows on the <strong>Listeners</strong> tab (extra Stratum ports).</p>
+          <div class="check-grid" style="margin-top:0.65rem">
+            <label class="check-line"><input type="checkbox" id="instanceLogToFileCb" /><span>Instance log to file</span></label>
+            <label class="check-line"><input type="checkbox" id="instanceVarDiffCb" /><span>Instance variable difficulty</span></label>
+            <label class="check-line"><input type="checkbox" id="instanceVarDiffStatsCb" /><span>Instance var diff stats</span></label>
+            <label class="check-line"><input type="checkbox" id="instancePow2ClampCb" /><span>Instance pow2 clamp</span></label>
+          </div>
+        </div>
+      </details>
+
+      <details class="card setup-page" id="detCpu" style="display:none">
+        <summary>
+          <span class="summary-left">
+            Internal CPU miner
+            <span class="summary-sub">Requires desktop built with <code>rkstratum_cpu_miner</code></span>
+          </span>
+          <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+        </summary>
+        <div class="card-body">
+          <div class="field row">
+            <input type="checkbox" id="internalCpuMiner" />
+            <label for="internalCpuMiner" style="margin:0">Enable internal CPU miner</label>
+          </div>
+          <div class="field-grid-2">
+            <div class="field">
+              <label for="internalCpuMinerAddress">Mining address (required if enabled)</label>
+              <input type="text" id="internalCpuMinerAddress" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="internalCpuMinerThreads">Threads (optional)</label>
+              <input type="text" id="internalCpuMinerThreads" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="internalCpuMinerThrottleMs">Throttle ms (optional)</label>
+              <input type="text" id="internalCpuMinerThrottleMs" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="internalCpuMinerTemplatePollMs">Template poll ms (optional)</label>
+              <input type="text" id="internalCpuMinerTemplatePollMs" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details class="card setup-page" id="detInstances">
+        <summary>
+          <span class="summary-left">
+            Listeners &amp; kaspad
+            <span class="summary-sub">Extra Stratum ports and optional in-process node arguments</span>
+          </span>
+          <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+        </summary>
+        <div class="card-body">
+          <div class="instances-toolbar">
+            <p class="hint" style="margin:0;flex:1;min-width:12rem">Each row is an extra mining port (port, difficulty, metrics port).</p>
+            <button type="button" class="btn-add-instance" id="btnAddInstance">+ Add instance</button>
+          </div>
+          <div id="instanceList" class="instance-list" aria-live="polite"></div>
+          <textarea id="instances" style="display:none" aria-hidden="true"></textarea>
+          <div class="field" style="margin-top:1rem">
+            <label for="kaspadArgs">Kaspad arguments (optional)</label>
+            <textarea id="kaspadArgs" placeholder="Passed after `--` for in-process kaspad, e.g.&#10;--utxoindex&#10;--rpclisten=127.0.0.1:16110"></textarea>
+            <p class="hint">One token per line or space-separated. Omit if you use external kaspad only.</p>
+          </div>
+        </div>
+      </details>
+    </main>
+
+    <div id="err"></div>
+    <footer class="footer-bar">
+      <button type="button" class="btn-save" id="btnSave">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"/></svg>
+        Save configuration
+      </button>
+      <button type="button" class="btn-start" id="start">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        Start bridge
+      </button>
+    </footer>
+    </div>
+
+    <div id="view-dashboard">
+      <iframe id="dashFrame" title="Bridge operator dashboard"></iframe>
+    </div>
+  </div>
+
+  <div id="loader">
+    <p class="loader-title" id="msg">Loading…</p>
+    <p id="loaderErr" style="display:none;color:var(--err);font-size:13px;margin-top:0.75rem;"></p>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/setup.js" defer></script>
+</body>
+</html>
