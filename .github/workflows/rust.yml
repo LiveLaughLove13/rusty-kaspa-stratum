@@ -49,7 +49,8 @@ jobs:
             os_key: ubuntu
             binary_name: stratum-bridge
             asset_name: stratum-bridge-linux-amd64
-            binary_path: target/release/stratum-bridge
+            # Static musl binary (kaspanet musl-toolchain), not host target/release.
+            binary_path: target/x86_64-unknown-linux-musl/release/stratum-bridge
           - os: windows-latest
             os_key: windows
             binary_name: stratum-bridge.exe
@@ -83,7 +84,7 @@ jobs:
       # Mirrors kaspanet deploy.yaml “Install AppImage packaging deps”.
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip musl-tools librsvg2-bin fuse libfuse2
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake protobuf-compiler zip curl zstd librsvg2-bin fuse libfuse2
 
       - name: Install protoc (Windows)
         if: runner.os == 'Windows'
@@ -99,7 +100,9 @@ jobs:
           version: '25.3'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Linux release uses musl only (see musl step); host gnu build is skipped to avoid mixing artifacts.
       - name: Build binary
+        if: runner.os != 'Linux'
         run: cargo build --locked --verbose --release --features rkstratum_cpu_miner -p kaspa-stratum-bridge
 
       # Tauri desktop is a workspace member; artifacts land in repo-root target/release (not bridge-tauri/src-tauri/target).
@@ -107,24 +110,19 @@ jobs:
         if: runner.os == 'Windows' || runner.os == 'macOS'
         run: cargo build --locked --verbose --release -p rkstratum-bridge-desktop --features rkstratum_cpu_miner
 
-      - name: Add musl Rust target (Linux)
-        if: runner.os == 'Linux'
-        run: rustup target add x86_64-unknown-linux-musl
-
-      # Musl + AppImage: keep compile separate from packaging so logs show which step failed.
-      # CC/CXX: help native deps (e.g. kaspa-hashes cc) find the musl toolchain from musl-tools.
-      # CARGO_INCREMENTAL=0: avoid rare incremental-cache issues mixing host + musl artifacts in one target dir.
+      # Kaspanet prebuilt cross toolchain (rocksdb C++ + static musl). Same approach as rusty-kaspa BridgeGUI deploy.
       - name: Build stratum-bridge (musl) for Linux
         id: musl
         if: runner.os == 'Linux'
         env:
-          # musl-tools (Debian/Ubuntu): cross-linker + cc for C deps (kaspa-hashes, etc.). Not in `.cargo/` so Alpine Docker stays valid.
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: x86_64-linux-musl-gcc
-          CC_x86_64_unknown_linux_musl: x86_64-linux-musl-gcc
-          CXX_x86_64_unknown_linux_musl: x86_64-linux-musl-g++
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           CARGO_INCREMENTAL: "0"
         run: |
-          # Musl link flags come from repo `.cargo/config.toml` (same as kaspanet/rusty-kaspa fork).
+          set -euo pipefail
+          source "$GITHUB_WORKSPACE/musl-toolchain/build.sh"
+          cd "$GITHUB_WORKSPACE"
+          export RUSTFLAGS="$RUSTFLAGS -C link-arg=-Wl,--allow-multiple-definition"
           cargo build --locked --verbose --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge
 
       - name: Build AppImage (Linux)

@@ -1,30 +1,39 @@
+# Builder: Debian (glibc) so bindgen/librocksdb-sys can dlopen libclang. Static musl binary via
+# kaspanet `musl-toolchain` (same as rusty-kaspa BridgeGUI / release workflow).
 # ---------------------------------------- Builder image ----------------------------------------
-FROM rust:1.90-alpine AS builder
+FROM rust:1.90-bookworm AS builder
 
-RUN apk --no-cache add \
-  musl-dev \
-  protobuf-dev \
-  g++ \
-  clang15-dev \
-  linux-headers \
-  openssl-dev \
-  pkgconfig
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    protobuf-compiler \
+    pkg-config \
+    libssl-dev \
+    cmake \
+    curl \
+    ca-certificates \
+    zstd \
+    clang \
+    libclang-dev \
+  && rm -rf /var/lib/apt/lists/*
 
-# Musl link flags: repo `.cargo/config.toml` (`--allow-multiple-definition`). Do not set global
-# `RUSTFLAGS` here (was `-crt-static`, which is MSVC-oriented and not needed on this Linux image).
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
+# musl-toolchain/build.sh expects a workspace root (matches GitHub Actions).
+ENV GITHUB_WORKSPACE=/usr/src/rustbridge
 
 WORKDIR /usr/src/rustbridge
 
-# Workspace root: `members = ["bridge", "bridge-tauri/src-tauri"]` — the Tauri member must exist
-# on disk for Cargo to load the workspace, even though we only build `kaspa-stratum-bridge` here.
+COPY musl-toolchain ./musl-toolchain
 COPY Cargo.toml Cargo.lock ./
 COPY .cargo/config.toml .cargo/config.toml
 COPY bridge ./bridge
 COPY bridge-tauri/src-tauri ./bridge-tauri/src-tauri
 
-RUN cargo build --locked --release -p kaspa-stratum-bridge --features rkstratum_cpu_miner \
-  && cp target/release/stratum-bridge /stratum-bridge
+RUN bash -c 'set -euo pipefail; \
+    source musl-toolchain/build.sh; \
+    cd "$GITHUB_WORKSPACE"; \
+    export RUSTFLAGS="$RUSTFLAGS -C link-arg=-Wl,--allow-multiple-definition"; \
+    cargo build --locked --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge; \
+    cp target/x86_64-unknown-linux-musl/release/stratum-bridge /stratum-bridge'
 
 # ---------------------------------------- Runtime image ----------------------------------------
 FROM alpine AS runtime

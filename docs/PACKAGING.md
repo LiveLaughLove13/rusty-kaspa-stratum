@@ -11,9 +11,14 @@ This repository matches **kaspanet/rusty-kaspa** [`bridge/`](https://github.com/
 
 ## Linux AppImage (CLI binary)
 
-Requires a **musl** release build, then:
+Requires a **musl** release build (same **kaspanet `musl-toolchain`** tarball as `rusty-kaspa` / BridgeGUI), then AppImage packaging.
+
+From the repo root (set `GITHUB_WORKSPACE` locally if unset, e.g. `export GITHUB_WORKSPACE="$(pwd)"`):
 
 ```bash
+source musl-toolchain/build.sh
+cd "$GITHUB_WORKSPACE"
+export RUSTFLAGS="$RUSTFLAGS -C link-arg=-Wl,--allow-multiple-definition"
 cargo build --release --locked -p kaspa-stratum-bridge \
   --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner
 bash bridge/appimage/build.sh "$(git describe --tags --always)"
