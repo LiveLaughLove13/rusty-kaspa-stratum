@@ -14,8 +14,10 @@ impl InProcessNode {
         let _ = fd_budget::try_set_fd_limit(kaspad_daemon::DESIRED_DAEMON_SOFT_FD_LIMIT);
 
         let runtime = kaspad_daemon::Runtime::from_args(&args);
-        let fd_total_budget =
-            fd_budget::limit() - args.rpc_max_clients as i32 - args.inbound_limit as i32 - args.outbound_target as i32;
+        let fd_total_budget = fd_budget::limit()
+            - args.rpc_max_clients as i32
+            - args.inbound_limit as i32
+            - args.outbound_target as i32;
         let (core, _) = kaspad_daemon::create_core_with_runtime(&runtime, &args, fd_total_budget);
         let workers = core.start();
         Ok(Self { core, workers })

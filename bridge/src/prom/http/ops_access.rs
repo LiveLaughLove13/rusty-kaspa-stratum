@@ -17,25 +17,41 @@ use std::net::IpAddr;
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
-static OPS_BEARER: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("RKSTRATUM_OPS_BEARER_TOKEN").ok().filter(|s| !s.is_empty()));
+static OPS_BEARER: LazyLock<Option<String>> = LazyLock::new(|| {
+    std::env::var("RKSTRATUM_OPS_BEARER_TOKEN")
+        .ok()
+        .filter(|s| !s.is_empty())
+});
 
-static OPS_CSRF: LazyLock<Option<String>> =
-    LazyLock::new(|| std::env::var("RKSTRATUM_HTTP_CSRF_SECRET").ok().filter(|s| !s.is_empty()));
+static OPS_CSRF: LazyLock<Option<String>> = LazyLock::new(|| {
+    std::env::var("RKSTRATUM_HTTP_CSRF_SECRET")
+        .ok()
+        .filter(|s| !s.is_empty())
+});
 
-static LOCALHOST_ONLY: LazyLock<bool> =
-    LazyLock::new(|| matches!(std::env::var("RKSTRATUM_HTTP_LOCALHOST_CONFIG_ONLY").as_deref(), Ok("1") | Ok("true")));
+static LOCALHOST_ONLY: LazyLock<bool> = LazyLock::new(|| {
+    matches!(
+        std::env::var("RKSTRATUM_HTTP_LOCALHOST_CONFIG_ONLY").as_deref(),
+        Ok("1") | Ok("true")
+    )
+});
 
-static RATE_PER_MIN: LazyLock<Option<u32>> =
-    LazyLock::new(|| std::env::var("RKSTRATUM_HTTP_POST_CONFIG_RATE_PER_MIN").ok().and_then(|s| s.parse().ok()).filter(|&n| n > 0));
+static RATE_PER_MIN: LazyLock<Option<u32>> = LazyLock::new(|| {
+    std::env::var("RKSTRATUM_HTTP_POST_CONFIG_RATE_PER_MIN")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .filter(|&n| n > 0)
+});
 
-static POST_CONFIG_HITS: LazyLock<Mutex<HashMap<String, Vec<Instant>>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+static POST_CONFIG_HITS: LazyLock<Mutex<HashMap<String, Vec<Instant>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 fn header_value<'a>(request: &'a str, name: &str) -> Option<&'a str> {
     let prefix = format!("{}:", name);
     for line in request.lines() {
         let line = line.trim_end_matches('\r');
-        if line.len() >= prefix.len() && line[..prefix.len()].eq_ignore_ascii_case(prefix.as_str()) {
+        if line.len() >= prefix.len() && line[..prefix.len()].eq_ignore_ascii_case(prefix.as_str())
+        {
             return Some(line[prefix.len()..].trim_start());
         }
     }
@@ -62,7 +78,9 @@ impl ConfigRouteDeny {
             Self::ForbiddenCsrf => {
                 r#"{"success":false,"message":"Missing or invalid X-Rkstratum-Csrf (set RKSTRATUM_HTTP_CSRF_SECRET on server)."}"#
             }
-            Self::RateLimited => r#"{"success":false,"message":"POST /api/config rate limit exceeded."}"#,
+            Self::RateLimited => {
+                r#"{"success":false,"message":"POST /api/config rate limit exceeded."}"#
+            }
         }
     }
 
@@ -76,7 +94,11 @@ impl ConfigRouteDeny {
 }
 
 /// `is_post` distinguishes `POST /api/config` (CSRF + rate limit) from `GET /api/config`.
-pub(crate) fn check_config_route_access(request: &str, peer_ip: IpAddr, is_post: bool) -> Result<(), ConfigRouteDeny> {
+pub(crate) fn check_config_route_access(
+    request: &str,
+    peer_ip: IpAddr,
+    is_post: bool,
+) -> Result<(), ConfigRouteDeny> {
     if *LOCALHOST_ONLY && !peer_ip.is_loopback() {
         return Err(ConfigRouteDeny::ForbiddenLocalhost);
     }

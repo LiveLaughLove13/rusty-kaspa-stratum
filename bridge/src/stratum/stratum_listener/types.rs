@@ -8,9 +8,13 @@ pub type EventHandler = Arc<
     dyn Fn(
             Arc<StratumContext>,
             JsonRpcEvent,
-        )
-            -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>> + Send>>
-        + Send
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<(), Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send,
+            >,
+        > + Send
         + Sync,
 >;
 

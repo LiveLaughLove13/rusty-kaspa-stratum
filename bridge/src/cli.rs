@@ -24,8 +24,15 @@ pub(crate) fn parse_bool(s: &str) -> Result<bool, anyhow::Error> {
     }
 }
 
-pub(crate) fn parse_instance_spec(spec: &str, default_min_share_diff: Option<u32>) -> Result<InstanceConfig, anyhow::Error> {
-    let mut instance = InstanceConfig { stratum_port: String::new(), min_share_diff: 0, ..InstanceConfig::default() };
+pub(crate) fn parse_instance_spec(
+    spec: &str,
+    default_min_share_diff: Option<u32>,
+) -> Result<InstanceConfig, anyhow::Error> {
+    let mut instance = InstanceConfig {
+        stratum_port: String::new(),
+        min_share_diff: 0,
+        ..InstanceConfig::default()
+    };
 
     let mut has_port = false;
     let mut has_diff = false;
@@ -52,18 +59,29 @@ pub(crate) fn parse_instance_spec(spec: &str, default_min_share_diff: Option<u32
             }
             "prom" | "prom_port" => {
                 let normalized = normalize_port(v);
-                instance.prom_port = if normalized.is_empty() { None } else { Some(normalized) };
+                instance.prom_port = if normalized.is_empty() {
+                    None
+                } else {
+                    Some(normalized)
+                };
             }
             "diff" | "min_share_diff" => {
-                instance.min_share_diff = v.parse::<u32>().map_err(|e| anyhow::anyhow!("invalid min_share_diff '{v}': {e}"))?;
+                instance.min_share_diff = v
+                    .parse::<u32>()
+                    .map_err(|e| anyhow::anyhow!("invalid min_share_diff '{v}': {e}"))?;
                 has_diff = true;
             }
             "wait" | "block_wait_time" => {
-                let ms = v.parse::<u64>().map_err(|e| anyhow::anyhow!("invalid block_wait_time '{v}': {e}"))?;
+                let ms = v
+                    .parse::<u64>()
+                    .map_err(|e| anyhow::anyhow!("invalid block_wait_time '{v}': {e}"))?;
                 instance.block_wait_time = Some(Duration::from_millis(ms));
             }
             "extranonce" | "extranonce_size" => {
-                instance.extranonce_size = Some(v.parse::<u8>().map_err(|e| anyhow::anyhow!("invalid extranonce_size '{v}': {e}"))?);
+                instance.extranonce_size = Some(
+                    v.parse::<u8>()
+                        .map_err(|e| anyhow::anyhow!("invalid extranonce_size '{v}': {e}"))?,
+                );
             }
             "log" | "log_to_file" => {
                 instance.log_to_file = Some(parse_bool(v)?);
@@ -72,7 +90,10 @@ pub(crate) fn parse_instance_spec(spec: &str, default_min_share_diff: Option<u32
                 instance.var_diff = Some(parse_bool(v)?);
             }
             "shares_per_min" => {
-                instance.shares_per_min = Some(v.parse::<u32>().map_err(|e| anyhow::anyhow!("invalid shares_per_min '{v}': {e}"))?);
+                instance.shares_per_min = Some(
+                    v.parse::<u32>()
+                        .map_err(|e| anyhow::anyhow!("invalid shares_per_min '{v}': {e}"))?,
+                );
             }
             "var_diff_stats" => {
                 instance.var_diff_stats = Some(parse_bool(v)?);
@@ -87,7 +108,9 @@ pub(crate) fn parse_instance_spec(spec: &str, default_min_share_diff: Option<u32
     }
 
     if !has_port {
-        return Err(anyhow::anyhow!("instance is missing required 'port' in '{spec}'"));
+        return Err(anyhow::anyhow!(
+            "instance is missing required 'port' in '{spec}'"
+        ));
     }
 
     if !has_diff {
@@ -118,7 +141,10 @@ pub struct Cli {
     #[arg(long)]
     pub appdir: Option<PathBuf>,
 
-    #[arg(last = true, help = "Kaspad arguments (use '--' separator if kaspad args start with hyphens)")]
+    #[arg(
+        last = true,
+        help = "Kaspad arguments (use '--' separator if kaspad args start with hyphens)"
+    )]
     pub kaspad_args: Vec<String>,
 
     #[arg(long)]
@@ -260,7 +286,11 @@ pub fn apply_cli_overrides(config: &mut BridgeConfig, cli: &Cli) -> Result<(), a
     }
     if let Some(s) = cli.coinbase_tag_suffix.as_deref() {
         let s = s.trim();
-        config.global.coinbase_tag_suffix = if s.is_empty() { None } else { Some(s.to_string()) };
+        config.global.coinbase_tag_suffix = if s.is_empty() {
+            None
+        } else {
+            Some(s.to_string())
+        };
     }
     if let Some(v) = cli.approximate_geo_lookup {
         config.global.approximate_geo_lookup = v;
@@ -292,7 +322,10 @@ pub fn apply_cli_overrides(config: &mut BridgeConfig, cli: &Cli) -> Result<(), a
         let mut ports = HashSet::new();
         for instance in &instances {
             if !ports.insert(instance.stratum_port.as_str()) {
-                return Err(anyhow::anyhow!("duplicate stratum port: {}", instance.stratum_port));
+                return Err(anyhow::anyhow!(
+                    "duplicate stratum port: {}",
+                    instance.stratum_port
+                ));
             }
         }
 
@@ -311,7 +344,9 @@ pub fn apply_cli_overrides(config: &mut BridgeConfig, cli: &Cli) -> Result<(), a
     has_instance_overrides |= cli.instance_pow2_clamp.is_some();
 
     if has_instance_overrides && config.instances.len() != 1 {
-        return Err(anyhow::anyhow!("instance-specific CLI overrides are only supported when exactly one instance is configured"));
+        return Err(anyhow::anyhow!(
+            "instance-specific CLI overrides are only supported when exactly one instance is configured"
+        ));
     }
 
     if config.instances.len() == 1 {

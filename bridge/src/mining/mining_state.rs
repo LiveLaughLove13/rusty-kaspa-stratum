@@ -62,13 +62,19 @@ impl MiningState {
 
         // Log if we're overwriting an old job
         if let Some(old_id) = job_ids.get(&slot) {
-            debug!("Overwriting job at slot {}: old_id={}, new_id={}", slot, old_id, idx);
+            debug!(
+                "Overwriting job at slot {}: old_id={}, new_id={}",
+                slot, old_id, idx
+            );
         }
 
         jobs.insert(slot, job);
         job_ids.insert(slot, idx);
 
-        debug!("[JOB STORAGE] Added job ID {} at slot {} (counter now: {})", idx, slot, idx);
+        debug!(
+            "[JOB STORAGE] Added job ID {} at slot {} (counter now: {})",
+            idx, slot, idx
+        );
         idx
     }
 

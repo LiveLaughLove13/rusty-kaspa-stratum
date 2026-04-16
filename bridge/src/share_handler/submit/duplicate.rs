@@ -29,7 +29,12 @@ pub(super) async fn respond_on_duplicate(
     if let Some(outcome) = duplicate_outcome {
         match outcome {
             DuplicateSubmitOutcome::Accepted | DuplicateSubmitOutcome::InFlight => {
-                ctx.reply(JsonRpcResponse { id: event.id.clone(), result: Some(serde_json::Value::Bool(true)), error: None }).await?;
+                ctx.reply(JsonRpcResponse {
+                    id: event.id.clone(),
+                    result: Some(serde_json::Value::Bool(true)),
+                    error: None,
+                })
+                .await?;
                 return Ok(true);
             }
             DuplicateSubmitOutcome::Stale => {

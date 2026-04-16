@@ -4,7 +4,12 @@ use kaspa_consensus_core::block::Block;
 /// Kaspa node / RPC surface used by the share handler and stratum server (`KaspaApi` is the main impl).
 #[async_trait::async_trait]
 pub trait KaspaApiTrait: Send + Sync {
-    async fn get_block_template(&self, wallet_addr: &str, remote_app: &str, canxium_addr: &str) -> Result<Block>;
+    async fn get_block_template(
+        &self,
+        wallet_addr: &str,
+        remote_app: &str,
+        canxium_addr: &str,
+    ) -> Result<Block>;
 
     async fn submit_block(&self, block: Block) -> Result<kaspa_rpc_core::SubmitBlockResponse>;
 

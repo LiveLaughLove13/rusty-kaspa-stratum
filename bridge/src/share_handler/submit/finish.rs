@@ -81,8 +81,12 @@ pub(super) async fn after_pow_loop(
         guard.set_outcome(&prep.submit_key, now, DuplicateSubmitOutcome::Accepted);
     }
 
-    ctx.reply(JsonRpcResponse { id: event.id.clone(), result: Some(serde_json::Value::Bool(true)), error: None })
-        .await
-        .map_err(|e| SubmitRunError::ReplyFailed(e.to_string()))?;
+    ctx.reply(JsonRpcResponse {
+        id: event.id.clone(),
+        result: Some(serde_json::Value::Bool(true)),
+        error: None,
+    })
+    .await
+    .map_err(|e| SubmitRunError::ReplyFailed(e.to_string()))?;
     Ok(())
 }

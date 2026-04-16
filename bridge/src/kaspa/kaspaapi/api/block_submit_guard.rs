@@ -14,7 +14,12 @@ struct BlockSubmitGuard {
 
 impl BlockSubmitGuard {
     fn new(ttl: Duration, max_entries: usize) -> Self {
-        Self { ttl, max_entries, entries: HashMap::new(), order: VecDeque::new() }
+        Self {
+            ttl,
+            max_entries,
+            entries: HashMap::new(),
+            order: VecDeque::new(),
+        }
     }
 
     fn prune(&mut self, now: Instant) {

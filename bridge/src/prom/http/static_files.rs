@@ -47,7 +47,9 @@ pub(crate) fn try_read_static_file(url_path: &str) -> Option<(String, Vec<u8>)> 
         return Some((rel, f.contents().to_vec()));
     }
 
-    let file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("static").join(&rel);
+    let file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("static")
+        .join(&rel);
     let bytes = std::fs::read(&file_path).ok()?;
     Some((rel, bytes))
 }

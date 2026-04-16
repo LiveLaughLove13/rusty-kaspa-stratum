@@ -6,7 +6,9 @@ mod client_io;
 mod listen;
 mod types;
 
-pub use types::{EventHandler, StateGenerator, StratumClientListener, StratumListenerConfig, StratumStats};
+pub use types::{
+    EventHandler, StateGenerator, StratumClientListener, StratumListenerConfig, StratumStats,
+};
 
 use crate::jsonrpc_event::JsonRpcEvent;
 use crate::stratum_context::StratumContext;

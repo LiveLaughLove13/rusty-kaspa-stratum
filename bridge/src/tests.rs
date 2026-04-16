@@ -122,7 +122,10 @@ fn test_parse_instance_spec_empty_prom_port_is_none() {
     let result = parse_instance_spec("port=5555,prom=,diff=1", None);
     assert!(result.is_ok(), "Empty prom port should be accepted");
     let instance = result.unwrap();
-    assert!(instance.prom_port.is_none(), "Empty prom port should result in None");
+    assert!(
+        instance.prom_port.is_none(),
+        "Empty prom port should result in None"
+    );
 }
 
 #[cfg(test)]
@@ -141,10 +144,23 @@ print_stats: true
     let config = BridgeConfig::from_yaml(yaml);
     assert!(config.is_ok());
     let config = config.unwrap();
-    assert_eq!(config.instances.len(), 1, "Should create one instance in single-instance mode");
-    assert_eq!(config.instances[0].stratum_port, ":5555", "Stratum port should be parsed correctly");
-    assert_eq!(config.instances[0].min_share_diff, 8192, "Min share diff should be parsed correctly");
-    assert_eq!(config.global.kaspad_address, "127.0.0.1:16110", "Kaspad address should be stored in global config");
+    assert_eq!(
+        config.instances.len(),
+        1,
+        "Should create one instance in single-instance mode"
+    );
+    assert_eq!(
+        config.instances[0].stratum_port, ":5555",
+        "Stratum port should be parsed correctly"
+    );
+    assert_eq!(
+        config.instances[0].min_share_diff, 8192,
+        "Min share diff should be parsed correctly"
+    );
+    assert_eq!(
+        config.global.kaspad_address, "127.0.0.1:16110",
+        "Kaspad address should be stored in global config"
+    );
 }
 
 #[cfg(test)]
@@ -161,8 +177,14 @@ print_stats: true
     assert!(config.is_ok());
     let config = config.unwrap();
     assert_eq!(config.instances.len(), 1, "Should create one instance");
-    assert_eq!(config.instances[0].stratum_port, ":5555", "Should use default stratum port");
-    assert_eq!(config.instances[0].min_share_diff, 8192, "Should use default min_share_diff");
+    assert_eq!(
+        config.instances[0].stratum_port, ":5555",
+        "Should use default stratum port"
+    );
+    assert_eq!(
+        config.instances[0].min_share_diff, 8192,
+        "Should use default min_share_diff"
+    );
 }
 
 #[cfg(test)]
@@ -181,9 +203,15 @@ log_to_file: false
     let config = BridgeConfig::from_yaml(yaml);
     assert!(config.is_ok());
     let config = config.unwrap();
-    assert!(!config.global.log_to_file, "Global log_to_file should be false");
+    assert!(
+        !config.global.log_to_file,
+        "Global log_to_file should be false"
+    );
     assert_eq!(config.instances.len(), 1, "Should create one instance");
-    assert!(config.instances[0].log_to_file.is_none(), "Instance log_to_file should be None (uses global)");
+    assert!(
+        config.instances[0].log_to_file.is_none(),
+        "Instance log_to_file should be None (uses global)"
+    );
 }
 
 #[cfg(test)]
@@ -206,10 +234,22 @@ instances:
     assert!(config.is_ok());
     let config = config.unwrap();
     assert_eq!(config.instances.len(), 2, "Should create two instances");
-    assert_eq!(config.instances[0].stratum_port, ":5555", "First instance port should be parsed");
-    assert_eq!(config.instances[0].min_share_diff, 8192, "First instance difficulty should be parsed");
-    assert_eq!(config.instances[1].stratum_port, ":5556", "Second instance port should be parsed");
-    assert_eq!(config.instances[1].min_share_diff, 4096, "Second instance difficulty should be parsed");
+    assert_eq!(
+        config.instances[0].stratum_port, ":5555",
+        "First instance port should be parsed"
+    );
+    assert_eq!(
+        config.instances[0].min_share_diff, 8192,
+        "First instance difficulty should be parsed"
+    );
+    assert_eq!(
+        config.instances[1].stratum_port, ":5556",
+        "Second instance port should be parsed"
+    );
+    assert_eq!(
+        config.instances[1].min_share_diff, 4096,
+        "Second instance difficulty should be parsed"
+    );
 }
 
 #[cfg(test)]
@@ -243,7 +283,12 @@ instances:
 
     let config = BridgeConfig::from_yaml(yaml);
     assert!(config.is_err());
-    assert!(config.unwrap_err().to_string().contains("Duplicate stratum_port"));
+    assert!(
+        config
+            .unwrap_err()
+            .to_string()
+            .contains("Duplicate stratum_port")
+    );
 }
 
 #[cfg(test)]
@@ -395,9 +440,21 @@ fn test_normalize_port_with_colon() {
     // Test: Port normalization preserves ports that already have a colon prefix
     // This ensures that ports like ":3030" remain unchanged during normalization.
     use crate::net_utils::normalize_port;
-    assert_eq!(normalize_port(":3030"), ":3030", "Port with colon should remain unchanged");
-    assert_eq!(normalize_port(":5555"), ":5555", "Port with colon should remain unchanged");
-    assert_eq!(normalize_port(":16110"), ":16110", "Port with colon should remain unchanged");
+    assert_eq!(
+        normalize_port(":3030"),
+        ":3030",
+        "Port with colon should remain unchanged"
+    );
+    assert_eq!(
+        normalize_port(":5555"),
+        ":5555",
+        "Port with colon should remain unchanged"
+    );
+    assert_eq!(
+        normalize_port(":16110"),
+        ":16110",
+        "Port with colon should remain unchanged"
+    );
 }
 
 #[cfg(test)]
@@ -406,9 +463,21 @@ fn test_normalize_port_without_colon() {
     // Test: Port normalization adds colon prefix to ports without it
     // This allows users to specify ports as either "3030" or ":3030" - both are normalized to ":3030".
     use crate::net_utils::normalize_port;
-    assert_eq!(normalize_port("3030"), ":3030", "Port without colon should get colon prefix");
-    assert_eq!(normalize_port("5555"), ":5555", "Port without colon should get colon prefix");
-    assert_eq!(normalize_port("16110"), ":16110", "Port without colon should get colon prefix");
+    assert_eq!(
+        normalize_port("3030"),
+        ":3030",
+        "Port without colon should get colon prefix"
+    );
+    assert_eq!(
+        normalize_port("5555"),
+        ":5555",
+        "Port without colon should get colon prefix"
+    );
+    assert_eq!(
+        normalize_port("16110"),
+        ":16110",
+        "Port without colon should get colon prefix"
+    );
 }
 
 #[cfg(test)]
@@ -418,9 +487,21 @@ fn test_normalize_port_with_full_address() {
     // When a full address is provided (IP:port), it remains unchanged.
     // This allows binding to specific interfaces while still normalizing port-only values.
     use crate::net_utils::normalize_port;
-    assert_eq!(normalize_port("127.0.0.1:3030"), "127.0.0.1:3030", "Full address should remain unchanged");
-    assert_eq!(normalize_port("0.0.0.0:3030"), "0.0.0.0:3030", "Full address should remain unchanged");
-    assert_eq!(normalize_port("192.168.1.1:5555"), "192.168.1.1:5555", "Full address should remain unchanged");
+    assert_eq!(
+        normalize_port("127.0.0.1:3030"),
+        "127.0.0.1:3030",
+        "Full address should remain unchanged"
+    );
+    assert_eq!(
+        normalize_port("0.0.0.0:3030"),
+        "0.0.0.0:3030",
+        "Full address should remain unchanged"
+    );
+    assert_eq!(
+        normalize_port("192.168.1.1:5555"),
+        "192.168.1.1:5555",
+        "Full address should remain unchanged"
+    );
 }
 
 #[cfg(test)]
@@ -431,7 +512,11 @@ fn test_normalize_port_empty() {
     // This allows optional port configuration.
     use crate::net_utils::normalize_port;
     assert_eq!(normalize_port(""), "", "Empty string should remain empty");
-    assert_eq!(normalize_port("   "), "", "Whitespace-only string should become empty");
+    assert_eq!(
+        normalize_port("   "),
+        "",
+        "Whitespace-only string should become empty"
+    );
 }
 
 #[cfg(test)]
@@ -440,9 +525,21 @@ fn test_normalize_port_with_whitespace() {
     // Test: Port normalization trims whitespace from port values
     // Leading and trailing whitespace is removed, making configuration more forgiving.
     use crate::net_utils::normalize_port;
-    assert_eq!(normalize_port("  :3030  "), ":3030", "Whitespace should be trimmed from port with colon");
-    assert_eq!(normalize_port("  3030  "), ":3030", "Whitespace should be trimmed and colon added");
-    assert_eq!(normalize_port("  127.0.0.1:3030  "), "127.0.0.1:3030", "Whitespace should be trimmed from full address");
+    assert_eq!(
+        normalize_port("  :3030  "),
+        ":3030",
+        "Whitespace should be trimmed from port with colon"
+    );
+    assert_eq!(
+        normalize_port("  3030  "),
+        ":3030",
+        "Whitespace should be trimmed and colon added"
+    );
+    assert_eq!(
+        normalize_port("  127.0.0.1:3030  "),
+        "127.0.0.1:3030",
+        "Whitespace should be trimmed from full address"
+    );
 }
 
 #[cfg(test)]
@@ -492,9 +589,15 @@ fn test_bind_addr_for_operator_http_port_only_defaults_loopback() {
 #[test]
 fn test_bind_addr_for_operator_http_explicit_address_unchanged() {
     use crate::net_utils::bind_addr_for_operator_http;
-    assert_eq!(bind_addr_for_operator_http("127.0.0.1:3030"), "127.0.0.1:3030");
+    assert_eq!(
+        bind_addr_for_operator_http("127.0.0.1:3030"),
+        "127.0.0.1:3030"
+    );
     assert_eq!(bind_addr_for_operator_http("0.0.0.0:3030"), "0.0.0.0:3030");
-    assert_eq!(bind_addr_for_operator_http("192.168.1.1:2118"), "192.168.1.1:2118");
+    assert_eq!(
+        bind_addr_for_operator_http("192.168.1.1:2118"),
+        "192.168.1.1:2118"
+    );
 }
 
 #[cfg(test)]
@@ -509,9 +612,18 @@ fn test_bind_addr_for_operator_http_empty() {
 #[test]
 fn test_http_operator_dashboard_origin_maps_unspecified_to_loopback_for_browser() {
     use crate::net_utils::http_operator_dashboard_origin;
-    assert_eq!(http_operator_dashboard_origin("0.0.0.0:3030").as_deref(), Some("http://127.0.0.1:3030/"));
-    assert_eq!(http_operator_dashboard_origin(":3030").as_deref(), Some("http://127.0.0.1:3030/"));
-    assert_eq!(http_operator_dashboard_origin("192.168.1.10:3030").as_deref(), Some("http://192.168.1.10:3030/"));
+    assert_eq!(
+        http_operator_dashboard_origin("0.0.0.0:3030").as_deref(),
+        Some("http://127.0.0.1:3030/")
+    );
+    assert_eq!(
+        http_operator_dashboard_origin(":3030").as_deref(),
+        Some("http://127.0.0.1:3030/")
+    );
+    assert_eq!(
+        http_operator_dashboard_origin("192.168.1.10:3030").as_deref(),
+        Some("http://192.168.1.10:3030/")
+    );
 }
 
 // JSON-RPC event tests
@@ -519,14 +631,32 @@ fn test_http_operator_dashboard_origin_maps_unspecified_to_loopback_for_browser(
 #[test]
 fn test_stratum_method_from_str() {
     use crate::jsonrpc_event::StratumMethod;
-    assert_eq!(StratumMethod::from("mining.subscribe"), StratumMethod::Subscribe);
-    assert_eq!(StratumMethod::from("mining.authorize"), StratumMethod::Authorize);
+    assert_eq!(
+        StratumMethod::from("mining.subscribe"),
+        StratumMethod::Subscribe
+    );
+    assert_eq!(
+        StratumMethod::from("mining.authorize"),
+        StratumMethod::Authorize
+    );
     assert_eq!(StratumMethod::from("mining.submit"), StratumMethod::Submit);
     assert_eq!(StratumMethod::from("mining.notify"), StratumMethod::Notify);
-    assert_eq!(StratumMethod::from("mining.set_difficulty"), StratumMethod::SetDifficulty);
-    assert_eq!(StratumMethod::from("mining.extranonce.subscribe"), StratumMethod::ExtranonceSubscribe);
-    assert_eq!(StratumMethod::from("mining.set_extranonce"), StratumMethod::SetExtranonce);
-    assert_eq!(StratumMethod::from("unknown.method"), StratumMethod::Other("unknown.method".to_string()));
+    assert_eq!(
+        StratumMethod::from("mining.set_difficulty"),
+        StratumMethod::SetDifficulty
+    );
+    assert_eq!(
+        StratumMethod::from("mining.extranonce.subscribe"),
+        StratumMethod::ExtranonceSubscribe
+    );
+    assert_eq!(
+        StratumMethod::from("mining.set_extranonce"),
+        StratumMethod::SetExtranonce
+    );
+    assert_eq!(
+        StratumMethod::from("unknown.method"),
+        StratumMethod::Other("unknown.method".to_string())
+    );
 }
 
 #[cfg(test)]
@@ -537,10 +667,22 @@ fn test_stratum_method_to_string() {
     assert_eq!(String::from(StratumMethod::Authorize), "mining.authorize");
     assert_eq!(String::from(StratumMethod::Submit), "mining.submit");
     assert_eq!(String::from(StratumMethod::Notify), "mining.notify");
-    assert_eq!(String::from(StratumMethod::SetDifficulty), "mining.set_difficulty");
-    assert_eq!(String::from(StratumMethod::ExtranonceSubscribe), "mining.extranonce.subscribe");
-    assert_eq!(String::from(StratumMethod::SetExtranonce), "mining.set_extranonce");
-    assert_eq!(String::from(StratumMethod::Other("custom".to_string())), "custom");
+    assert_eq!(
+        String::from(StratumMethod::SetDifficulty),
+        "mining.set_difficulty"
+    );
+    assert_eq!(
+        String::from(StratumMethod::ExtranonceSubscribe),
+        "mining.extranonce.subscribe"
+    );
+    assert_eq!(
+        String::from(StratumMethod::SetExtranonce),
+        "mining.set_extranonce"
+    );
+    assert_eq!(
+        String::from(StratumMethod::Other("custom".to_string())),
+        "custom"
+    );
 }
 
 #[cfg(test)]
@@ -548,7 +690,11 @@ fn test_stratum_method_to_string() {
 fn test_jsonrpc_event_new() {
     use crate::jsonrpc_event::JsonRpcEvent;
     use serde_json::json;
-    let event = JsonRpcEvent::new(Some("1".to_string()), "mining.subscribe", vec![json!("BzMiner")]);
+    let event = JsonRpcEvent::new(
+        Some("1".to_string()),
+        "mining.subscribe",
+        vec![json!("BzMiner")],
+    );
     assert_eq!(event.method, "mining.subscribe");
     assert_eq!(event.jsonrpc, "2.0");
     assert_eq!(event.params.len(), 1);
@@ -581,7 +727,10 @@ fn test_jsonrpc_response_new() {
 fn test_jsonrpc_response_success() {
     use crate::jsonrpc_event::JsonRpcResponse;
     use serde_json::{Value, json};
-    let response = JsonRpcResponse::success(Some(Value::String("1".to_string())), json!(["subscription_id"]));
+    let response = JsonRpcResponse::success(
+        Some(Value::String("1".to_string())),
+        json!(["subscription_id"]),
+    );
     assert!(response.result.is_some());
     assert!(response.error.is_none());
 }
@@ -591,7 +740,12 @@ fn test_jsonrpc_response_success() {
 fn test_jsonrpc_response_error() {
     use crate::jsonrpc_event::JsonRpcResponse;
     use serde_json::Value;
-    let response = JsonRpcResponse::error(Some(Value::String("1".to_string())), -1, "Invalid request", None);
+    let response = JsonRpcResponse::error(
+        Some(Value::String("1".to_string())),
+        -1,
+        "Invalid request",
+        None,
+    );
     assert!(response.result.is_none());
     assert!(response.error.is_some());
     if let Some(error_vec) = response.error {
@@ -644,7 +798,8 @@ fn test_unmarshal_event_without_id() {
 fn test_unmarshal_event_sanitizes_control_chars() {
     use crate::jsonrpc_event::unmarshal_event;
     // Test with tab character (common in Goldshell ASICs)
-    let json_with_tab = "{\"jsonrpc\":\"2.0\",\"method\":\"mining.subscribe\",\"params\":[\"BzMiner\t\"],\"id\":1}";
+    let json_with_tab =
+        "{\"jsonrpc\":\"2.0\",\"method\":\"mining.subscribe\",\"params\":[\"BzMiner\t\"],\"id\":1}";
     let event = unmarshal_event(json_with_tab).unwrap();
     assert_eq!(event.method, "mining.subscribe");
     // The tab should be sanitized to a space
@@ -704,7 +859,11 @@ fn test_unmarshal_response_invalid_json() {
 fn test_jsonrpc_event_serialize() {
     use crate::jsonrpc_event::JsonRpcEvent;
     use serde_json::json;
-    let event = JsonRpcEvent::new(Some("1".to_string()), "mining.subscribe", vec![json!("BzMiner")]);
+    let event = JsonRpcEvent::new(
+        Some("1".to_string()),
+        "mining.subscribe",
+        vec![json!("BzMiner")],
+    );
     let serialized = serde_json::to_string(&event).unwrap();
     assert!(serialized.contains("mining.subscribe"));
     assert!(serialized.contains("BzMiner"));
@@ -715,7 +874,10 @@ fn test_jsonrpc_event_serialize() {
 fn test_jsonrpc_response_serialize() {
     use crate::jsonrpc_event::JsonRpcResponse;
     use serde_json::{Value, json};
-    let response = JsonRpcResponse::success(Some(Value::String("1".to_string())), json!(["subscription_id"]));
+    let response = JsonRpcResponse::success(
+        Some(Value::String("1".to_string())),
+        json!(["subscription_id"]),
+    );
     let serialized = serde_json::to_string(&response).unwrap();
     assert!(serialized.contains("subscription_id"));
 }
@@ -725,22 +887,49 @@ fn test_jsonrpc_response_serialize() {
 #[test]
 fn test_error_short_code_display() {
     use crate::errors::ErrorShortCode;
-    assert_eq!(ErrorShortCode::NoMinerAddress.as_str(), "err_no_miner_address");
-    assert_eq!(ErrorShortCode::FailedBlockFetch.as_str(), "err_failed_block_fetch");
-    assert_eq!(ErrorShortCode::InvalidAddressFmt.as_str(), "err_malformed_wallet_address");
+    assert_eq!(
+        ErrorShortCode::NoMinerAddress.as_str(),
+        "err_no_miner_address"
+    );
+    assert_eq!(
+        ErrorShortCode::FailedBlockFetch.as_str(),
+        "err_failed_block_fetch"
+    );
+    assert_eq!(
+        ErrorShortCode::InvalidAddressFmt.as_str(),
+        "err_malformed_wallet_address"
+    );
     assert_eq!(ErrorShortCode::MissingJob.as_str(), "err_missing_job");
-    assert_eq!(ErrorShortCode::BadDataFromMiner.as_str(), "err_bad_data_from_miner");
-    assert_eq!(ErrorShortCode::FailedSendWork.as_str(), "err_failed_sending_work");
-    assert_eq!(ErrorShortCode::FailedSetDiff.as_str(), "err_diff_set_failed");
-    assert_eq!(ErrorShortCode::Disconnected.as_str(), "err_worker_disconnected");
+    assert_eq!(
+        ErrorShortCode::BadDataFromMiner.as_str(),
+        "err_bad_data_from_miner"
+    );
+    assert_eq!(
+        ErrorShortCode::FailedSendWork.as_str(),
+        "err_failed_sending_work"
+    );
+    assert_eq!(
+        ErrorShortCode::FailedSetDiff.as_str(),
+        "err_diff_set_failed"
+    );
+    assert_eq!(
+        ErrorShortCode::Disconnected.as_str(),
+        "err_worker_disconnected"
+    );
 }
 
 #[cfg(test)]
 #[test]
 fn test_error_short_code_to_string() {
     use crate::errors::ErrorShortCode;
-    assert_eq!(format!("{}", ErrorShortCode::NoMinerAddress), "err_no_miner_address");
-    assert_eq!(format!("{}", ErrorShortCode::Disconnected), "err_worker_disconnected");
+    assert_eq!(
+        format!("{}", ErrorShortCode::NoMinerAddress),
+        "err_no_miner_address"
+    );
+    assert_eq!(
+        format!("{}", ErrorShortCode::Disconnected),
+        "err_worker_disconnected"
+    );
 }
 
 // Mining state tests
@@ -757,10 +946,20 @@ fn test_mining_state_initial_values() {
     use crate::mining_state::MiningState;
     let state = MiningState::new();
     assert!(!state.is_initialized(), "State should start uninitialized");
-    assert!(!state.use_big_job(), "Big job format should be disabled by default");
+    assert!(
+        !state.use_big_job(),
+        "Big job format should be disabled by default"
+    );
     assert_eq!(state.max_jobs(), 300, "Max jobs should be 300");
-    assert_eq!(state.current_job_counter(), 0, "Job counter should start at 0");
-    assert!(state.get_stored_job_ids().is_empty(), "No job IDs should be stored initially");
+    assert_eq!(
+        state.current_job_counter(),
+        0,
+        "Job counter should start at 0"
+    );
+    assert!(
+        state.get_stored_job_ids().is_empty(),
+        "No job IDs should be stored initially"
+    );
 }
 
 #[cfg(test)]
@@ -778,12 +977,19 @@ fn test_mining_state_job_management() {
     // Create a dummy job using Block::from_precomputed_hash (test helper)
     let hash1 = Hash::from_bytes([1; 32]);
     let block1 = Block::from_precomputed_hash(hash1, vec![]);
-    let job1 = Job { block: block1, pre_pow_hash: Hash::default() };
+    let job1 = Job {
+        block: block1,
+        pre_pow_hash: Hash::default(),
+    };
 
     // Add job
     let job_id = state.add_job(job1);
     assert_eq!(job_id, 1, "First job should have ID 1");
-    assert_eq!(state.current_job_counter(), 1, "Job counter should increment");
+    assert_eq!(
+        state.current_job_counter(),
+        1,
+        "Job counter should increment"
+    );
 
     // Retrieve job
     let retrieved = state.get_job(job_id);
@@ -792,7 +998,10 @@ fn test_mining_state_job_management() {
     // Test adding another job
     let hash2 = Hash::from_bytes([2; 32]);
     let block2 = Block::from_precomputed_hash(hash2, vec![]);
-    let job2 = Job { block: block2, pre_pow_hash: Hash::default() };
+    let job2 = Job {
+        block: block2,
+        pre_pow_hash: Hash::default(),
+    };
     let job_id_2 = state.add_job(job2);
     assert_eq!(job_id_2, 2, "Second job should have ID 2");
     let retrieved2 = state.get_job(2);
@@ -810,11 +1019,19 @@ fn test_mining_state_difficulty_management() {
     use num_traits::Zero;
 
     let state = MiningState::new();
-    assert_eq!(state.get_big_diff(), BigUint::zero(), "Initial difficulty should be zero");
+    assert_eq!(
+        state.get_big_diff(),
+        BigUint::zero(),
+        "Initial difficulty should be zero"
+    );
 
     let test_diff = BigUint::from(8192u64);
     state.set_big_diff(test_diff.clone());
-    assert_eq!(state.get_big_diff(), test_diff, "Difficulty should be stored and retrieved correctly");
+    assert_eq!(
+        state.get_big_diff(),
+        test_diff,
+        "Difficulty should be stored and retrieved correctly"
+    );
 }
 
 #[cfg(test)]
@@ -828,10 +1045,16 @@ fn test_mining_state_initialization_flag() {
     assert!(!state.is_initialized(), "State should start uninitialized");
 
     state.set_initialized(true);
-    assert!(state.is_initialized(), "State should be initialized after setting flag");
+    assert!(
+        state.is_initialized(),
+        "State should be initialized after setting flag"
+    );
 
     state.set_initialized(false);
-    assert!(!state.is_initialized(), "State should be uninitialized after clearing flag");
+    assert!(
+        !state.is_initialized(),
+        "State should be uninitialized after clearing flag"
+    );
 }
 
 #[cfg(test)]
@@ -842,13 +1065,22 @@ fn test_mining_state_big_job_flag() {
     // Big job format is used for miners that require extended job data (e.g., some ASICs).
     use crate::mining_state::MiningState;
     let state = MiningState::new();
-    assert!(!state.use_big_job(), "Big job format should be disabled by default");
+    assert!(
+        !state.use_big_job(),
+        "Big job format should be disabled by default"
+    );
 
     state.set_use_big_job(true);
-    assert!(state.use_big_job(), "Big job format should be enabled after setting flag");
+    assert!(
+        state.use_big_job(),
+        "Big job format should be enabled after setting flag"
+    );
 
     state.set_use_big_job(false);
-    assert!(!state.use_big_job(), "Big job format should be disabled after clearing flag");
+    assert!(
+        !state.use_big_job(),
+        "Big job format should be disabled after clearing flag"
+    );
 }
 
 // Config parsing edge cases
@@ -972,7 +1204,10 @@ fn test_unmarshal_event_with_unicode() {
 fn test_unmarshal_event_with_very_long_string() {
     use crate::jsonrpc_event::unmarshal_event;
     let long_string = "a".repeat(10000);
-    let json = format!(r#"{{"jsonrpc":"2.0","method":"mining.subscribe","params":["{}"],"id":1}}"#, long_string);
+    let json = format!(
+        r#"{{"jsonrpc":"2.0","method":"mining.subscribe","params":["{}"],"id":1}}"#,
+        long_string
+    );
     let event = unmarshal_event(&json).unwrap();
     assert_eq!(event.method, "mining.subscribe");
     if let Some(serde_json::Value::String(param)) = event.params.first() {
@@ -1055,7 +1290,9 @@ fn test_parse_instance_spec_multiple_ports() {
 
 #[cfg(test)]
 mod integration {
-    use crate::{KaspaApi, StratumServerBridgeConfig as StratumBridgeConfig, listen_and_serve_with_shutdown};
+    use crate::{
+        KaspaApi, StratumServerBridgeConfig as StratumBridgeConfig, listen_and_serve_with_shutdown,
+    };
     use kaspa_alloc::init_allocator_with_default_settings;
     use kaspad_lib::args as kaspad_args;
     use std::ffi::OsString;
@@ -1085,14 +1322,17 @@ mod integration {
         ];
 
         let node_args = kaspad_args::Args::parse(argv).unwrap();
-        let inprocess_node = crate::inprocess_node::InProcessNode::start_from_args(node_args).unwrap();
+        let inprocess_node =
+            crate::inprocess_node::InProcessNode::start_from_args(node_args).unwrap();
 
         // Wait a bit for the node to start
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         // Create KaspaApi client
         let (shutdown_tx, shutdown_rx) = watch::channel(false);
-        let kaspa_api = KaspaApi::new(rpc_address.clone(), None, shutdown_rx.clone()).await.unwrap();
+        let kaspa_api = KaspaApi::new(rpc_address.clone(), None, shutdown_rx.clone())
+            .await
+            .unwrap();
 
         // With rkstratum_cpu_miner: exercise the type in the same run (only one in-process
         // kaspad per process — log::set_logger is global; a second #[tokio::test] would panic).
@@ -1130,8 +1370,10 @@ mod integration {
         };
 
         // Start the bridge server (with a timeout to prevent hanging)
-        let bridge_handle =
-            tokio::spawn(async move { listen_and_serve_with_shutdown::<KaspaApi>(bridge_config, kaspa_api, None, shutdown_rx).await });
+        let bridge_handle = tokio::spawn(async move {
+            listen_and_serve_with_shutdown::<KaspaApi>(bridge_config, kaspa_api, None, shutdown_rx)
+                .await
+        });
 
         // Give it a moment to start
         tokio::time::sleep(Duration::from_millis(200)).await;
@@ -1259,7 +1501,11 @@ mod comprehensive_tests {
         // This demonstrates how miners connect and identify themselves
 
         let ctx = create_test_context().await;
-        let event = JsonRpcEvent::new(Some("1".to_string()), "mining.subscribe", vec![json!("BzMiner")]);
+        let event = JsonRpcEvent::new(
+            Some("1".to_string()),
+            "mining.subscribe",
+            vec![json!("BzMiner")],
+        );
 
         // Handle subscribe
         let result = handle_subscribe(ctx.clone(), event, None).await;
@@ -1267,7 +1513,10 @@ mod comprehensive_tests {
 
         // Verify miner type was detected
         let remote_app = ctx.identity.lock().remote_app.clone();
-        assert_eq!(remote_app, "BzMiner", "Miner type should be detected from params");
+        assert_eq!(
+            remote_app, "BzMiner",
+            "Miner type should be detected from params"
+        );
 
         // Verify extranonce was assigned (empty for default handler)
         let _extranonce = ctx.extranonce.lock().clone();
@@ -1280,10 +1529,19 @@ mod comprehensive_tests {
         // This demonstrates how extranonce is auto-assigned based on miner type
 
         let share_handler = Arc::new(ShareHandler::new("test-instance".to_string()));
-        let client_handler = Arc::new(ClientHandler::new(share_handler, 8192.0, 2, "test-instance".to_string()));
+        let client_handler = Arc::new(ClientHandler::new(
+            share_handler,
+            8192.0,
+            2,
+            "test-instance".to_string(),
+        ));
 
         let ctx = create_test_context().await;
-        let event = JsonRpcEvent::new(Some("1".to_string()), "mining.subscribe", vec![json!("IceRiver KS2L")]);
+        let event = JsonRpcEvent::new(
+            Some("1".to_string()),
+            "mining.subscribe",
+            vec![json!("IceRiver KS2L")],
+        );
 
         // Handle subscribe with client handler
         let result = handle_subscribe(ctx.clone(), event, Some(client_handler.clone())).await;
@@ -1291,8 +1549,15 @@ mod comprehensive_tests {
 
         // Verify extranonce was assigned (IceRiver needs extranonce_size=2)
         let extranonce = ctx.extranonce.lock().clone();
-        assert!(!extranonce.is_empty(), "IceRiver should get extranonce assigned");
-        assert_eq!(extranonce.len(), 4, "Extranonce should be 2 bytes (4 hex chars)");
+        assert!(
+            !extranonce.is_empty(),
+            "IceRiver should get extranonce assigned"
+        );
+        assert_eq!(
+            extranonce.len(),
+            4,
+            "Extranonce should be 2 bytes (4 hex chars)"
+        );
     }
 
     #[tokio::test]
@@ -1301,10 +1566,19 @@ mod comprehensive_tests {
         // This demonstrates miner-specific handling
 
         let share_handler = Arc::new(ShareHandler::new("test-instance".to_string()));
-        let client_handler = Arc::new(ClientHandler::new(share_handler, 8192.0, 0, "test-instance".to_string()));
+        let client_handler = Arc::new(ClientHandler::new(
+            share_handler,
+            8192.0,
+            0,
+            "test-instance".to_string(),
+        ));
 
         let ctx = create_test_context().await;
-        let event = JsonRpcEvent::new(Some("1".to_string()), "mining.subscribe", vec![json!("GodMiner")]);
+        let event = JsonRpcEvent::new(
+            Some("1".to_string()),
+            "mining.subscribe",
+            vec![json!("GodMiner")],
+        );
 
         // Handle subscribe with client handler
         let result = handle_subscribe(ctx.clone(), event, Some(client_handler.clone())).await;
@@ -1328,7 +1602,12 @@ mod comprehensive_tests {
     fn test_miner_type_detection_iceriver() {
         // Test: IceRiver miner detection
         let share_handler = Arc::new(ShareHandler::new("test-instance".to_string()));
-        let client_handler = Arc::new(ClientHandler::new(share_handler, 8192.0, 2, "test-instance".to_string()));
+        let client_handler = Arc::new(ClientHandler::new(
+            share_handler,
+            8192.0,
+            2,
+            "test-instance".to_string(),
+        ));
 
         let ctx = create_test_context_sync();
         ctx.identity.lock().remote_app = "IceRiver KS2L".to_string();
@@ -1342,7 +1621,12 @@ mod comprehensive_tests {
     fn test_miner_type_detection_bitmain() {
         // Test: Bitmain miner detection (no extranonce)
         let share_handler = Arc::new(ShareHandler::new("test-instance".to_string()));
-        let client_handler = Arc::new(ClientHandler::new(share_handler, 8192.0, 0, "test-instance".to_string()));
+        let client_handler = Arc::new(ClientHandler::new(
+            share_handler,
+            8192.0,
+            0,
+            "test-instance".to_string(),
+        ));
 
         let ctx = create_test_context_sync();
         ctx.identity.lock().remote_app = "GodMiner".to_string();
@@ -1356,7 +1640,12 @@ mod comprehensive_tests {
     fn test_miner_type_detection_bzminer() {
         // Test: BzMiner detection
         let share_handler = Arc::new(ShareHandler::new("test-instance".to_string()));
-        let client_handler = Arc::new(ClientHandler::new(share_handler, 8192.0, 2, "test-instance".to_string()));
+        let client_handler = Arc::new(ClientHandler::new(
+            share_handler,
+            8192.0,
+            2,
+            "test-instance".to_string(),
+        ));
 
         let ctx = create_test_context_sync();
         ctx.identity.lock().remote_app = "BzMiner".to_string();
@@ -1383,7 +1672,10 @@ mod comprehensive_tests {
         let state = MiningState::new();
         let block = create_test_block(1000, 0x1e7fffff, 0);
         let pre_pow_hash = Hash::default();
-        let job = Job { block, pre_pow_hash };
+        let job = Job {
+            block,
+            pre_pow_hash,
+        };
 
         // Add first job
         let job_id1 = state.add_job(job.clone());
@@ -1400,8 +1692,14 @@ mod comprehensive_tests {
         assert_eq!(state.current_job_counter(), 2, "Counter should be 2");
 
         // Both jobs should be retrievable
-        assert!(state.get_job(job_id1).is_some(), "First job should still be retrievable");
-        assert!(state.get_job(job_id2).is_some(), "Second job should be retrievable");
+        assert!(
+            state.get_job(job_id1).is_some(),
+            "First job should still be retrievable"
+        );
+        assert!(
+            state.get_job(job_id2).is_some(),
+            "Second job should be retrievable"
+        );
     }
 
     #[test]
@@ -1412,7 +1710,10 @@ mod comprehensive_tests {
         let state = MiningState::new();
         let block = create_test_block(1000, 0x1e7fffff, 0);
         let pre_pow_hash = Hash::default();
-        let job = Job { block, pre_pow_hash };
+        let job = Job {
+            block,
+            pre_pow_hash,
+        };
 
         // Add jobs up to MAX_JOBS
         for i in 1..=300 {
@@ -1445,8 +1746,14 @@ mod comprehensive_tests {
         let pre_pow_hash = Hash::default();
 
         // Add two jobs
-        let job_id1 = state.add_job(Job { block: block1, pre_pow_hash });
-        let job_id2 = state.add_job(Job { block: block2, pre_pow_hash });
+        let job_id1 = state.add_job(Job {
+            block: block1,
+            pre_pow_hash,
+        });
+        let job_id2 = state.add_job(Job {
+            block: block2,
+            pre_pow_hash,
+        });
 
         assert_eq!(job_id1, 1);
         assert_eq!(job_id2, 2);
@@ -1458,13 +1765,19 @@ mod comprehensive_tests {
 
         // Get job at submitted slot
         let job_at_submitted = state.get_job(submitted_job_id);
-        assert!(job_at_submitted.is_some(), "Job at submitted ID should exist");
+        assert!(
+            job_at_submitted.is_some(),
+            "Job at submitted ID should exist"
+        );
 
         // Get job at actual slot (previous job)
         if submitted_job_id > 1 {
             let prev_job_id = submitted_job_id - 1;
             let prev_job = state.get_job(prev_job_id);
-            assert!(prev_job.is_some(), "Previous job should exist for workaround");
+            assert!(
+                prev_job.is_some(),
+                "Previous job should exist for workaround"
+            );
         }
     }
 
@@ -1490,13 +1803,25 @@ mod comprehensive_tests {
 
         // Test with difficulty = 8192.0 (common pool difficulty)
         let target_8192 = diff_to_target(8192.0);
-        assert!(!target_8192.is_zero(), "Target for diff=8192 should not be zero");
-        assert!(target_8192 < target_1, "Higher difficulty should have lower target");
+        assert!(
+            !target_8192.is_zero(),
+            "Target for diff=8192 should not be zero"
+        );
+        assert!(
+            target_8192 < target_1,
+            "Higher difficulty should have lower target"
+        );
 
         // Test with very high difficulty
         let target_high = diff_to_target(1_000_000.0);
-        assert!(!target_high.is_zero(), "Target for high diff should not be zero");
-        assert!(target_high < target_8192, "Higher difficulty should have lower target");
+        assert!(
+            !target_high.is_zero(),
+            "Target for high diff should not be zero"
+        );
+        assert!(
+            target_high < target_8192,
+            "Higher difficulty should have lower target"
+        );
     }
 
     #[test]
@@ -1555,14 +1880,24 @@ mod comprehensive_tests {
         let max_extranonce = (2_f64.powi(16) - 1.0) as i32; // 2 bytes = 65535
 
         // Assign first extranonce
-        let extranonce1 =
-            counter.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |val| if val < max_extranonce { Some(val + 1) } else { Some(0) });
+        let extranonce1 = counter.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |val| {
+            if val < max_extranonce {
+                Some(val + 1)
+            } else {
+                Some(0)
+            }
+        });
         assert!(extranonce1.is_ok());
         assert_eq!(extranonce1.unwrap(), 0);
 
         // Assign second extranonce
-        let extranonce2 =
-            counter.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |val| if val < max_extranonce { Some(val + 1) } else { Some(0) });
+        let extranonce2 = counter.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |val| {
+            if val < max_extranonce {
+                Some(val + 1)
+            } else {
+                Some(0)
+            }
+        });
         assert!(extranonce2.is_ok());
         assert_eq!(extranonce2.unwrap(), 1);
     }
@@ -1577,9 +1912,21 @@ mod comprehensive_tests {
         let extranonce2_len = 16 - extranonce.len(); // 16 - 4 = 12 hex chars
 
         // Format: extranonce + zero-padded nonce
-        let final_nonce = format!("{}{:0>width$}", extranonce, nonce_str, width = extranonce2_len);
-        assert_eq!(final_nonce.len(), 16, "Final nonce should be 16 hex chars (8 bytes)");
-        assert!(final_nonce.starts_with(&extranonce), "Final nonce should start with extranonce");
+        let final_nonce = format!(
+            "{}{:0>width$}",
+            extranonce,
+            nonce_str,
+            width = extranonce2_len
+        );
+        assert_eq!(
+            final_nonce.len(),
+            16,
+            "Final nonce should be 16 hex chars (8 bytes)"
+        );
+        assert!(
+            final_nonce.starts_with(&extranonce),
+            "Final nonce should start with extranonce"
+        );
     }
 
     // ========================================================================
@@ -1616,7 +1963,10 @@ mod comprehensive_tests {
         let state = MiningState::new();
         use num_traits::Zero;
 
-        assert!(state.get_big_diff().is_zero(), "Big diff should start at zero");
+        assert!(
+            state.get_big_diff().is_zero(),
+            "Big diff should start at zero"
+        );
 
         let test_diff = BigUint::from(8192u64);
         state.set_big_diff(test_diff.clone());
@@ -1637,7 +1987,10 @@ mod comprehensive_tests {
         // Test: Header tracking for change detection
         let state = MiningState::new();
 
-        assert!(state.get_last_header().is_none(), "Should start with no header");
+        assert!(
+            state.get_last_header().is_none(),
+            "Should start with no header"
+        );
 
         let hash = Hash::from_bytes([1; 32]);
         let mut header = Header::from_precomputed_hash(hash, vec![]);
@@ -1665,7 +2018,10 @@ mod comprehensive_tests {
         // Test: ShareHandler creation and initialization
         let handler = ShareHandler::new("test-instance".to_string());
         // Verify handler was created (can't test log_prefix as it's private)
-        assert!(std::mem::size_of_val(&handler) > 0, "Handler should be created");
+        assert!(
+            std::mem::size_of_val(&handler) > 0,
+            "Handler should be created"
+        );
     }
 
     #[test]
@@ -1699,7 +2055,11 @@ mod comprehensive_tests {
         // Change difficulty
         let prev2 = handler.set_client_vardiff(&ctx, 4096.0);
         assert_eq!(prev2, 8192.0, "Previous diff should be 8192");
-        assert_eq!(handler.get_client_vardiff(&ctx), 4096.0, "New diff should be 4096");
+        assert_eq!(
+            handler.get_client_vardiff(&ctx),
+            4096.0,
+            "New diff should be 4096"
+        );
     }
 
     // ========================================================================
@@ -1761,9 +2121,18 @@ mod comprehensive_tests {
         // Test: Error short codes for tracking
         use crate::errors::ErrorShortCode;
 
-        assert_eq!(ErrorShortCode::NoMinerAddress.as_str(), "err_no_miner_address");
-        assert_eq!(ErrorShortCode::FailedBlockFetch.as_str(), "err_failed_block_fetch");
-        assert_eq!(ErrorShortCode::InvalidAddressFmt.as_str(), "err_malformed_wallet_address");
+        assert_eq!(
+            ErrorShortCode::NoMinerAddress.as_str(),
+            "err_no_miner_address"
+        );
+        assert_eq!(
+            ErrorShortCode::FailedBlockFetch.as_str(),
+            "err_failed_block_fetch"
+        );
+        assert_eq!(
+            ErrorShortCode::InvalidAddressFmt.as_str(),
+            "err_malformed_wallet_address"
+        );
         assert_eq!(ErrorShortCode::MissingJob.as_str(), "err_missing_job");
     }
 
@@ -1782,12 +2151,22 @@ mod comprehensive_tests {
 
         // 1. Create components
         let share_handler = Arc::new(ShareHandler::new("test-instance".to_string()));
-        let client_handler = Arc::new(ClientHandler::new(share_handler.clone(), 8192.0, 2, "test-instance".to_string()));
+        let client_handler = Arc::new(ClientHandler::new(
+            share_handler.clone(),
+            8192.0,
+            2,
+            "test-instance".to_string(),
+        ));
         let ctx = create_test_context().await;
 
         // 2. Subscribe
-        let subscribe_event = JsonRpcEvent::new(Some("1".to_string()), "mining.subscribe", vec![json!("IceRiver KS2L")]);
-        let result = handle_subscribe(ctx.clone(), subscribe_event, Some(client_handler.clone())).await;
+        let subscribe_event = JsonRpcEvent::new(
+            Some("1".to_string()),
+            "mining.subscribe",
+            vec![json!("IceRiver KS2L")],
+        );
+        let result =
+            handle_subscribe(ctx.clone(), subscribe_event, Some(client_handler.clone())).await;
         assert!(result.is_ok(), "Subscribe should succeed");
 
         // 3. Verify extranonce was assigned
@@ -1811,7 +2190,10 @@ mod comprehensive_tests {
         // 7. Add a job
         let block = create_test_block(1000, 0x1e7fffff, 0);
         let pre_pow_hash = Hash::default();
-        let job = Job { block, pre_pow_hash };
+        let job = Job {
+            block,
+            pre_pow_hash,
+        };
         let job_id = state.add_job(job);
 
         assert!(job_id > 0, "Job should be added");
@@ -1854,9 +2236,17 @@ mod comprehensive_tests {
 
         // This test verifies the components are set up correctly
         let share_handler = Arc::new(ShareHandler::new("example-instance".to_string()));
-        let client_handler = Arc::new(ClientHandler::new(share_handler, 8192.0, 2, "example-instance".to_string()));
+        let client_handler = Arc::new(ClientHandler::new(
+            share_handler,
+            8192.0,
+            2,
+            "example-instance".to_string(),
+        ));
         // Verify handler was created
-        assert!(std::mem::size_of_val(&client_handler) > 0, "Client handler should be created");
+        assert!(
+            std::mem::size_of_val(&client_handler) > 0,
+            "Client handler should be created"
+        );
     }
 
     // ========================================================================
@@ -1884,7 +2274,9 @@ mod comprehensive_tests {
 
         let config = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 4,
             throttle: Some(Duration::from_millis(10)),
             template_poll_interval: Duration::from_millis(250),
@@ -1892,7 +2284,10 @@ mod comprehensive_tests {
 
         assert!(config.enabled);
         assert_eq!(config.threads, 4);
-        assert_eq!(config.mining_address, "kaspatest:test123456789012345678901234567890123456789012345678901234567890");
+        assert_eq!(
+            config.mining_address,
+            "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+        );
         assert!(config.throttle.is_some());
         assert_eq!(config.template_poll_interval, Duration::from_millis(250));
     }
@@ -1919,7 +2314,9 @@ mod comprehensive_tests {
 
         let config_valid = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 1,
             throttle: None,
             template_poll_interval: Duration::from_millis(250),
@@ -1965,7 +2362,9 @@ mod comprehensive_tests {
 
         let config_zero_threads = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 0, // Should be clamped to 1
             throttle: None,
             template_poll_interval: Duration::from_millis(250),
@@ -1988,7 +2387,9 @@ mod comprehensive_tests {
 
         let config_disabled = InternalCpuMinerConfig {
             enabled: false,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 4,
             throttle: None,
             template_poll_interval: Duration::from_millis(250),
@@ -2012,7 +2413,9 @@ mod comprehensive_tests {
         // For this test, we'll just verify the disabled path doesn't require a real API
         let config = InternalCpuMinerConfig {
             enabled: false,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 1,
             throttle: None,
             template_poll_interval: Duration::from_millis(250),
@@ -2037,19 +2440,26 @@ mod comprehensive_tests {
         // Test with throttle enabled
         let config_with_throttle = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 1,
             throttle: Some(Duration::from_millis(1)), // 1ms sleep per hash
             template_poll_interval: Duration::from_millis(250),
         };
 
         assert!(config_with_throttle.throttle.is_some());
-        assert_eq!(config_with_throttle.throttle.unwrap(), Duration::from_millis(1));
+        assert_eq!(
+            config_with_throttle.throttle.unwrap(),
+            Duration::from_millis(1)
+        );
 
         // Test without throttle (maximum CPU usage)
         let config_no_throttle = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 1,
             throttle: None, // No sleep between hashes
             template_poll_interval: Duration::from_millis(250),
@@ -2070,24 +2480,34 @@ mod comprehensive_tests {
         // Fast polling (more frequent template updates)
         let config_fast = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 1,
             throttle: None,
             template_poll_interval: Duration::from_millis(100), // Poll every 100ms
         };
 
-        assert_eq!(config_fast.template_poll_interval, Duration::from_millis(100));
+        assert_eq!(
+            config_fast.template_poll_interval,
+            Duration::from_millis(100)
+        );
 
         // Slow polling (less frequent template updates, less API load)
         let config_slow = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 1,
             throttle: None,
             template_poll_interval: Duration::from_millis(1000), // Poll every 1 second
         };
 
-        assert_eq!(config_slow.template_poll_interval, Duration::from_millis(1000));
+        assert_eq!(
+            config_slow.template_poll_interval,
+            Duration::from_millis(1000)
+        );
     }
 
     #[cfg(feature = "rkstratum_cpu_miner")]
@@ -2145,7 +2565,9 @@ mod comprehensive_tests {
         // Create a valid config
         let config = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 2,
             throttle: Some(Duration::from_millis(1)),
             template_poll_interval: Duration::from_millis(500),
@@ -2234,12 +2656,17 @@ mod comprehensive_tests {
         let threads = 4;
 
         // Calculate starting nonces for each thread
-        let starting_nonces: Vec<u64> = (0..threads).map(|idx| (idx as u64).wrapping_mul(1_000_000_007u64)).collect();
+        let starting_nonces: Vec<u64> = (0..threads)
+            .map(|idx| (idx as u64).wrapping_mul(1_000_000_007u64))
+            .collect();
 
         // Verify all starting nonces are different
         for i in 0..threads {
             for j in (i + 1)..threads {
-                assert_ne!(starting_nonces[i], starting_nonces[j], "Threads should have different starting nonces");
+                assert_ne!(
+                    starting_nonces[i], starting_nonces[j],
+                    "Threads should have different starting nonces"
+                );
             }
         }
 
@@ -2289,7 +2716,10 @@ mod comprehensive_tests {
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
         // Verify shutdown flag was set
-        assert!(shutdown_flag.load(Ordering::Acquire), "Shutdown flag should be set");
+        assert!(
+            shutdown_flag.load(Ordering::Acquire),
+            "Shutdown flag should be set"
+        );
     }
 
     #[cfg(feature = "rkstratum_cpu_miner")]
@@ -2304,9 +2734,11 @@ mod comprehensive_tests {
         // Example 1: Single-threaded, throttled (low CPU usage)
         let config_low_cpu = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 1,
-            throttle: Some(Duration::from_millis(10)),           // 10ms sleep per hash
+            throttle: Some(Duration::from_millis(10)), // 10ms sleep per hash
             template_poll_interval: Duration::from_millis(1000), // Poll every second
         };
 
@@ -2316,7 +2748,9 @@ mod comprehensive_tests {
         // Example 2: Multi-threaded, no throttle (maximum CPU usage)
         let config_max_cpu = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 8,                                         // Use all CPU cores
             throttle: None,                                     // No throttling
             template_poll_interval: Duration::from_millis(100), // Frequent template updates
@@ -2328,9 +2762,11 @@ mod comprehensive_tests {
         // Example 3: Balanced configuration
         let config_balanced = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 4,
-            throttle: Some(Duration::from_millis(1)),           // Light throttling
+            throttle: Some(Duration::from_millis(1)), // Light throttling
             template_poll_interval: Duration::from_millis(250), // Default polling
         };
 
@@ -2348,7 +2784,9 @@ mod comprehensive_tests {
         use crate::InternalCpuMinerConfig;
         let _config = InternalCpuMinerConfig {
             enabled: true,
-            mining_address: "kaspatest:test123456789012345678901234567890123456789012345678901234567890".to_string(),
+            mining_address:
+                "kaspatest:test123456789012345678901234567890123456789012345678901234567890"
+                    .to_string(),
             threads: 1,
             throttle: None,
             template_poll_interval: std::time::Duration::from_millis(250),
@@ -2386,12 +2824,17 @@ mod comprehensive_tests {
         let event1 = JsonRpcEvent::new(
             Some("1".to_string()),
             "mining.authorize",
-            vec![json!("kaspa:qr8example123456789012345678901234567890123456789012345678901234567890")],
+            vec![json!(
+                "kaspa:qr8example123456789012345678901234567890123456789012345678901234567890"
+            )],
         );
         // Verify event was created with proper prefix before calling handle_authorize
         assert_eq!(event1.params.len(), 1);
         let addr1 = event1.params[0].as_str().unwrap();
-        assert!(addr1.starts_with("kaspa:"), "Address should have kaspa: prefix");
+        assert!(
+            addr1.starts_with("kaspa:"),
+            "Address should have kaspa: prefix"
+        );
         let _result1: Result<(), _> = handle_authorize(ctx.clone(), event1, None, None).await;
         // Note: This will fail with invalid address, but we're testing the cleaning logic
         // In real scenario, valid addresses would work
@@ -2401,11 +2844,16 @@ mod comprehensive_tests {
         let event2 = JsonRpcEvent::new(
             Some("2".to_string()),
             "mining.authorize",
-            vec![json!("kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890")],
+            vec![json!(
+                "kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890"
+            )],
         );
         assert_eq!(event2.params.len(), 1);
         let addr2 = event2.params[0].as_str().unwrap();
-        assert!(addr2.starts_with("kaspatest:"), "Address should have kaspatest: prefix");
+        assert!(
+            addr2.starts_with("kaspatest:"),
+            "Address should have kaspatest: prefix"
+        );
         let _result2: Result<(), _> = handle_authorize(ctx2.clone(), event2, None, None).await;
 
         // Test kaspadev: prefix
@@ -2413,11 +2861,16 @@ mod comprehensive_tests {
         let event3 = JsonRpcEvent::new(
             Some("3".to_string()),
             "mining.authorize",
-            vec![json!("kaspadev:qr8example123456789012345678901234567890123456789012345678901234567890")],
+            vec![json!(
+                "kaspadev:qr8example123456789012345678901234567890123456789012345678901234567890"
+            )],
         );
         assert_eq!(event3.params.len(), 1);
         let addr3 = event3.params[0].as_str().unwrap();
-        assert!(addr3.starts_with("kaspadev:"), "Address should have kaspadev: prefix");
+        assert!(
+            addr3.starts_with("kaspadev:"),
+            "Address should have kaspadev: prefix"
+        );
         let _result3: Result<(), _> = handle_authorize(ctx3.clone(), event3, None, None).await;
     }
 
@@ -2428,12 +2881,17 @@ mod comprehensive_tests {
         let event = JsonRpcEvent::new(
             Some("1".to_string()),
             "mining.authorize",
-            vec![json!("qr8example123456789012345678901234567890123456789012345678901234567890")],
+            vec![json!(
+                "qr8example123456789012345678901234567890123456789012345678901234567890"
+            )],
         );
         // Verify event was created with address without prefix (before calling handle_authorize)
         assert_eq!(event.params.len(), 1);
         let addr_param = event.params[0].as_str().unwrap();
-        assert!(!addr_param.starts_with("kaspa:"), "Test address should not have prefix initially");
+        assert!(
+            !addr_param.starts_with("kaspa:"),
+            "Test address should not have prefix initially"
+        );
 
         // handle_authorize will call clean_wallet which should add kaspa: prefix
         let _result: Result<(), _> = handle_authorize(ctx.clone(), event, None, None).await;
@@ -2452,9 +2910,16 @@ mod comprehensive_tests {
 
         // Test malformed address
         let ctx2 = create_test_context().await;
-        let event2 = JsonRpcEvent::new(Some("2".to_string()), "mining.authorize", vec![json!("invalid_address")]);
+        let event2 = JsonRpcEvent::new(
+            Some("2".to_string()),
+            "mining.authorize",
+            vec![json!("invalid_address")],
+        );
         let result2: Result<(), _> = handle_authorize(ctx2.clone(), event2, None, None).await;
-        assert!(result2.is_err(), "Invalid address format should be rejected");
+        assert!(
+            result2.is_err(),
+            "Invalid address format should be rejected"
+        );
     }
 
     #[tokio::test]
@@ -2464,12 +2929,17 @@ mod comprehensive_tests {
         let event = JsonRpcEvent::new(
             Some("1".to_string()),
             "mining.authorize",
-            vec![json!("  kaspa:qr8example123456789012345678901234567890123456789012345678901234567890  ")],
+            vec![json!(
+                "  kaspa:qr8example123456789012345678901234567890123456789012345678901234567890  "
+            )],
         );
         // Verify event was created with whitespace (before calling handle_authorize)
         assert_eq!(event.params.len(), 1);
         let addr_param = event.params[0].as_str().unwrap();
-        assert!(addr_param.starts_with("  ") || addr_param.ends_with("  "), "Test address should have whitespace");
+        assert!(
+            addr_param.starts_with("  ") || addr_param.ends_with("  "),
+            "Test address should have whitespace"
+        );
 
         // Whitespace should be trimmed during processing
         let _result: Result<(), _> = handle_authorize(ctx.clone(), event, None, None).await;
@@ -2497,7 +2967,9 @@ mod comprehensive_tests {
             Some("1".to_string()),
             "mining.submit",
             vec![
-                json!("kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890.worker1"),
+                json!(
+                    "kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890.worker1"
+                ),
                 json!("1"),
                 json!("0000"),     // extranonce2
                 json!("00000000"), // ntime
@@ -2506,8 +2978,15 @@ mod comprehensive_tests {
         );
 
         // Verify event has 5 params (>= 3, so it passes initial validation)
-        assert!(event.params.len() >= 3, "EthereumStratum format should have >= 3 params");
-        assert_eq!(event.params.len(), 5, "EthereumStratum format should have exactly 5 params");
+        assert!(
+            event.params.len() >= 3,
+            "EthereumStratum format should have >= 3 params"
+        );
+        assert_eq!(
+            event.params.len(),
+            5,
+            "EthereumStratum format should have exactly 5 params"
+        );
     }
 
     #[test]
@@ -2521,14 +3000,20 @@ mod comprehensive_tests {
             Some("1".to_string()),
             "mining.submit",
             vec![
-                json!("kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890.worker1"),
+                json!(
+                    "kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890.worker1"
+                ),
                 json!("1"),
                 json!("00000000"), // nonce
             ],
         );
 
         // Verify event has 3 params (minimum required)
-        assert_eq!(event.params.len(), 3, "ASIC format should have exactly 3 params");
+        assert_eq!(
+            event.params.len(),
+            3,
+            "ASIC format should have exactly 3 params"
+        );
     }
 
     #[test]
@@ -2537,16 +3022,33 @@ mod comprehensive_tests {
         // This tests the parameter count validation logic that happens before handle_submit
 
         // Test with 2 params (too few)
-        let event1 = JsonRpcEvent::new(Some("1".to_string()), "mining.submit", vec![json!("address"), json!("job_id")]);
-        assert!(event1.params.len() < 3, "Submit with < 3 params should be invalid");
+        let event1 = JsonRpcEvent::new(
+            Some("1".to_string()),
+            "mining.submit",
+            vec![json!("address"), json!("job_id")],
+        );
+        assert!(
+            event1.params.len() < 3,
+            "Submit with < 3 params should be invalid"
+        );
 
         // Test with 1 param (too few)
-        let event2 = JsonRpcEvent::new(Some("2".to_string()), "mining.submit", vec![json!("address")]);
-        assert!(event2.params.len() < 3, "Submit with 1 param should be invalid");
+        let event2 = JsonRpcEvent::new(
+            Some("2".to_string()),
+            "mining.submit",
+            vec![json!("address")],
+        );
+        assert!(
+            event2.params.len() < 3,
+            "Submit with 1 param should be invalid"
+        );
 
         // Test with 0 params (too few)
         let event3 = JsonRpcEvent::new(Some("3".to_string()), "mining.submit", vec![]);
-        assert!(event3.params.len() < 3, "Submit with 0 params should be invalid");
+        assert!(
+            event3.params.len() < 3,
+            "Submit with 0 params should be invalid"
+        );
     }
 
     // ========================================================================
@@ -2564,19 +3066,35 @@ mod comprehensive_tests {
 
         // Test minimum difficulty (1.0)
         handler.set_client_vardiff(&ctx, 1.0);
-        assert_eq!(handler.get_client_vardiff(&ctx), 1.0, "Minimum difficulty should be 1.0");
+        assert_eq!(
+            handler.get_client_vardiff(&ctx),
+            1.0,
+            "Minimum difficulty should be 1.0"
+        );
 
         // Test very high difficulty
         handler.set_client_vardiff(&ctx, 1_000_000.0);
-        assert_eq!(handler.get_client_vardiff(&ctx), 1_000_000.0, "High difficulty should be stored");
+        assert_eq!(
+            handler.get_client_vardiff(&ctx),
+            1_000_000.0,
+            "High difficulty should be stored"
+        );
 
         // Test that values can be set directly (clamping happens in VarDiff computation, not storage)
         handler.set_client_vardiff(&ctx, 0.5);
-        assert_eq!(handler.get_client_vardiff(&ctx), 0.5, "set_client_vardiff stores value as-is");
+        assert_eq!(
+            handler.get_client_vardiff(&ctx),
+            0.5,
+            "set_client_vardiff stores value as-is"
+        );
 
         // Verify we can set it back to a valid value
         handler.set_client_vardiff(&ctx, 1.0);
-        assert_eq!(handler.get_client_vardiff(&ctx), 1.0, "Can set difficulty back to valid value");
+        assert_eq!(
+            handler.get_client_vardiff(&ctx),
+            1.0,
+            "Can set difficulty back to valid value"
+        );
     }
 
     #[test]
@@ -2597,7 +3115,11 @@ mod comprehensive_tests {
 
         // These conditions are tested through the VarDiff thread in production
         // Here we verify the API works correctly
-        assert_eq!(handler.get_client_vardiff(&ctx), initial, "Difficulty should remain unchanged when conditions not met");
+        assert_eq!(
+            handler.get_client_vardiff(&ctx),
+            initial,
+            "Difficulty should remain unchanged when conditions not met"
+        );
     }
 
     // ========================================================================
@@ -2650,17 +3172,26 @@ mod comprehensive_tests {
         // Test BzMiner detection
         handler.assign_extranonce_for_miner(&ctx_bzminer, "BzMiner");
         let bz_extranonce = ctx_bzminer.extranonce.lock().clone();
-        assert!(!bz_extranonce.is_empty(), "BzMiner should get extranonce (big job format)");
+        assert!(
+            !bz_extranonce.is_empty(),
+            "BzMiner should get extranonce (big job format)"
+        );
 
         // Test IceRiver detection
         handler.assign_extranonce_for_miner(&ctx_iceriver, "IceRiverMiner");
         let ice_extranonce = ctx_iceriver.extranonce.lock().clone();
-        assert!(!ice_extranonce.is_empty(), "IceRiver should get extranonce (big job format)");
+        assert!(
+            !ice_extranonce.is_empty(),
+            "IceRiver should get extranonce (big job format)"
+        );
 
         // Test Bitmain detection (no extranonce)
         handler.assign_extranonce_for_miner(&ctx_bitmain, "GodMiner");
         let bitmain_extranonce = ctx_bitmain.extranonce.lock().clone();
-        assert!(bitmain_extranonce.is_empty(), "Bitmain should not get extranonce");
+        assert!(
+            bitmain_extranonce.is_empty(),
+            "Bitmain should not get extranonce"
+        );
     }
 
     // ========================================================================
@@ -2685,7 +3216,8 @@ mod comprehensive_tests {
         // Should handle gracefully
 
         // Test with id as object instead of number/string
-        let json3 = r#"{"jsonrpc":"2.0","method":"mining.subscribe","params":[],"id":{"invalid":true}}"#;
+        let json3 =
+            r#"{"jsonrpc":"2.0","method":"mining.subscribe","params":[],"id":{"invalid":true}}"#;
         let _result3 = unmarshal_event(json3);
         // Should handle gracefully
 
@@ -2742,15 +3274,24 @@ mod comprehensive_tests {
         // Create multiple jobs
         let hash1 = Hash::from_bytes([1; 32]);
         let block1 = Block::from_precomputed_hash(hash1, vec![]);
-        let job1 = Job { block: block1, pre_pow_hash: Hash::default() };
+        let job1 = Job {
+            block: block1,
+            pre_pow_hash: Hash::default(),
+        };
 
         let hash2 = Hash::from_bytes([2; 32]);
         let block2 = Block::from_precomputed_hash(hash2, vec![]);
-        let job2 = Job { block: block2, pre_pow_hash: Hash::default() };
+        let job2 = Job {
+            block: block2,
+            pre_pow_hash: Hash::default(),
+        };
 
         let hash3 = Hash::from_bytes([3; 32]);
         let block3 = Block::from_precomputed_hash(hash3, vec![]);
-        let job3 = Job { block: block3, pre_pow_hash: Hash::default() };
+        let job3 = Job {
+            block: block3,
+            pre_pow_hash: Hash::default(),
+        };
 
         // Add jobs and verify IDs are sequential
         let id1 = state.add_job(job1);
@@ -2783,7 +3324,10 @@ mod comprehensive_tests {
 
         // Disconnect
         ctx.disconnect();
-        assert!(!ctx.connected(), "Context should be disconnected after disconnect()");
+        assert!(
+            !ctx.connected(),
+            "Context should be disconnected after disconnect()"
+        );
     }
 
     #[test]
@@ -2810,18 +3354,32 @@ mod comprehensive_tests {
 
         // Set wallet and worker
         ctx.identity.lock().wallet_addr =
-            "kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890".to_string();
+            "kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890"
+                .to_string();
         ctx.identity.lock().worker_name = "worker1".to_string();
         ctx.identity.lock().remote_app = "BzMiner".to_string();
 
         let summary = ctx.summary();
-        assert_eq!(summary.remote_addr, "127.0.0.1", "Summary should contain remote address");
-        assert_eq!(summary.remote_port, 12345, "Summary should contain remote port");
         assert_eq!(
-            summary.wallet_addr, "kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890",
+            summary.remote_addr, "127.0.0.1",
+            "Summary should contain remote address"
+        );
+        assert_eq!(
+            summary.remote_port, 12345,
+            "Summary should contain remote port"
+        );
+        assert_eq!(
+            summary.wallet_addr,
+            "kaspatest:qr8example123456789012345678901234567890123456789012345678901234567890",
             "Summary should contain wallet address"
         );
-        assert_eq!(summary.worker_name, "worker1", "Summary should contain worker name");
-        assert_eq!(summary.remote_app, "BzMiner", "Summary should contain remote app");
+        assert_eq!(
+            summary.worker_name, "worker1",
+            "Summary should contain worker name"
+        );
+        assert_eq!(
+            summary.remote_app, "BzMiner",
+            "Summary should contain remote app"
+        );
     }
 }

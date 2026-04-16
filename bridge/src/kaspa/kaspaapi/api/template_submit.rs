@@ -6,8 +6,8 @@ use anyhow::{Context, Result};
 use kaspa_addresses::Address;
 use kaspa_consensus_core::block::Block;
 use kaspa_rpc_core::{
-    GetBlockDagInfoRequest, GetBlockTemplateRequest, GetCurrentBlockColorRequest, RpcHash, RpcRawBlock, SubmitBlockRequest,
-    SubmitBlockResponse, api::rpc::RpcApi,
+    GetBlockDagInfoRequest, GetBlockTemplateRequest, GetCurrentBlockColorRequest, RpcHash,
+    RpcRawBlock, SubmitBlockRequest, SubmitBlockResponse, api::rpc::RpcApi,
 };
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -38,33 +38,74 @@ impl KaspaApi {
         {
             let now = Instant::now();
             if !try_mark_block_submit(&block_hash, now) {
-                return Err(anyhow::anyhow!("ErrDuplicateBlock: block already submitted"));
+                return Err(anyhow::anyhow!(
+                    "ErrDuplicateBlock: block already submitted"
+                ));
             }
         }
 
         debug!(
             "{} {}",
             LogColors::api("[API]"),
-            LogColors::api(&format!("===== ATTEMPTING BLOCK SUBMISSION TO KASPA NODE ===== Hash: {}", block_hash))
+            LogColors::api(&format!(
+                "===== ATTEMPTING BLOCK SUBMISSION TO KASPA NODE ===== Hash: {}",
+                block_hash
+            ))
         );
-        debug!("{} {}", LogColors::api("[API]"), LogColors::label("Block Details:"));
-        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Hash:"), block_hash);
-        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Blue Score:"), blue_score);
-        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Timestamp:"), timestamp);
-        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Nonce:"), format!("{:x} ({})", nonce, nonce));
-        debug!("{} {}", LogColors::api("[API]"), "Converting block to RPC format and sending to node...");
+        debug!(
+            "{} {}",
+            LogColors::api("[API]"),
+            LogColors::label("Block Details:")
+        );
+        debug!(
+            "{} {} {}",
+            LogColors::api("[API]"),
+            LogColors::label("  - Hash:"),
+            block_hash
+        );
+        debug!(
+            "{} {} {}",
+            LogColors::api("[API]"),
+            LogColors::label("  - Blue Score:"),
+            blue_score
+        );
+        debug!(
+            "{} {} {}",
+            LogColors::api("[API]"),
+            LogColors::label("  - Timestamp:"),
+            timestamp
+        );
+        debug!(
+            "{} {} {}",
+            LogColors::api("[API]"),
+            LogColors::label("  - Nonce:"),
+            format!("{:x} ({})", nonce, nonce)
+        );
+        debug!(
+            "{} {}",
+            LogColors::api("[API]"),
+            "Converting block to RPC format and sending to node..."
+        );
 
         // Convert Block to RpcRawBlock (use reference)
         let rpc_block: RpcRawBlock = (&block).into();
 
         // Submit block (don't allow non-DAA blocks)
-        debug!("{} {}", LogColors::api("[API]"), "Calling submit_block via RPC client...");
-        let result =
-            self.client.submit_block_call(None, SubmitBlockRequest::new(rpc_block, false)).await.context("Failed to submit block");
+        debug!(
+            "{} {}",
+            LogColors::api("[API]"),
+            "Calling submit_block via RPC client..."
+        );
+        let result = self
+            .client
+            .submit_block_call(None, SubmitBlockRequest::new(rpc_block, false))
+            .await
+            .context("Failed to submit block");
 
         if let Err(e) = &result {
             let error_str = e.to_string();
-            let is_duplicate = error_str.contains("ErrDuplicateBlock") || error_str.contains("duplicate");
+            let is_duplicate =
+                error_str.contains("ErrDuplicateBlock") || error_str.contains("duplicate");
             if !is_duplicate {
                 let now = Instant::now();
                 remove_block_submit(&block_hash, now);
@@ -82,7 +123,10 @@ impl KaspaApi {
                     warn!(
                         "{} {}",
                         LogColors::api("[API]"),
-                        LogColors::validation(&format!("===== BLOCK REJECTED BY KASPA NODE ===== Hash: {}", block_hash))
+                        LogColors::validation(&format!(
+                            "===== BLOCK REJECTED BY KASPA NODE ===== Hash: {}",
+                            block_hash
+                        ))
                     );
                     warn!(
                         "{} {} {}",
@@ -94,16 +138,25 @@ impl KaspaApi {
                         "{} {} {}",
                         LogColors::api("[API]"),
                         LogColors::label("  - Blue Score:"),
-                        format!("{}, Timestamp: {}, Nonce: {:x}", blue_score, timestamp, nonce)
+                        format!(
+                            "{}, Timestamp: {}, Nonce: {:x}",
+                            blue_score, timestamp, nonce
+                        )
                     );
-                    return Err(anyhow::anyhow!("Block rejected by node: {:?}", response.report));
+                    return Err(anyhow::anyhow!(
+                        "Block rejected by node: {:?}",
+                        response.report
+                    ));
                 }
 
                 // Keep block accepted message at info (important operational event)
                 info!(
                     "{} {}",
                     LogColors::api("[API]"),
-                    LogColors::block(&format!("===== BLOCK ACCEPTED BY KASPA NODE ===== Hash: {}", block_hash))
+                    LogColors::block(&format!(
+                        "===== BLOCK ACCEPTED BY KASPA NODE ===== Hash: {}",
+                        block_hash
+                    ))
                 );
                 // Detailed acceptance logs moved to debug
                 debug!(
@@ -112,16 +165,44 @@ impl KaspaApi {
                     LogColors::label("ACCEPTANCE REASON:"),
                     "Block passed all node validation checks"
                 );
-                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Block structure:"), "VALID");
-                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Block header:"), "VALID");
-                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Transactions:"), "VALID");
-                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - DAA validation:"), "PASSED");
-                debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Node Response:"), format!("{:?}", response));
+                debug!(
+                    "{} {} {}",
+                    LogColors::api("[API]"),
+                    LogColors::label("  - Block structure:"),
+                    "VALID"
+                );
+                debug!(
+                    "{} {} {}",
+                    LogColors::api("[API]"),
+                    LogColors::label("  - Block header:"),
+                    "VALID"
+                );
+                debug!(
+                    "{} {} {}",
+                    LogColors::api("[API]"),
+                    LogColors::label("  - Transactions:"),
+                    "VALID"
+                );
+                debug!(
+                    "{} {} {}",
+                    LogColors::api("[API]"),
+                    LogColors::label("  - DAA validation:"),
+                    "PASSED"
+                );
+                debug!(
+                    "{} {} {}",
+                    LogColors::api("[API]"),
+                    LogColors::label("  - Node Response:"),
+                    format!("{:?}", response)
+                );
                 debug!(
                     "{} {} {}",
                     LogColors::api("[API]"),
                     LogColors::label("  - Blue Score:"),
-                    format!("{}, Timestamp: {}, Nonce: {:x}", blue_score, timestamp, nonce)
+                    format!(
+                        "{}, Timestamp: {}, Nonce: {:x}",
+                        blue_score, timestamp, nonce
+                    )
                 );
 
                 // Optional: Check if block appears in tip hashes (verifies propagation)
@@ -134,7 +215,10 @@ impl KaspaApi {
                     tokio::time::sleep(Duration::from_secs(2)).await;
 
                     // Check if block appears in tip hashes
-                    if let Ok(dag_response) = client_clone.get_block_dag_info_call(None, GetBlockDagInfoRequest {}).await {
+                    if let Ok(dag_response) = client_clone
+                        .get_block_dag_info_call(None, GetBlockDagInfoRequest {})
+                        .await
+                    {
                         // Check if our block hash is in tip hashes
                         let in_tips = dag_response.tip_hashes.contains(&block_hash_for_check);
 
@@ -142,7 +226,9 @@ impl KaspaApi {
                             info!(
                                 "{} {} {}",
                                 LogColors::api("[API]"),
-                                LogColors::block("Block appears in tip hashes (good sign for propagation)"),
+                                LogColors::block(
+                                    "Block appears in tip hashes (good sign for propagation)"
+                                ),
                                 format!("Hash: {}", block_hash_clone)
                             );
                         } else {
@@ -150,7 +236,9 @@ impl KaspaApi {
                             info!(
                                 "{} {} {}",
                                 LogColors::api("[API]"),
-                                LogColors::label("Block not yet in tip hashes (may still propagate)"),
+                                LogColors::label(
+                                    "Block not yet in tip hashes (may still propagate)"
+                                ),
                                 format!("Hash: {}", block_hash_clone)
                             );
                             info!(
@@ -175,7 +263,10 @@ impl KaspaApi {
                     warn!(
                         "{} {}",
                         LogColors::api("[API]"),
-                        LogColors::validation(&format!("===== BLOCK REJECTED BY KASPA NODE: STALE ===== Hash: {}", block_hash))
+                        LogColors::validation(&format!(
+                            "===== BLOCK REJECTED BY KASPA NODE: STALE ===== Hash: {}",
+                            block_hash
+                        ))
                     );
                     warn!(
                         "{} {} {}",
@@ -183,34 +274,90 @@ impl KaspaApi {
                         LogColors::label("REJECTION REASON:"),
                         "Block already exists in the network"
                     );
-                    warn!("{} {}", LogColors::api("[API]"), LogColors::label("  - Block was previously submitted and accepted"));
-                    warn!("{} {}", LogColors::api("[API]"), LogColors::label("  - This is a duplicate/stale block submission"));
-                    warn!("{} {} {}", LogColors::api("[API]"), LogColors::error("  - Error:"), error_str);
+                    warn!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        LogColors::label("  - Block was previously submitted and accepted")
+                    );
+                    warn!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        LogColors::label("  - This is a duplicate/stale block submission")
+                    );
+                    warn!(
+                        "{} {} {}",
+                        LogColors::api("[API]"),
+                        LogColors::error("  - Error:"),
+                        error_str
+                    );
                     warn!(
                         "{} {} {}",
                         LogColors::api("[API]"),
                         LogColors::label("  - Blue Score:"),
-                        format!("{}, Timestamp: {}, Nonce: {:x}", blue_score, timestamp, nonce)
+                        format!(
+                            "{}, Timestamp: {}, Nonce: {:x}",
+                            blue_score, timestamp, nonce
+                        )
                     );
                 } else {
                     error!(
                         "{} {}",
                         LogColors::api("[API]"),
-                        LogColors::error(&format!("===== BLOCK REJECTED BY KASPA NODE: INVALID ===== Hash: {}", block_hash))
+                        LogColors::error(&format!(
+                            "===== BLOCK REJECTED BY KASPA NODE: INVALID ===== Hash: {}",
+                            block_hash
+                        ))
                     );
-                    error!("{} {} {}", LogColors::api("[API]"), LogColors::label("REJECTION REASON:"), "Block failed node validation");
-                    error!("{} {}", LogColors::api("[API]"), LogColors::label("  - Possible validation failures:"));
-                    error!("{} {}", LogColors::api("[API]"), "    * Invalid block structure or format");
-                    error!("{} {}", LogColors::api("[API]"), "    * Block header validation failed");
-                    error!("{} {}", LogColors::api("[API]"), "    * Transaction validation failed");
-                    error!("{} {}", LogColors::api("[API]"), "    * DAA (Difficulty Adjustment Algorithm) validation failed");
-                    error!("{} {}", LogColors::api("[API]"), "    * Block does not meet network consensus rules");
-                    error!("{} {} {}", LogColors::api("[API]"), LogColors::error("  - Error from node:"), error_str);
+                    error!(
+                        "{} {} {}",
+                        LogColors::api("[API]"),
+                        LogColors::label("REJECTION REASON:"),
+                        "Block failed node validation"
+                    );
+                    error!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        LogColors::label("  - Possible validation failures:")
+                    );
+                    error!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        "    * Invalid block structure or format"
+                    );
+                    error!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        "    * Block header validation failed"
+                    );
+                    error!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        "    * Transaction validation failed"
+                    );
+                    error!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        "    * DAA (Difficulty Adjustment Algorithm) validation failed"
+                    );
+                    error!(
+                        "{} {}",
+                        LogColors::api("[API]"),
+                        "    * Block does not meet network consensus rules"
+                    );
+                    error!(
+                        "{} {} {}",
+                        LogColors::api("[API]"),
+                        LogColors::error("  - Error from node:"),
+                        error_str
+                    );
                     error!(
                         "{} {} {}",
                         LogColors::api("[API]"),
                         LogColors::label("  - Blue Score:"),
-                        format!("{}, Timestamp: {}, Nonce: {:x}", blue_score, timestamp, nonce)
+                        format!(
+                            "{}, Timestamp: {}, Nonce: {:x}",
+                            blue_score, timestamp, nonce
+                        )
                     );
                 }
             }
@@ -219,7 +366,12 @@ impl KaspaApi {
         result
     }
     /// Get block template for a client
-    pub async fn get_block_template(&self, wallet_addr: &str, _remote_app: &str, _canxium_addr: &str) -> Result<Block> {
+    pub async fn get_block_template(
+        &self,
+        wallet_addr: &str,
+        _remote_app: &str,
+        _canxium_addr: &str,
+    ) -> Result<Block> {
         if !self.is_node_synced_for_mining().await {
             return Err(anyhow::anyhow!(
                 "refusing block template: node not mining-ready (sync, P2P IBD, or DAG block/header count mismatch)"
@@ -233,23 +385,35 @@ impl KaspaApi {
 
         for attempt in 0..max_retries {
             // Parse wallet address each time (in case Address doesn't implement Clone)
-            let address =
-                Address::try_from(wallet_addr).map_err(|e| anyhow::anyhow!("Could not decode address {}: {}", wallet_addr, e))?;
+            let address = Address::try_from(wallet_addr)
+                .map_err(|e| anyhow::anyhow!("Could not decode address {}: {}", wallet_addr, e))?;
 
             // Request block template using RPC client wrapper
             let response = match self
                 .client
-                .get_block_template_call(None, GetBlockTemplateRequest::new(address, self.coinbase_tag.clone()))
+                .get_block_template_call(
+                    None,
+                    GetBlockTemplateRequest::new(address, self.coinbase_tag.clone()),
+                )
                 .await
             {
                 Ok(r) => r,
                 Err(e) => {
                     if attempt < max_retries - 1 {
-                        warn!("Failed to get block template (attempt {}/{}): {}, retrying...", attempt + 1, max_retries, e);
+                        warn!(
+                            "Failed to get block template (attempt {}/{}): {}, retrying...",
+                            attempt + 1,
+                            max_retries,
+                            e
+                        );
                         sleep(Duration::from_millis(100 * (attempt + 1) as u64)).await;
                         continue;
                     }
-                    return Err(anyhow::anyhow!("Failed to get block template after {} attempts: {}", max_retries, e));
+                    return Err(anyhow::anyhow!(
+                        "Failed to get block template after {} attempts: {}",
+                        max_retries,
+                        e
+                    ));
                 }
             };
 
@@ -264,7 +428,8 @@ impl KaspaApi {
                     // Validate that we can serialize the block header
                     // This catches "Odd number of digits" errors early
                     // Convert error to String immediately to avoid Send issues
-                    let serialize_result = crate::hasher::serialize_block_header(&block).map_err(|e| e.to_string());
+                    let serialize_result =
+                        crate::hasher::serialize_block_header(&block).map_err(|e| e.to_string());
 
                     match serialize_result {
                         Ok(_) => {
@@ -272,7 +437,8 @@ impl KaspaApi {
                         }
                         Err(error_str) => {
                             if error_str.contains("Odd number of digits") {
-                                last_error = Some(format!("Block has malformed hash field: {}", error_str));
+                                last_error =
+                                    Some(format!("Block has malformed hash field: {}", error_str));
                                 if attempt < max_retries - 1 {
                                     warn!(
                                         "Block template has malformed hash field (attempt {}/{}), retrying...",
@@ -284,7 +450,10 @@ impl KaspaApi {
                                 }
                             }
                             // If it's a different error, return it
-                            return Err(anyhow::anyhow!("Failed to serialize block header: {}", error_str));
+                            return Err(anyhow::anyhow!(
+                                "Failed to serialize block header: {}",
+                                error_str
+                            ));
                         }
                     }
                 }
@@ -308,25 +477,42 @@ impl KaspaApi {
                             error_str
                         ));
                     } else {
-                        return Err(anyhow::anyhow!("Failed to convert RPC block to Block: {}", error_str));
+                        return Err(anyhow::anyhow!(
+                            "Failed to convert RPC block to Block: {}",
+                            error_str
+                        ));
                     }
                 }
             }
         }
 
         // Should never reach here, but handle it just in case
-        Err(anyhow::anyhow!("Failed to get valid block template after {} attempts: {:?}", max_retries, last_error))
+        Err(anyhow::anyhow!(
+            "Failed to get valid block template after {} attempts: {:?}",
+            max_retries,
+            last_error
+        ))
     }
 
     /// Get balances by addresses (for Prometheus metrics)
-    pub async fn get_balances_by_addresses(&self, addresses: &[String]) -> Result<Vec<(String, u64)>> {
-        let parsed_addresses: Result<Vec<Address>, _> = addresses.iter().map(|addr| Address::try_from(addr.as_str())).collect();
+    pub async fn get_balances_by_addresses(
+        &self,
+        addresses: &[String],
+    ) -> Result<Vec<(String, u64)>> {
+        let parsed_addresses: Result<Vec<Address>, _> = addresses
+            .iter()
+            .map(|addr| Address::try_from(addr.as_str()))
+            .collect();
 
-        let addresses = parsed_addresses.map_err(|e| anyhow::anyhow!("Failed to parse addresses: {:?}", e))?;
+        let addresses =
+            parsed_addresses.map_err(|e| anyhow::anyhow!("Failed to parse addresses: {:?}", e))?;
 
         let utxos = self
             .client
-            .get_utxos_by_addresses_call(None, kaspa_rpc_core::GetUtxosByAddressesRequest::new(addresses))
+            .get_utxos_by_addresses_call(
+                None,
+                kaspa_rpc_core::GetUtxosByAddressesRequest::new(addresses),
+            )
             .await
             .context("Failed to get UTXOs by addresses")?;
 

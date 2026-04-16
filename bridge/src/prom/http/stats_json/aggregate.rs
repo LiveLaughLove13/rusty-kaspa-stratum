@@ -3,10 +3,15 @@ use std::time::{Duration, Instant};
 
 use prometheus::gather;
 
-use super::parse::{new_worker_info, parse_instance_wallet_labels, parse_worker_labels, sum_prometheus_counter_family};
+use super::parse::{
+    new_worker_info, parse_instance_wallet_labels, parse_worker_labels,
+    sum_prometheus_counter_family,
+};
 use super::types::{BlockInfo, InternalCpuStats, StatsResponse, WorkerInfo};
 
-use crate::prom::metrics::{BRIDGE_START_TIME, WORKER_LAST_ACTIVITY, filter_metric_families_for_instance};
+use crate::prom::metrics::{
+    BRIDGE_START_TIME, WORKER_LAST_ACTIVITY, filter_metric_families_for_instance,
+};
 #[cfg(feature = "rkstratum_cpu_miner")]
 use crate::prom::metrics::{INTERNAL_CPU_MINING_ADDRESS, INTERNAL_CPU_RECENT_BLOCKS};
 
@@ -106,12 +111,18 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
         // Only surface internal CPU miner data when it is actually enabled/active.
         // Otherwise a build that includes the feature would always show an "InternalCPU" row with zeros.
         #[cfg(feature = "rkstratum_cpu_miner")]
-        let wallet = INTERNAL_CPU_MINING_ADDRESS.get().cloned().unwrap_or_default();
+        let wallet = INTERNAL_CPU_MINING_ADDRESS
+            .get()
+            .cloned()
+            .unwrap_or_default();
         #[cfg(not(feature = "rkstratum_cpu_miner"))]
         let wallet = String::new();
 
-        let should_show_internal_cpu =
-            !wallet.is_empty() || blocks_submitted > 0 || blocks_accepted > 0 || hashes_tried > 0 || hashrate_ghs > 0.0;
+        let should_show_internal_cpu = !wallet.is_empty()
+            || blocks_submitted > 0
+            || blocks_accepted > 0
+            || hashes_tried > 0
+            || hashrate_ghs > 0.0;
 
         if should_show_internal_cpu {
             let stale = blocks_submitted.saturating_sub(blocks_accepted);
@@ -184,7 +195,9 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                 if !worker_key.is_empty() {
                     let key = format!("{}:{}:{}", instance, worker_key, wallet);
                     let count = metric.get_counter().get_value() as u64;
-                    let entry = worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    let entry = worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
                     // Aggregate across multiple time series for the same (instance,worker,wallet)
                     entry.blocks = entry.blocks.saturating_add(count);
                 }
@@ -202,7 +215,9 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                     // Store hash value for hashrate calculation (aggregate across label variants)
                     *worker_hash_values.entry(key.clone()).or_insert(0.0) += total_hash_value;
                     // Ensure worker exists in stats
-                    worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
                 }
             }
         }
@@ -215,7 +230,9 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                 if !worker_key.is_empty() {
                     let key = format!("{}:{}:{}", instance, worker_key, wallet);
                     let count = metric.get_counter().get_value() as u64;
-                    let entry = worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    let entry = worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
                     entry.shares = entry.shares.saturating_add(count);
                     stats.totalShares = stats.totalShares.saturating_add(count);
                 }
@@ -238,7 +255,9 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                 if !worker_key.is_empty() {
                     let key = format!("{}:{}:{}", instance, worker_key, wallet);
                     let count = metric.get_counter().get_value() as u64;
-                    let worker = worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    let worker = worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
 
                     if share_type == "stale" {
                         worker.stale = worker.stale.saturating_add(count);
@@ -259,7 +278,9 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                 if !worker_key.is_empty() {
                     let key = format!("{}:{}:{}", instance, worker_key, wallet);
                     let count = metric.get_counter().get_value().max(0.0) as u64;
-                    let entry = worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    let entry = worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
                     entry.disconnects = entry.disconnects.saturating_add(count);
                 }
             }
@@ -271,7 +292,9 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                 if !worker_key.is_empty() {
                     let key = format!("{}:{}:{}", instance, worker_key, wallet);
                     let count = metric.get_counter().get_value().max(0.0) as u64;
-                    let entry = worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    let entry = worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
                     entry.jobs = entry.jobs.saturating_add(count);
                 }
             }
@@ -283,8 +306,11 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                 if !worker_key.is_empty() {
                     let key = format!("{}:{}:{}", instance, worker_key, wallet);
                     let count = metric.get_counter().get_value().max(0.0) as u64;
-                    let entry = worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
-                    entry.blocks_accepted_by_node = entry.blocks_accepted_by_node.saturating_add(count);
+                    let entry = worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    entry.blocks_accepted_by_node =
+                        entry.blocks_accepted_by_node.saturating_add(count);
                 }
             }
         }
@@ -295,8 +321,11 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                 if !worker_key.is_empty() {
                     let key = format!("{}:{}:{}", instance, worker_key, wallet);
                     let count = metric.get_counter().get_value().max(0.0) as u64;
-                    let entry = worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
-                    entry.blocks_not_confirmed_blue = entry.blocks_not_confirmed_blue.saturating_add(count);
+                    let entry = worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    entry.blocks_not_confirmed_blue =
+                        entry.blocks_not_confirmed_blue.saturating_add(count);
                 }
             }
         }
@@ -348,7 +377,9 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                         })
                         .or_insert(start_time_secs);
                     // Ensure worker exists in stats
-                    worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
                 }
             }
         }
@@ -366,16 +397,22 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
                         worker_difficulties.insert(key.clone(), difficulty);
                     }
                     // Ensure worker exists in stats
-                    worker_stats.entry(key.clone()).or_insert_with(|| new_worker_info(instance, worker_key, wallet));
+                    worker_stats
+                        .entry(key.clone())
+                        .or_insert_with(|| new_worker_info(instance, worker_key, wallet));
                 }
             }
         }
     }
 
-    stats.totalBlocksAcceptedByNode =
-        sum_prometheus_counter_family(families_for_workers_and_blocks.as_slice(), "ks_blocks_accepted_by_node");
-    stats.totalBlocksNotConfirmedBlue =
-        sum_prometheus_counter_family(families_for_workers_and_blocks.as_slice(), "ks_blocks_not_confirmed_blue");
+    stats.totalBlocksAcceptedByNode = sum_prometheus_counter_family(
+        families_for_workers_and_blocks.as_slice(),
+        "ks_blocks_accepted_by_node",
+    );
+    stats.totalBlocksNotConfirmedBlue = sum_prometheus_counter_family(
+        families_for_workers_and_blocks.as_slice(),
+        "ks_blocks_not_confirmed_blue",
+    );
 
     for (key, w) in worker_stats.iter_mut() {
         let mut it = key.splitn(3, ':');
@@ -394,13 +431,18 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
     }
 
     // Calculate hashrate for workers using share_diff_counter and start_time
-    let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as f64;
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as f64;
 
     let mut total_worker_hashrate_ghs = 0.0;
 
     // Calculate hashrate for each worker
     for (key, worker) in worker_stats.iter_mut() {
-        if let (Some(&total_hash_value), Some(&start_time_secs)) = (worker_hash_values.get(key), worker_start_times.get(key)) {
+        if let (Some(&total_hash_value), Some(&start_time_secs)) =
+            (worker_hash_values.get(key), worker_start_times.get(key))
+        {
             let elapsed = current_time - start_time_secs;
             // Calculate hashrate: total_hash_value / elapsed_time (in GH/s)
             // Matches console stats: hashrate = shares_diff / elapsed
@@ -423,7 +465,10 @@ pub(crate) async fn get_stats_json_filtered(instance_id: Option<&str>) -> StatsR
     const WORKER_IDLE_THRESHOLD: Duration = Duration::from_secs(60); // 1 minute for idle status
     let now = Instant::now();
     let activity_map = WORKER_LAST_ACTIVITY.get_or_init(|| parking_lot::Mutex::new(HashMap::new()));
-    let current_time_secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    let current_time_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
 
     // Clean up old entries and filter active workers
     let mut active_workers: Vec<WorkerInfo> = Vec::new();

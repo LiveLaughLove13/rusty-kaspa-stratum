@@ -8,7 +8,8 @@ use super::parse::PreparedSubmit;
 use crate::{
     log_colors::LogColors,
     prom::{
-        record_block_accepted_by_node, record_block_found, record_block_not_confirmed_blue, record_invalid_share, record_stale_share,
+        record_block_accepted_by_node, record_block_found, record_block_not_confirmed_blue,
+        record_invalid_share, record_stale_share,
     },
     stratum_context::StratumContext,
 };
@@ -53,16 +54,28 @@ pub(super) async fn run_block_found_submit_flow(
         "{} {} {}",
         prefix,
         LogColors::block("===== BLOCK FOUND! ====="),
-        format!("Worker: {}, Wallet: {}, Nonce: {:x}", worker_name, wallet_addr, nonce_val)
+        format!(
+            "Worker: {}, Wallet: {}, Nonce: {:x}",
+            worker_name, wallet_addr, nonce_val
+        )
     );
     debug!(
         "{} {} {} {}",
         prefix,
         LogColors::block("[BLOCK]"),
         LogColors::label("ACCEPTANCE REASON:"),
-        format!("pow_value ({:x}) <= network_target ({:x})", pow_value, network_target)
+        format!(
+            "pow_value ({:x}) <= network_target ({:x})",
+            pow_value, network_target
+        )
     );
-    debug!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("Pow Value:"), format!("{:x}", pow_value));
+    debug!(
+        "{} {} {} {}",
+        prefix,
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Pow Value:"),
+        format!("{:x}", pow_value)
+    );
 
     let header_bits = header_clone.bits;
     let header_version = header_clone.version;
@@ -70,7 +83,10 @@ pub(super) async fn run_block_found_submit_flow(
 
     header_clone.nonce = nonce_val;
 
-    let current_time_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64;
+    let current_time_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
     let timestamp_age_ms = current_time_ms.saturating_sub(original_timestamp);
     let timestamp_age_sec = timestamp_age_ms / 1000;
 
@@ -80,7 +96,12 @@ pub(super) async fn run_block_found_submit_flow(
         LogColors::label("Header Verification:"),
         "Using REAL header from Kaspa node block template"
     );
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("  - Header Version:"), header_version);
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("  - Header Version:"),
+        header_version
+    );
     debug!(
         "{} {} {}",
         LogColors::block("[BLOCK]"),
@@ -91,7 +112,10 @@ pub(super) async fn run_block_found_submit_flow(
         "{} {} {}",
         LogColors::block("[BLOCK]"),
         LogColors::label("  - Timestamp:"),
-        format!("{} (age: {}s, preserved from template)", original_timestamp, timestamp_age_sec)
+        format!(
+            "{} (age: {}s, preserved from template)",
+            original_timestamp, timestamp_age_sec
+        )
     );
     debug!(
         "{} {} {}",
@@ -105,7 +129,10 @@ pub(super) async fn run_block_found_submit_flow(
             "{} {} {}",
             LogColors::block("[BLOCK]"),
             LogColors::error("Timestamp is old:"),
-            format!("{} seconds old - block template may be stale", timestamp_age_sec)
+            format!(
+                "{} seconds old - block template may be stale",
+                timestamp_age_sec
+            )
         );
     }
 
@@ -116,29 +143,110 @@ pub(super) async fn run_block_found_submit_flow(
     use kaspa_consensus_core::hashing::header;
     let block_hash = header::hash(&block.header).to_string();
 
-    info!("{} {} {}", prefix, LogColors::block("BLOCK FOUND!"), format!("Hash: {}", block_hash));
-    debug!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("Worker:"), worker_name);
-    debug!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("Wallet:"), wallet_addr);
-    debug!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("Nonce:"), format!("{:x}", nonce_val));
+    info!(
+        "{} {} {}",
+        prefix,
+        LogColors::block("BLOCK FOUND!"),
+        format!("Hash: {}", block_hash)
+    );
+    debug!(
+        "{} {} {} {}",
+        prefix,
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Worker:"),
+        worker_name
+    );
+    debug!(
+        "{} {} {} {}",
+        prefix,
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Wallet:"),
+        wallet_addr
+    );
+    debug!(
+        "{} {} {} {}",
+        prefix,
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Nonce:"),
+        format!("{:x}", nonce_val)
+    );
 
-    debug!("{} {}", LogColors::block("[BLOCK]"), LogColors::block("=== SUBMITTING BLOCK TO NODE ==="));
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Worker:"), worker_name);
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Nonce:"), format!("{:x} (0x{:016x})", nonce_val, nonce_val));
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Bits:"), format!("{} (0x{:08x})", header_bits, header_bits));
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Timestamp:"), format!("{}", original_timestamp));
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Blue Score:"), blue_score);
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Pow Value:"), format!("{:x}", pow_value));
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Network Target:"), format!("{:x}", network_target));
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Job ID:"), current_job_id);
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Wallet:"), wallet_addr);
+    debug!(
+        "{} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::block("=== SUBMITTING BLOCK TO NODE ===")
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Worker:"),
+        worker_name
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Nonce:"),
+        format!("{:x} (0x{:016x})", nonce_val, nonce_val)
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Bits:"),
+        format!("{} (0x{:08x})", header_bits, header_bits)
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Timestamp:"),
+        format!("{}", original_timestamp)
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Blue Score:"),
+        blue_score
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Pow Value:"),
+        format!("{:x}", pow_value)
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Network Target:"),
+        format!("{:x}", network_target)
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Job ID:"),
+        current_job_id
+    );
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Wallet:"),
+        wallet_addr
+    );
     debug!(
         "{} {} {}",
         LogColors::block("[BLOCK]"),
         LogColors::label("Client:"),
         format!("{}:{}", ctx.remote_addr(), ctx.remote_port())
     );
-    debug!("{} {} {}", LogColors::block("[BLOCK]"), LogColors::label("Block Hash:"), block_hash);
-    debug!("{} {}", LogColors::block("[BLOCK]"), "Calling kaspa_api.submit_block()...");
+    debug!(
+        "{} {} {}",
+        LogColors::block("[BLOCK]"),
+        LogColors::label("Block Hash:"),
+        block_hash
+    );
+    debug!(
+        "{} {}",
+        LogColors::block("[BLOCK]"),
+        "Calling kaspa_api.submit_block()..."
+    );
 
     let block_submit_result = kaspa_api.submit_block(block.clone()).await;
 
@@ -146,7 +254,12 @@ pub(super) async fn run_block_found_submit_flow(
         Ok(response) => {
             if !response.report.is_success() {
                 let prefix = handler.log_prefix();
-                warn!("{} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::error("Block rejected by node"));
+                warn!(
+                    "{} {} {}",
+                    prefix,
+                    LogColors::block("[BLOCK]"),
+                    LogColors::error("Block rejected by node")
+                );
                 warn!(
                     "{} {} {} {}",
                     prefix,
@@ -154,7 +267,9 @@ pub(super) async fn run_block_found_submit_flow(
                     LogColors::label("REJECTION REASON:"),
                     format!("{:?}", response.report)
                 );
-                return Ok(BlockSubmitFlowResult::Break { invalid_share: true });
+                return Ok(BlockSubmitFlowResult::Break {
+                    invalid_share: true,
+                });
             }
 
             let prefix = handler.log_prefix();
@@ -162,7 +277,10 @@ pub(super) async fn run_block_found_submit_flow(
                 "{} {} {}",
                 prefix,
                 LogColors::block("[BLOCK]"),
-                LogColors::block(&format!("Block submitted successfully! Hash: {}", block_hash))
+                LogColors::block(&format!(
+                    "Block submitted successfully! Hash: {}",
+                    block_hash
+                ))
             );
             info!(
                 "{} {} {}",
@@ -170,8 +288,20 @@ pub(super) async fn run_block_found_submit_flow(
                 LogColors::block("[BLOCK]"),
                 LogColors::block(&format!("BLOCK ACCEPTED BY NODE! Hash: {}", block_hash))
             );
-            info!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("  - Worker:"), worker_name);
-            info!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("  - Nonce:"), format!("{:x}", nonce_val));
+            info!(
+                "{} {} {} {}",
+                prefix,
+                LogColors::block("[BLOCK]"),
+                LogColors::label("  - Worker:"),
+                worker_name
+            );
+            info!(
+                "{} {} {} {}",
+                prefix,
+                LogColors::block("[BLOCK]"),
+                LogColors::label("  - Nonce:"),
+                format!("{:x}", nonce_val)
+            );
 
             let stats = handler.get_create_stats(ctx.as_ref());
             let overall = handler.overall.clone();
@@ -191,16 +321,27 @@ pub(super) async fn run_block_found_submit_flow(
 
             tokio::spawn(async move {
                 for _ in 0..BLOCK_CONFIRM_MAX_ATTEMPTS {
-                    match kaspa_api.get_current_block_color(&block_hash_for_confirm).await {
+                    match kaspa_api
+                        .get_current_block_color(&block_hash_for_confirm)
+                        .await
+                    {
                         Ok(true) => {
                             *stats.blocks_found.lock() += 1;
                             *overall.blocks_found.lock() += 1;
-                            record_block_found(&prom_worker, nonce_val, blue_score, block_hash_for_confirm.clone());
+                            record_block_found(
+                                &prom_worker,
+                                nonce_val,
+                                blue_score,
+                                block_hash_for_confirm.clone(),
+                            );
                             info!(
                                 "[{}] {} {}",
                                 instance_id,
                                 LogColors::block("[BLOCK]"),
-                                LogColors::block(&format!("Block confirmed BLUE in DAG! Hash: {}", block_hash_for_confirm))
+                                LogColors::block(&format!(
+                                    "Block confirmed BLUE in DAG! Hash: {}",
+                                    block_hash_for_confirm
+                                ))
                             );
                             return;
                         }
@@ -225,18 +366,50 @@ pub(super) async fn run_block_found_submit_flow(
                 );
             });
 
-            Ok(BlockSubmitFlowResult::Break { invalid_share: false })
+            Ok(BlockSubmitFlowResult::Break {
+                invalid_share: false,
+            })
         }
         Err(e) => {
             let prefix = handler.log_prefix();
             let error_str = e.to_string();
-            error!("{} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::error("Block submission FAILED"));
-            error!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("Worker:"), worker_name);
-            error!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::label("Blockhash:"), block_hash);
-            error!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::error("Error:"), error_str);
+            error!(
+                "{} {} {}",
+                prefix,
+                LogColors::block("[BLOCK]"),
+                LogColors::error("Block submission FAILED")
+            );
+            error!(
+                "{} {} {} {}",
+                prefix,
+                LogColors::block("[BLOCK]"),
+                LogColors::label("Worker:"),
+                worker_name
+            );
+            error!(
+                "{} {} {} {}",
+                prefix,
+                LogColors::block("[BLOCK]"),
+                LogColors::label("Blockhash:"),
+                block_hash
+            );
+            error!(
+                "{} {} {} {}",
+                prefix,
+                LogColors::block("[BLOCK]"),
+                LogColors::error("Error:"),
+                error_str
+            );
 
-            if classify_block_submit_error_message(&error_str) == BlockSubmitRejection::DuplicateBlockStale {
-                warn!("{} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::error("block rejected, stale"));
+            if classify_block_submit_error_message(&error_str)
+                == BlockSubmitRejection::DuplicateBlockStale
+            {
+                warn!(
+                    "{} {} {}",
+                    prefix,
+                    LogColors::block("[BLOCK]"),
+                    LogColors::error("block rejected, stale")
+                );
                 warn!(
                     "{} {} {} {}",
                     prefix,
@@ -279,7 +452,13 @@ pub(super) async fn run_block_found_submit_flow(
                 LogColors::label("REJECTION REASON:"),
                 "Block failed node validation (probably bad pow)"
             );
-            error!("{} {} {} {}", prefix, LogColors::block("[BLOCK]"), LogColors::error("Error:"), error_str);
+            error!(
+                "{} {} {} {}",
+                prefix,
+                LogColors::block("[BLOCK]"),
+                LogColors::error("Error:"),
+                error_str
+            );
 
             let stats = handler.get_create_stats(ctx.as_ref());
             *stats.invalid_shares.lock() += 1;
@@ -311,7 +490,9 @@ mod tests {
 
     #[test]
     fn submit_block_report_success_is_accepted() {
-        let r = SubmitBlockResponse { report: SubmitBlockReport::Success };
+        let r = SubmitBlockResponse {
+            report: SubmitBlockReport::Success,
+        };
         assert!(r.report.is_success());
     }
 

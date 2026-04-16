@@ -1,7 +1,9 @@
 use prometheus::proto::MetricFamily;
 #[cfg(feature = "rkstratum_cpu_miner")]
 use prometheus::{Counter, register_counter};
-use prometheus::{CounterVec, Gauge, GaugeVec, register_counter_vec, register_gauge, register_gauge_vec};
+use prometheus::{
+    CounterVec, Gauge, GaugeVec, register_counter_vec, register_gauge, register_gauge_vec,
+};
 use std::collections::HashMap;
 #[cfg(feature = "rkstratum_cpu_miner")]
 use std::collections::VecDeque;
@@ -15,7 +17,17 @@ const WORKER_LABELS: &[&str] = &["instance", "worker", "miner", "wallet", "ip"];
 const INVALID_LABELS: &[&str] = &["instance", "worker", "miner", "wallet", "ip", "type"];
 
 /// Block labels
-const BLOCK_LABELS: &[&str] = &["instance", "worker", "miner", "wallet", "ip", "nonce", "bluescore", "timestamp", "hash"];
+const BLOCK_LABELS: &[&str] = &[
+    "instance",
+    "worker",
+    "miner",
+    "wallet",
+    "ip",
+    "nonce",
+    "bluescore",
+    "timestamp",
+    "hash",
+];
 
 /// Error labels
 const ERROR_LABELS: &[&str] = &["instance", "wallet", "error"];
@@ -71,7 +83,8 @@ static WORKER_CURRENT_DIFFICULTY: OnceLock<GaugeVec> = OnceLock::new();
 
 /// Worker last activity time - tracks when each worker last submitted a share
 /// Key: "instance:worker:wallet", Value: Instant of last activity
-pub(crate) static WORKER_LAST_ACTIVITY: OnceLock<parking_lot::Mutex<HashMap<String, Instant>>> = OnceLock::new();
+pub(crate) static WORKER_LAST_ACTIVITY: OnceLock<parking_lot::Mutex<HashMap<String, Instant>>> =
+    OnceLock::new();
 
 /// Bridge start time - tracks when the bridge started (for uptime calculation)
 pub(crate) static BRIDGE_START_TIME: OnceLock<Instant> = OnceLock::new();
@@ -90,7 +103,9 @@ static INTERNAL_CPU_HASHRATE_GHS: OnceLock<Gauge> = OnceLock::new();
 #[cfg(feature = "rkstratum_cpu_miner")]
 pub(crate) static INTERNAL_CPU_MINING_ADDRESS: OnceLock<String> = OnceLock::new();
 #[cfg(feature = "rkstratum_cpu_miner")]
-pub(crate) static INTERNAL_CPU_RECENT_BLOCKS: OnceLock<parking_lot::Mutex<VecDeque<InternalCpuBlock>>> = OnceLock::new();
+pub(crate) static INTERNAL_CPU_RECENT_BLOCKS: OnceLock<
+    parking_lot::Mutex<VecDeque<InternalCpuBlock>>,
+> = OnceLock::new();
 #[cfg(feature = "rkstratum_cpu_miner")]
 const INTERNAL_CPU_RECENT_BLOCKS_LIMIT: usize = 256;
 
@@ -99,19 +114,40 @@ pub fn init_metrics() {
     // Record bridge start time for uptime calculation
     BRIDGE_START_TIME.get_or_init(Instant::now);
     SHARE_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_valid_share_counter", "Number of shares found by worker over time", WORKER_LABELS).unwrap()
+        register_counter_vec!(
+            "ks_valid_share_counter",
+            "Number of shares found by worker over time",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     SHARE_DIFF_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_valid_share_diff_counter", "Total difficulty of shares found by worker over time", WORKER_LABELS)
-            .unwrap()
+        register_counter_vec!(
+            "ks_valid_share_diff_counter",
+            "Total difficulty of shares found by worker over time",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     INVALID_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_invalid_share_counter", "Number of stale shares found by worker over time", INVALID_LABELS).unwrap()
+        register_counter_vec!(
+            "ks_invalid_share_counter",
+            "Number of stale shares found by worker over time",
+            INVALID_LABELS
+        )
+        .unwrap()
     });
 
-    BLOCK_COUNTER.get_or_init(|| register_counter_vec!("ks_blocks_mined", "Number of blocks mined over time", WORKER_LABELS).unwrap());
+    BLOCK_COUNTER.get_or_init(|| {
+        register_counter_vec!(
+            "ks_blocks_mined",
+            "Number of blocks mined over time",
+            WORKER_LABELS
+        )
+        .unwrap()
+    });
 
     BLOCK_ACCEPTED_COUNTER.get_or_init(|| {
         register_counter_vec!(
@@ -132,15 +168,30 @@ pub fn init_metrics() {
     });
 
     BLOCK_GAUGE.get_or_init(|| {
-        register_gauge_vec!("ks_mined_blocks_gauge", "Gauge containing 1 unique instance per block mined", BLOCK_LABELS).unwrap()
+        register_gauge_vec!(
+            "ks_mined_blocks_gauge",
+            "Gauge containing 1 unique instance per block mined",
+            BLOCK_LABELS
+        )
+        .unwrap()
     });
 
     DISCONNECT_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_worker_disconnect_counter", "Number of disconnects by worker", WORKER_LABELS).unwrap()
+        register_counter_vec!(
+            "ks_worker_disconnect_counter",
+            "Number of disconnects by worker",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     JOB_COUNTER.get_or_init(|| {
-        register_counter_vec!("ks_worker_job_counter", "Number of jobs sent to the miner by worker over time", WORKER_LABELS).unwrap()
+        register_counter_vec!(
+            "ks_worker_job_counter",
+            "Number of jobs sent to the miner by worker over time",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     BALANCE_GAUGE.get_or_init(|| {
@@ -152,33 +203,66 @@ pub fn init_metrics() {
         .unwrap()
     });
 
-    ERROR_BY_WALLET
-        .get_or_init(|| register_counter_vec!("ks_worker_errors", "Gauge representing errors by worker", ERROR_LABELS).unwrap());
-
-    ESTIMATED_NETWORK_HASHRATE.get_or_init(|| {
-        register_gauge!("ks_estimated_network_hashrate_gauge", "Gauge representing the estimated network hashrate").unwrap()
+    ERROR_BY_WALLET.get_or_init(|| {
+        register_counter_vec!(
+            "ks_worker_errors",
+            "Gauge representing errors by worker",
+            ERROR_LABELS
+        )
+        .unwrap()
     });
 
-    NETWORK_DIFFICULTY
-        .get_or_init(|| register_gauge!("ks_network_difficulty_gauge", "Gauge representing the network difficulty").unwrap());
+    ESTIMATED_NETWORK_HASHRATE.get_or_init(|| {
+        register_gauge!(
+            "ks_estimated_network_hashrate_gauge",
+            "Gauge representing the estimated network hashrate"
+        )
+        .unwrap()
+    });
 
-    NETWORK_BLOCK_COUNT
-        .get_or_init(|| register_gauge!("ks_network_block_count", "Gauge representing the network block count").unwrap());
+    NETWORK_DIFFICULTY.get_or_init(|| {
+        register_gauge!(
+            "ks_network_difficulty_gauge",
+            "Gauge representing the network difficulty"
+        )
+        .unwrap()
+    });
+
+    NETWORK_BLOCK_COUNT.get_or_init(|| {
+        register_gauge!(
+            "ks_network_block_count",
+            "Gauge representing the network block count"
+        )
+        .unwrap()
+    });
 
     WORKER_START_TIME.get_or_init(|| {
-        register_gauge_vec!("ks_worker_start_time", "Unix timestamp (seconds) when worker first connected", WORKER_LABELS).unwrap()
+        register_gauge_vec!(
+            "ks_worker_start_time",
+            "Unix timestamp (seconds) when worker first connected",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     WORKER_CURRENT_DIFFICULTY.get_or_init(|| {
-        register_gauge_vec!("ks_worker_current_difficulty", "Current mining difficulty assigned to worker", WORKER_LABELS).unwrap()
+        register_gauge_vec!(
+            "ks_worker_current_difficulty",
+            "Current mining difficulty assigned to worker",
+            WORKER_LABELS
+        )
+        .unwrap()
     });
 
     // Internal CPU miner metrics (no labels; there is only one internal miner per process)
     #[cfg(feature = "rkstratum_cpu_miner")]
     {
         INTERNAL_CPU_HASHES_TRIED_TOTAL.get_or_init(|| {
-            register_counter!("ks_internal_cpu_hashes_tried_total", "Total hashes tried by the internal CPU miner since process start")
-                .unwrap()
+            register_counter!(
+                "ks_internal_cpu_hashes_tried_total",
+                "Total hashes tried by the internal CPU miner since process start"
+            )
+            .unwrap()
         });
         INTERNAL_CPU_BLOCKS_SUBMITTED_TOTAL.get_or_init(|| {
             register_counter!(
@@ -194,15 +278,25 @@ pub fn init_metrics() {
             )
             .unwrap()
         });
-        INTERNAL_CPU_HASHRATE_GHS
-            .get_or_init(|| register_gauge!("ks_internal_cpu_hashrate_ghs", "Internal CPU miner hashrate (GH/s)").unwrap());
+        INTERNAL_CPU_HASHRATE_GHS.get_or_init(|| {
+            register_gauge!(
+                "ks_internal_cpu_hashrate_ghs",
+                "Internal CPU miner hashrate (GH/s)"
+            )
+            .unwrap()
+        });
     }
 }
 
 /// Update internal CPU miner metrics from a snapshot.
 /// Values should be monotonically increasing counts; this function converts them to Prometheus counters.
 #[cfg(feature = "rkstratum_cpu_miner")]
-pub fn record_internal_cpu_miner_snapshot(hashes_tried: u64, blocks_submitted: u64, blocks_accepted: u64, hashrate_ghs: f64) {
+pub fn record_internal_cpu_miner_snapshot(
+    hashes_tried: u64,
+    blocks_submitted: u64,
+    blocks_accepted: u64,
+    hashrate_ghs: f64,
+) {
     // Ensure metrics are registered even if the prom server hasn't started yet.
     init_metrics();
 
@@ -225,7 +319,11 @@ pub fn record_internal_cpu_miner_snapshot(hashes_tried: u64, blocks_submitted: u
         }
     }
     if let Some(g) = INTERNAL_CPU_HASHRATE_GHS.get() {
-        let v = if hashrate_ghs.is_finite() && hashrate_ghs >= 0.0 { hashrate_ghs } else { 0.0 };
+        let v = if hashrate_ghs.is_finite() && hashrate_ghs >= 0.0 {
+            hashrate_ghs
+        } else {
+            0.0
+        };
         g.set(v);
     }
 }
@@ -260,10 +358,15 @@ pub fn record_internal_cpu_recent_block(hash: String, nonce: u64, bluescore: u64
         return;
     }
 
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
 
     let mut q = INTERNAL_CPU_RECENT_BLOCKS
-        .get_or_init(|| parking_lot::Mutex::new(VecDeque::with_capacity(INTERNAL_CPU_RECENT_BLOCKS_LIMIT)))
+        .get_or_init(|| {
+            parking_lot::Mutex::new(VecDeque::with_capacity(INTERNAL_CPU_RECENT_BLOCKS_LIMIT))
+        })
         .lock();
 
     // De-dupe by hash
@@ -271,7 +374,12 @@ pub fn record_internal_cpu_recent_block(hash: String, nonce: u64, bluescore: u64
         return;
     }
 
-    q.push_front(InternalCpuBlock { timestamp_unix: ts, bluescore, nonce, hash });
+    q.push_front(InternalCpuBlock {
+        timestamp_unix: ts,
+        bluescore,
+        nonce,
+        hash,
+    });
     if q.len() > INTERNAL_CPU_RECENT_BLOCKS_LIMIT {
         q.truncate(INTERNAL_CPU_RECENT_BLOCKS_LIMIT);
     }
@@ -287,7 +395,13 @@ pub struct WorkerContext {
 
 impl WorkerContext {
     pub fn labels(&self) -> Vec<&str> {
-        vec![&self.instance_id, &self.worker_name, &self.miner, &self.wallet, &self.ip]
+        vec![
+            &self.instance_id,
+            &self.worker_name,
+            &self.miner,
+            &self.wallet,
+            &self.ip,
+        ]
     }
 }
 
@@ -309,7 +423,9 @@ pub fn record_share_found(worker: &WorkerContext, share_diff: f64) {
         counter.with_label_values(&worker.labels()).inc();
     }
     if let Some(counter) = SHARE_DIFF_COUNTER.get() {
-        counter.with_label_values(&worker.labels()).inc_by(share_diff);
+        counter
+            .with_label_values(&worker.labels())
+            .inc_by(share_diff);
     }
     // Update last activity time for this worker
     update_worker_activity(worker);
@@ -361,7 +477,10 @@ pub fn record_weak_share(worker: &WorkerContext) {
 
 /// Helper function to update worker activity time
 fn update_worker_activity(worker: &WorkerContext) {
-    let key = format!("{}:{}:{}", worker.instance_id, worker.worker_name, worker.wallet);
+    let key = format!(
+        "{}:{}:{}",
+        worker.instance_id, worker.worker_name, worker.wallet
+    );
     let activity_map = WORKER_LAST_ACTIVITY.get_or_init(|| parking_lot::Mutex::new(HashMap::new()));
     activity_map.lock().insert(key, Instant::now());
 }
@@ -375,8 +494,11 @@ pub fn record_block_found(worker: &WorkerContext, nonce: u64, bluescore: u64, ha
         let mut labels = worker.labels();
         let nonce_str = nonce.to_string();
         let bluescore_str = bluescore.to_string();
-        let timestamp_str =
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs().to_string();
+        let timestamp_str = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+            .to_string();
         labels.push(&nonce_str);
         labels.push(&bluescore_str);
         labels.push(&timestamp_str);
@@ -392,7 +514,10 @@ pub fn record_disconnect(worker: &WorkerContext) {
     }
 
     // Remove worker from activity tracking immediately on disconnect
-    let key = format!("{}:{}:{}", worker.instance_id, worker.worker_name, worker.wallet);
+    let key = format!(
+        "{}:{}:{}",
+        worker.instance_id, worker.worker_name, worker.wallet
+    );
     let activity_map = WORKER_LAST_ACTIVITY.get_or_init(|| parking_lot::Mutex::new(HashMap::new()));
     activity_map.lock().remove(&key);
 }
@@ -419,7 +544,9 @@ pub fn record_network_stats(hashrate: u64, block_count: u64, difficulty: f64) {
 /// Record a worker error
 pub fn record_worker_error(instance_id: &str, wallet: &str, error: &str) {
     if let Some(counter) = ERROR_BY_WALLET.get() {
-        counter.with_label_values(&[instance_id, wallet, error]).inc();
+        counter
+            .with_label_values(&[instance_id, wallet, error])
+            .inc();
     }
 }
 
@@ -429,21 +556,33 @@ pub fn record_balances(instance_id: &str, balances: &[(String, u64)]) {
         for (address, balance) in balances {
             // Convert from sompi to KAS (divide by 100000000)
             let balance_kas = *balance as f64 / 100_000_000.0;
-            gauge.with_label_values(&[instance_id, address]).set(balance_kas);
+            gauge
+                .with_label_values(&[instance_id, address])
+                .set(balance_kas);
         }
     }
 }
 
 fn metric_matches_instance(metric: &prometheus::proto::Metric, instance_id: &str) -> bool {
-    metric.get_label().iter().any(|label| label.get_name() == "instance" && label.get_value() == instance_id)
+    metric
+        .get_label()
+        .iter()
+        .any(|label| label.get_name() == "instance" && label.get_value() == instance_id)
 }
 
-pub(crate) fn filter_metric_families_for_instance(metric_families: Vec<MetricFamily>, instance_id: &str) -> Vec<MetricFamily> {
+pub(crate) fn filter_metric_families_for_instance(
+    metric_families: Vec<MetricFamily>,
+    instance_id: &str,
+) -> Vec<MetricFamily> {
     let mut out = Vec::with_capacity(metric_families.len());
 
     for family in metric_families {
-        let has_instance_label =
-            family.get_metric().iter().any(|metric| metric.get_label().iter().any(|label| label.get_name() == "instance"));
+        let has_instance_label = family.get_metric().iter().any(|metric| {
+            metric
+                .get_label()
+                .iter()
+                .any(|label| label.get_name() == "instance")
+        });
 
         if !has_instance_label {
             out.push(family);
@@ -451,7 +590,9 @@ pub(crate) fn filter_metric_families_for_instance(metric_families: Vec<MetricFam
         }
 
         let mut filtered_family = family.clone();
-        filtered_family.mut_metric().retain(|metric| metric_matches_instance(metric, instance_id));
+        filtered_family
+            .mut_metric()
+            .retain(|metric| metric_matches_instance(metric, instance_id));
         if !filtered_family.get_metric().is_empty() {
             out.push(filtered_family);
         }
@@ -492,7 +633,10 @@ pub fn init_worker_counters(worker: &WorkerContext) {
     }
     // Set worker start time (Unix timestamp in seconds)
     if let Some(gauge) = WORKER_START_TIME.get() {
-        let start_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() as f64;
+        let start_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as f64;
         gauge.with_label_values(&worker.labels()).set(start_time);
     }
     // Initialize worker difficulty to 0 (will be updated when difficulty is set)

@@ -3,7 +3,9 @@ use super::duplicate_submit::DuplicateSubmitGuard;
 use super::vardiff::{VAR_DIFF_THREAD_SLEEP, vardiff_compute_next_diff};
 #[cfg(feature = "rkstratum_cpu_miner")]
 use super::work_stats::RKSTRATUM_CPU_MINER_METRICS;
-use super::work_stats::{STATS_PRINTER_REGISTRY, STATS_PRINTER_STARTED, StatsPrinterEntry, WorkStats, format_hashrate};
+use super::work_stats::{
+    STATS_PRINTER_REGISTRY, STATS_PRINTER_STARTED, StatsPrinterEntry, WorkStats, format_hashrate,
+};
 use crate::kaspaapi::NODE_STATUS;
 use crate::mining_state::GetMiningState;
 use crate::prom::*;
@@ -26,7 +28,10 @@ impl ShareHandler {
             stats: Arc::new(parking_lot::Mutex::new(HashMap::new())),
             overall: Arc::new(WorkStats::new("overall".to_string())),
             instance_id,
-            duplicate_submit_guard: Arc::new(parking_lot::Mutex::new(DuplicateSubmitGuard::new(Duration::from_secs(180), 50_000))),
+            duplicate_submit_guard: Arc::new(parking_lot::Mutex::new(DuplicateSubmitGuard::new(
+                Duration::from_secs(180),
+                50_000,
+            ))),
         }
     }
 
@@ -35,7 +40,11 @@ impl ShareHandler {
 
         let worker_id = {
             let id = ctx.identity.lock();
-            if !id.worker_name.is_empty() { id.worker_name.clone() } else { ctx.remote_addr().to_string() }
+            if !id.worker_name.is_empty() {
+                id.worker_name.clone()
+            } else {
+                ctx.remote_addr().to_string()
+            }
         };
 
         if let Some(stats) = stats_map.get(&worker_id) {
@@ -45,7 +54,10 @@ impl ShareHandler {
         let stats = WorkStats::new(worker_id.clone());
         // Seed per-worker displayed diff from current mining state so recreated
         // entries do not start at 0.0 and get stuck in terminal/UI.
-        let seeded_diff = GetMiningState(ctx).stratum_diff().map(|d| d.diff_value).unwrap_or(0.0);
+        let seeded_diff = GetMiningState(ctx)
+            .stratum_diff()
+            .map(|d| d.diff_value)
+            .unwrap_or(0.0);
         if seeded_diff > 0.0 {
             *stats.min_diff.lock() = seeded_diff;
         }
@@ -139,16 +151,32 @@ impl ShareHandler {
         self.start_print_stats_thread_impl(target_spm, None);
     }
 
-    pub fn start_print_stats_thread_with_shutdown(&self, target_spm: u32, shutdown_rx: watch::Receiver<bool>) {
+    pub fn start_print_stats_thread_with_shutdown(
+        &self,
+        target_spm: u32,
+        shutdown_rx: watch::Receiver<bool>,
+    ) {
         self.start_print_stats_thread_impl(target_spm, Some(shutdown_rx));
     }
 
-    fn start_print_stats_thread_impl(&self, target_spm: u32, shutdown_rx: Option<watch::Receiver<bool>>) {
-        let target_spm = if target_spm == 0 { 20.0 } else { target_spm as f64 };
+    fn start_print_stats_thread_impl(
+        &self,
+        target_spm: u32,
+        shutdown_rx: Option<watch::Receiver<bool>>,
+    ) {
+        let target_spm = if target_spm == 0 {
+            20.0
+        } else {
+            target_spm as f64
+        };
         let instance_id = self.instance_id.clone();
         let inst_short = {
             let digits: String = instance_id.chars().filter(|c| c.is_ascii_digit()).collect();
-            if let Ok(n) = digits.parse::<u32>() { format!("Ins{:02}", n) } else { "Ins??".to_string() }
+            if let Ok(n) = digits.parse::<u32>() {
+                format!("Ins{:02}", n)
+            } else {
+                "Ins??".to_string()
+            }
         };
 
         {
@@ -172,7 +200,11 @@ impl ShareHandler {
         let mut shutdown_rx = shutdown_rx;
         tokio::spawn(async move {
             fn trunc<'a>(s: &'a str, max: usize) -> Cow<'a, str> {
-                if s.len() <= max { Cow::Borrowed(s) } else { Cow::Owned(s.chars().take(max).collect()) }
+                if s.len() <= max {
+                    Cow::Borrowed(s)
+                } else {
+                    Cow::Owned(s.chars().take(max).collect())
+                }
             }
 
             fn format_uptime(d: Duration) -> String {
@@ -214,7 +246,16 @@ impl ShareHandler {
             fn header() -> String {
                 format!(
                     "| {:<WORKER_W$} | {:<INST_W$} | {:>HASH_W$} | {:>DIFF_W$} | {:>SPM_W$} | {:<TRND_W$} | {:>ACC_W$} | {:>BLK_W$} | {:>TBLK_W$} | {:>TIME_W$} |",
-                    "Worker", "Inst", "Hash", "Diff", "SPM|TGT", "Trnd", "Acc|Stl|Inv", "Blocks", "Total", "D|HR|M|S",
+                    "Worker",
+                    "Inst",
+                    "Hash",
+                    "Diff",
+                    "SPM|TGT",
+                    "Trnd",
+                    "Acc|Stl|Inv",
+                    "Blocks",
+                    "Total",
+                    "D|HR|M|S",
                 )
             }
 
@@ -248,7 +289,15 @@ impl ShareHandler {
                     let registry = STATS_PRINTER_REGISTRY.lock();
                     registry
                         .iter()
-                        .map(|e| (e.inst_short.clone(), e.target_spm, e.start, Arc::clone(&e.stats), Arc::clone(&e.overall)))
+                        .map(|e| {
+                            (
+                                e.inst_short.clone(),
+                                e.target_spm,
+                                e.start,
+                                Arc::clone(&e.stats),
+                                Arc::clone(&e.overall),
+                            )
+                        })
                         .collect::<Vec<_>>()
                 };
 
@@ -265,7 +314,11 @@ impl ShareHandler {
                 let mut total_blocks_all_time: i64 = 0;
 
                 let now = Instant::now();
-                let start = entries.iter().map(|(_, _, start, _, _)| *start).max_by_key(|t| t.elapsed()).unwrap_or_else(Instant::now);
+                let start = entries
+                    .iter()
+                    .map(|(_, _, start, _, _)| *start)
+                    .max_by_key(|t| t.elapsed())
+                    .unwrap_or_else(Instant::now);
                 let total_uptime_mins = now.duration_since(start).as_secs_f64() / 60.0;
 
                 let mut total_target: Option<f64> = Some(entries[0].1);
@@ -303,7 +356,11 @@ impl ShareHandler {
                         // Sum blocks from individual workers for "Blocks" column (online workers only)
                         total_blocks += blocks;
 
-                        let spm = if elapsed > 0.0 { (shares as f64) / (elapsed / 60.0) } else { 0.0 };
+                        let spm = if elapsed > 0.0 {
+                            (shares as f64) / (elapsed / 60.0)
+                        } else {
+                            0.0
+                        };
                         let trend = if spm > *target_spm * 1.2 {
                             "up"
                         } else if spm < *target_spm * 0.8 {
@@ -348,25 +405,62 @@ impl ShareHandler {
                     Some(false) => "syncing".to_string(),
                     None => "unknown".to_string(),
                 };
-                let conn_str = if node_status.is_connected { "connected" } else { "disconnected" };
+                let conn_str = if node_status.is_connected {
+                    "connected"
+                } else {
+                    "disconnected"
+                };
 
                 let net = node_status.network_id.as_deref().unwrap_or("-");
                 let ver = node_status.server_version.as_deref().unwrap_or("-");
-                let peers = node_status.peers.map(|p| p.to_string()).unwrap_or_else(|| "-".to_string());
-                let vdaa = node_status.virtual_daa_score.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
-                let blocks = node_status.block_count.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
-                let headers = node_status.header_count.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
-                let diff = node_status.difficulty.map(|d| format!("{:.2e}", d)).unwrap_or_else(|| "-".to_string());
+                let peers = node_status
+                    .peers
+                    .map(|p| p.to_string())
+                    .unwrap_or_else(|| "-".to_string());
+                let vdaa = node_status
+                    .virtual_daa_score
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "-".to_string());
+                let blocks = node_status
+                    .block_count
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "-".to_string());
+                let headers = node_status
+                    .header_count
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "-".to_string());
+                let diff = node_status
+                    .difficulty
+                    .map(|d| format!("{:.2e}", d))
+                    .unwrap_or_else(|| "-".to_string());
                 let tip = node_status.tip_hash.as_deref().unwrap_or("-");
-                let mempool = node_status.mempool_size.map(|v| v.to_string()).unwrap_or_else(|| "-".to_string());
+                let mempool = node_status
+                    .mempool_size
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "-".to_string());
 
-                let tip_short = if tip.len() > 28 { format!("{}...{}", &tip[..16], &tip[tip.len() - 8..]) } else { tip.to_string() };
+                let tip_short = if tip.len() > 28 {
+                    format!("{}...{}", &tip[..16], &tip[tip.len() - 8..])
+                } else {
+                    tip.to_string()
+                };
 
-                let net_short = crate::kaspaapi::network_display_from_id(Some(net)).unwrap_or_else(|| net.to_string());
+                let net_short = crate::kaspaapi::network_display_from_id(Some(net))
+                    .unwrap_or_else(|| net.to_string());
 
                 out.push(format!(
                     "[NODE] {}|{} | n={} | v={} | p={} | vd={} | blk={}/{} | d={} | mp={} | tip={}",
-                    conn_str, sync_str, net_short, ver, peers, vdaa, blocks, headers, diff, mempool, tip_short
+                    conn_str,
+                    sync_str,
+                    net_short,
+                    ver,
+                    peers,
+                    vdaa,
+                    blocks,
+                    headers,
+                    diff,
+                    mempool,
+                    tip_short
                 ));
 
                 out.push(top.clone());
@@ -394,7 +488,10 @@ impl ShareHandler {
 
                             // Calculate hashrate based on hash delta
                             let hashrate_ghs = if let Some(last_hashes) = last_internal_hashes {
-                                let dt = now.duration_since(last_internal_sample).as_secs_f64().max(0.000_001);
+                                let dt = now
+                                    .duration_since(last_internal_sample)
+                                    .as_secs_f64()
+                                    .max(0.000_001);
                                 let dh = hashes.saturating_sub(last_hashes);
                                 // Hashrate as GH/s (format_hashrate expects GH/s)
                                 (dh as f64 / dt) / 1e9
@@ -406,8 +503,13 @@ impl ShareHandler {
                             // Update tracking variables for next iteration
                             last_internal_hashes = Some(hashes);
                             last_internal_sample = now;
-                            internal_totals =
-                                Some((hashrate_ghs, accepted as i64, submitted.saturating_sub(accepted) as i64, 0, accepted as i64));
+                            internal_totals = Some((
+                                hashrate_ghs,
+                                accepted as i64,
+                                submitted.saturating_sub(accepted) as i64,
+                                0,
+                                accepted as i64,
+                            ));
                             let internal_line = format!(
                                 "| {:<WORKER_W$} | {:<INST_W$} | {:>HASH_W$} | {:>DIFF_W$} | {:>SPM_W$} | {:<TRND_W$} | {:>ACC_W$} | {:>BLK_W$} | {:>TBLK_W$} | {:>TIME_W$} |",
                                 "InternalCPU",
@@ -416,7 +518,12 @@ impl ShareHandler {
                                 "-",
                                 "-",
                                 "-",
-                                format!("{}/{}/{}", accepted, submitted.saturating_sub(accepted), 0),
+                                format!(
+                                    "{}/{}/{}",
+                                    accepted,
+                                    submitted.saturating_sub(accepted),
+                                    0
+                                ),
                                 accepted,
                                 accepted, // Total blocks (same as Blocks for InternalCPU)
                                 format_uptime(now.duration_since(start))
@@ -441,7 +548,11 @@ impl ShareHandler {
                     total_blocks_all_time += blocks; // Also add to all-time total for the "Total" column
                 }
 
-                let overall_spm = if total_uptime_mins > 0.0 { (total_shares as f64) / total_uptime_mins } else { 0.0 };
+                let overall_spm = if total_uptime_mins > 0.0 {
+                    (total_shares as f64) / total_uptime_mins
+                } else {
+                    0.0
+                };
                 let total_spm_tgt = match total_target {
                     Some(t) => format!("{:>4.1}/{:<4.1}", overall_spm, t),
                     None => format!("{:>4.1}/-", overall_spm),
@@ -531,7 +642,8 @@ impl ShareHandler {
                     let elapsed = now.duration_since(start).as_secs_f64().max(0.0);
                     let shares = *v.var_diff_shares_found.lock() as f64;
                     let current = *v.min_diff.lock();
-                    let next_opt = vardiff_compute_next_diff(current, shares, elapsed, expected_spm, clamp);
+                    let next_opt =
+                        vardiff_compute_next_diff(current, shares, elapsed, expected_spm, clamp);
                     let Some(next) = next_opt else { continue };
 
                     *v.min_diff.lock() = next;
@@ -540,10 +652,20 @@ impl ShareHandler {
                     *v.var_diff_window.lock() = 0;
 
                     if log_stats {
-                        let observed_spm = if elapsed > 0.0 { (shares / elapsed) * 60.0 } else { 0.0 };
+                        let observed_spm = if elapsed > 0.0 {
+                            (shares / elapsed) * 60.0
+                        } else {
+                            0.0
+                        };
                         info!(
                             "{} VarDiff: {:.1} spm (target {:.1}), shares={}, window={:.0}s, diff {:.0} -> {:.0}",
-                            prefix, observed_spm, expected_spm, shares as i64, elapsed, current, next
+                            prefix,
+                            observed_spm,
+                            expected_spm,
+                            shares as i64,
+                            elapsed,
+                            current,
+                            next
                         );
                     }
                 }

@@ -46,7 +46,11 @@ pub(crate) enum BlockSubmitRejection {
 ///
 /// The node still exposes this as text; we keep a single place for the substring match.
 pub(crate) fn classify_block_submit_error_message(message: &str) -> BlockSubmitRejection {
-    if message.contains("ErrDuplicateBlock") { BlockSubmitRejection::DuplicateBlockStale } else { BlockSubmitRejection::Other }
+    if message.contains("ErrDuplicateBlock") {
+        BlockSubmitRejection::DuplicateBlockStale
+    } else {
+        BlockSubmitRejection::Other
+    }
 }
 
 #[cfg(test)]
@@ -63,7 +67,13 @@ mod block_submit_classify_tests {
 
     #[test]
     fn other_errors_not_duplicate() {
-        assert_eq!(classify_block_submit_error_message("stale header"), BlockSubmitRejection::Other);
-        assert_eq!(classify_block_submit_error_message("duplicate tx"), BlockSubmitRejection::Other);
+        assert_eq!(
+            classify_block_submit_error_message("stale header"),
+            BlockSubmitRejection::Other
+        );
+        assert_eq!(
+            classify_block_submit_error_message("duplicate tx"),
+            BlockSubmitRejection::Other
+        );
     }
 }

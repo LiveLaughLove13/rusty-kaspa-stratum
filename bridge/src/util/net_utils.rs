@@ -31,7 +31,11 @@ pub fn bind_addr_from_port(port_or_addr: &str) -> String {
     if s.is_empty() {
         return s;
     }
-    if s.starts_with(':') { format!("0.0.0.0{}", s) } else { s }
+    if s.starts_with(':') {
+        format!("0.0.0.0{}", s)
+    } else {
+        s
+    }
 }
 
 /// Bind address for **web dashboard** and **per-instance Prometheus HTTP** (operator-facing).
@@ -46,7 +50,11 @@ pub fn bind_addr_for_operator_http(port_or_addr: &str) -> String {
     if s.is_empty() {
         return s;
     }
-    if s.starts_with(':') { format!("127.0.0.1{}", s) } else { s }
+    if s.starts_with(':') {
+        format!("127.0.0.1{}", s)
+    } else {
+        s
+    }
 }
 
 /// Address to open in a browser or WebView for the dashboard. [`bind_addr_for_operator_http`] is still

@@ -15,7 +15,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use std::time::Duration;
 
-pub(crate) static BIG_JOB_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r".*(BzMiner|IceRiverMiner).*").unwrap());
+pub(crate) static BIG_JOB_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r".*(BzMiner|IceRiverMiner).*").unwrap());
 
 pub(crate) const BALANCE_DELAY: Duration = Duration::from_secs(60);
 pub(crate) const CLIENT_TIMEOUT: Duration = Duration::from_secs(20);

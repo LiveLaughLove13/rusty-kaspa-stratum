@@ -24,7 +24,12 @@ pub(crate) struct DuplicateSubmitGuard {
 
 impl DuplicateSubmitGuard {
     pub(crate) fn new(ttl: Duration, max_entries: usize) -> Self {
-        Self { ttl, max_entries, entries: HashMap::new(), order: VecDeque::new() }
+        Self {
+            ttl,
+            max_entries,
+            entries: HashMap::new(),
+            order: VecDeque::new(),
+        }
     }
 
     fn prune(&mut self, now: Instant) {
@@ -61,7 +66,13 @@ impl DuplicateSubmitGuard {
         if self.entries.contains_key(&key) {
             return;
         }
-        self.entries.insert(key.clone(), DuplicateSubmitEntry { ts: now, outcome: DuplicateSubmitOutcome::InFlight });
+        self.entries.insert(
+            key.clone(),
+            DuplicateSubmitEntry {
+                ts: now,
+                outcome: DuplicateSubmitOutcome::InFlight,
+            },
+        );
         self.order.push_back(key);
     }
 

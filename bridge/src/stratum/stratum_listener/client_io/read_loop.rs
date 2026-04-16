@@ -1,6 +1,8 @@
 use crate::log_colors::LogColors;
 use crate::stratum_context::StratumContext;
-use crate::stratum_line_codec::{line_looks_like_http, push_lossy_and_drain_lines, strip_nul_bytes};
+use crate::stratum_line_codec::{
+    line_looks_like_http, push_lossy_and_drain_lines, strip_nul_bytes,
+};
 use hex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -9,8 +11,14 @@ use tracing::{debug, error, info, warn};
 
 use super::super::types::EventHandler;
 
-pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map: &Arc<HashMap<String, EventHandler>>) {
-    debug!("[CLIENT_LISTENER] Starting client listener for {}:{}", ctx.remote_addr, ctx.remote_port);
+pub(crate) async fn spawn_client_listener(
+    ctx: Arc<StratumContext>,
+    handler_map: &Arc<HashMap<String, EventHandler>>,
+) {
+    debug!(
+        "[CLIENT_LISTENER] Starting client listener for {}:{}",
+        ctx.remote_addr, ctx.remote_port
+    );
     let mut buffer = [0u8; 1024];
     let mut line_buffer = String::new();
     let mut first_message = true;
@@ -18,7 +26,10 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
     loop {
         // Check if disconnected
         if !ctx.connected() {
-            debug!("[CLIENT_LISTENER] Client {}:{} disconnected", ctx.remote_addr, ctx.remote_port);
+            debug!(
+                "[CLIENT_LISTENER] Client {}:{} disconnected",
+                ctx.remote_addr, ctx.remote_port
+            );
             break;
         }
 
@@ -43,7 +54,10 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
             result
         } else {
             // Read half is None, disconnect
-            warn!("[CONNECTION] Read half is None for {}, disconnecting", ctx.remote_addr);
+            warn!(
+                "[CONNECTION] Read half is None for {}, disconnecting",
+                ctx.remote_addr
+            );
             break;
         };
 
@@ -59,18 +73,31 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                 if is_pre_handshake && first_message && pending_buffer_bytes == 0 {
                     debug!(
                         "[CONNECTION] Client {}:{} closed connection (EOF) worker='{}' app='{}' first_message={} pending_buffer_bytes={}",
-                        ctx.remote_addr, ctx.remote_port, worker_name, remote_app, first_message, pending_buffer_bytes
+                        ctx.remote_addr,
+                        ctx.remote_port,
+                        worker_name,
+                        remote_app,
+                        first_message,
+                        pending_buffer_bytes
                     );
                 } else {
                     info!(
                         "[CONNECTION] Client {}:{} closed connection (EOF) worker='{}' app='{}' first_message={} pending_buffer_bytes={}",
-                        ctx.remote_addr, ctx.remote_port, worker_name, remote_app, first_message, pending_buffer_bytes
+                        ctx.remote_addr,
+                        ctx.remote_port,
+                        worker_name,
+                        remote_app,
+                        first_message,
+                        pending_buffer_bytes
                     );
                 }
                 break;
             }
             Ok(Ok(n)) => {
-                debug!("[CLIENT_LISTENER] Read {} bytes from {}:{}", n, ctx.remote_addr, ctx.remote_port);
+                debug!(
+                    "[CLIENT_LISTENER] Read {} bytes from {}:{}",
+                    n, ctx.remote_addr, ctx.remote_port
+                );
 
                 // Remove null bytes and process
                 let data: Vec<u8> = strip_nul_bytes(&buffer[..n]);
@@ -78,17 +105,36 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                 if first_message {
                     let (wallet_addr, worker_name, remote_app) = {
                         let id = ctx.identity.lock();
-                        (id.wallet_addr.clone(), id.worker_name.clone(), id.remote_app.clone())
+                        (
+                            id.wallet_addr.clone(),
+                            id.worker_name.clone(),
+                            id.remote_app.clone(),
+                        )
                     };
                     let message_str = String::from_utf8_lossy(&data);
 
                     // Check for HTTP/2/gRPC protocol in first message (before logging)
                     let first_line = message_str.lines().next().unwrap_or("").trim();
                     if line_looks_like_http(first_line) {
-                        error!("{}", LogColors::error("========================================"));
-                        error!("{}", LogColors::error("===== PROTOCOL MISMATCH DETECTED (FIRST MESSAGE) ===== "));
-                        error!("{}", LogColors::error("========================================"));
-                        error!("{} {}", LogColors::error("[ERROR]"), LogColors::label("Client Information:"));
+                        error!(
+                            "{}",
+                            LogColors::error("========================================")
+                        );
+                        error!(
+                            "{}",
+                            LogColors::error(
+                                "===== PROTOCOL MISMATCH DETECTED (FIRST MESSAGE) ===== "
+                            )
+                        );
+                        error!(
+                            "{}",
+                            LogColors::error("========================================")
+                        );
+                        error!(
+                            "{} {}",
+                            LogColors::error("[ERROR]"),
+                            LogColors::label("Client Information:")
+                        );
                         error!(
                             "{} {} {}",
                             LogColors::error("[ERROR]"),
@@ -113,8 +159,17 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                             LogColors::label("  - First Message (hex):"),
                             hex::encode(&data)
                         );
-                        error!("{} {} {}", LogColors::error("[ERROR]"), LogColors::label("  - First Message (string):"), first_line);
-                        error!("{} {}", LogColors::error("[ERROR]"), LogColors::label("Action:"));
+                        error!(
+                            "{} {} {}",
+                            LogColors::error("[ERROR]"),
+                            LogColors::label("  - First Message (string):"),
+                            first_line
+                        );
+                        error!(
+                            "{} {}",
+                            LogColors::error("[ERROR]"),
+                            LogColors::label("Action:")
+                        );
                         error!(
                             "{} {}",
                             LogColors::error("[ERROR]"),
@@ -125,18 +180,38 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                             LogColors::error("[ERROR]"),
                             "  * HTTP/2/gRPC connections should use the Kaspa node port (16110), not the bridge port (5555)"
                         );
-                        error!("{} {}", LogColors::error("[ERROR]"), "  * Closing connection immediately");
-                        error!("{}", LogColors::error("========================================"));
+                        error!(
+                            "{} {}",
+                            LogColors::error("[ERROR]"),
+                            "  * Closing connection immediately"
+                        );
+                        error!(
+                            "{}",
+                            LogColors::error("========================================")
+                        );
 
                         // Close connection
                         ctx.disconnect();
                         break;
                     }
 
-                    debug!("{}", LogColors::asic_to_bridge("========================================"));
-                    debug!("{}", LogColors::asic_to_bridge("===== FIRST MESSAGE FROM ASIC ===== "));
-                    debug!("{}", LogColors::asic_to_bridge("========================================"));
-                    debug!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("Connection Information:"));
+                    debug!(
+                        "{}",
+                        LogColors::asic_to_bridge("========================================")
+                    );
+                    debug!(
+                        "{}",
+                        LogColors::asic_to_bridge("===== FIRST MESSAGE FROM ASIC ===== ")
+                    );
+                    debug!(
+                        "{}",
+                        LogColors::asic_to_bridge("========================================")
+                    );
+                    debug!(
+                        "{} {}",
+                        LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                        LogColors::label("Connection Information:")
+                    );
                     debug!(
                         "{} {} {}",
                         LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -161,7 +236,11 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                         LogColors::label("  - Miner Application:"),
                         format!("'{}'", remote_app)
                     );
-                    debug!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("First Message Data:"));
+                    debug!(
+                        "{} {}",
+                        LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                        LogColors::label("First Message Data:")
+                    );
                     debug!(
                         "{} {} {}",
                         LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -208,7 +287,10 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                             format!("{:?}", &data[..100.min(data.len())])
                         );
                     }
-                    debug!("{}", LogColors::asic_to_bridge("========================================"));
+                    debug!(
+                        "{}",
+                        LogColors::asic_to_bridge("========================================")
+                    );
                     first_message = false;
                 }
 
@@ -219,15 +301,32 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                     // Get client context for detailed logging
                     let (wallet_addr, worker_name, remote_app) = {
                         let id = ctx.identity.lock();
-                        (id.wallet_addr.clone(), id.worker_name.clone(), id.remote_app.clone())
+                        (
+                            id.wallet_addr.clone(),
+                            id.worker_name.clone(),
+                            id.remote_app.clone(),
+                        )
                     };
 
                     // Detect HTTP/2/gRPC connections early and reject them
                     if line_looks_like_http(&line) {
-                        error!("{}", LogColors::error("========================================"));
-                        error!("{}", LogColors::error("===== PROTOCOL MISMATCH DETECTED ===== "));
-                        error!("{}", LogColors::error("========================================"));
-                        error!("{} {}", LogColors::error("[ERROR]"), LogColors::label("Client Information:"));
+                        error!(
+                            "{}",
+                            LogColors::error("========================================")
+                        );
+                        error!(
+                            "{}",
+                            LogColors::error("===== PROTOCOL MISMATCH DETECTED ===== ")
+                        );
+                        error!(
+                            "{}",
+                            LogColors::error("========================================")
+                        );
+                        error!(
+                            "{} {}",
+                            LogColors::error("[ERROR]"),
+                            LogColors::label("Client Information:")
+                        );
                         error!(
                             "{} {} {}",
                             LogColors::error("[ERROR]"),
@@ -246,8 +345,17 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                             LogColors::label("  - Expected Protocol:"),
                             "Plain TCP/JSON-RPC (Stratum)"
                         );
-                        error!("{} {} {}", LogColors::error("[ERROR]"), LogColors::label("  - Received Message:"), &line);
-                        error!("{} {}", LogColors::error("[ERROR]"), LogColors::label("Action:"));
+                        error!(
+                            "{} {} {}",
+                            LogColors::error("[ERROR]"),
+                            LogColors::label("  - Received Message:"),
+                            &line
+                        );
+                        error!(
+                            "{} {}",
+                            LogColors::error("[ERROR]"),
+                            LogColors::label("Action:")
+                        );
                         error!(
                             "{} {}",
                             LogColors::error("[ERROR]"),
@@ -258,8 +366,15 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                             LogColors::error("[ERROR]"),
                             "  * HTTP/2/gRPC connections should use the Kaspa node port (16110), not the bridge port (5555)"
                         );
-                        error!("{} {}", LogColors::error("[ERROR]"), "  * Closing connection immediately");
-                        error!("{}", LogColors::error("========================================"));
+                        error!(
+                            "{} {}",
+                            LogColors::error("[ERROR]"),
+                            "  * Closing connection immediately"
+                        );
+                        error!(
+                            "{}",
+                            LogColors::error("========================================")
+                        );
 
                         // Close connection
                         ctx.disconnect();
@@ -267,10 +382,23 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                     }
 
                     // Log raw incoming message from ASIC at DEBUG level (verbose details)
-                    debug!("{}", LogColors::asic_to_bridge("========================================"));
-                    debug!("{}", LogColors::asic_to_bridge("===== RECEIVED MESSAGE FROM ASIC ===== "));
-                    debug!("{}", LogColors::asic_to_bridge("========================================"));
-                    debug!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("Client Information:"));
+                    debug!(
+                        "{}",
+                        LogColors::asic_to_bridge("========================================")
+                    );
+                    debug!(
+                        "{}",
+                        LogColors::asic_to_bridge("===== RECEIVED MESSAGE FROM ASIC ===== ")
+                    );
+                    debug!(
+                        "{}",
+                        LogColors::asic_to_bridge("========================================")
+                    );
+                    debug!(
+                        "{} {}",
+                        LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                        LogColors::label("Client Information:")
+                    );
                     debug!(
                         "{} {} {}",
                         LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -295,8 +423,17 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                         LogColors::label("  - Miner Application:"),
                         format!("'{}'", remote_app)
                     );
-                    debug!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("Raw Message Data:"));
-                    debug!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - Raw Message:"), line);
+                    debug!(
+                        "{} {}",
+                        LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                        LogColors::label("Raw Message Data:")
+                    );
+                    debug!(
+                        "{} {} {}",
+                        LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                        LogColors::label("  - Raw Message:"),
+                        line
+                    );
                     debug!(
                         "{} {} {}",
                         LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -318,11 +455,19 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
 
                     match crate::jsonrpc_event::unmarshal_event(&line) {
                         Ok(event) => {
-                            let params_str = serde_json::to_string(&event.params).unwrap_or_else(|_| "[]".to_string());
+                            let params_str = serde_json::to_string(&event.params)
+                                .unwrap_or_else(|_| "[]".to_string());
 
                             // Log parsed event details at DEBUG level (detailed logs moved to debug)
-                            debug!("{}", LogColors::asic_to_bridge("===== PARSING SUCCESSFUL ===== "));
-                            debug!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("Parsed Event Structure:"));
+                            debug!(
+                                "{}",
+                                LogColors::asic_to_bridge("===== PARSING SUCCESSFUL ===== ")
+                            );
+                            debug!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                LogColors::label("Parsed Event Structure:")
+                            );
                             debug!(
                                 "{} {} {}",
                                 LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -341,7 +486,11 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                                 LogColors::label("  - JSON-RPC Version:"),
                                 format!("'{}'", event.jsonrpc)
                             );
-                            debug!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("Parameters:"));
+                            debug!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                LogColors::label("Parameters:")
+                            );
                             debug!(
                                 "{} {} {}",
                                 LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -362,7 +511,8 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                             );
                             // Log each param individually with type information
                             for (idx, param) in event.params.iter().enumerate() {
-                                let param_str = serde_json::to_string(param).unwrap_or_else(|_| "N/A".to_string());
+                                let param_str = serde_json::to_string(param)
+                                    .unwrap_or_else(|_| "N/A".to_string());
                                 let param_type = if param.is_string() {
                                     let s = param.as_str().unwrap_or("");
                                     format!("String (length: {}, value: '{}')", s.len(), s)
@@ -374,7 +524,8 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                                         arr.len(),
                                         arr.iter()
                                             .take(5)
-                                            .map(|v| serde_json::to_string(v).unwrap_or_else(|_| "?".to_string()))
+                                            .map(|v| serde_json::to_string(v)
+                                                .unwrap_or_else(|_| "?".to_string()))
                                             .collect::<Vec<_>>()
                                     )
                                 } else if param.is_object() {
@@ -393,7 +544,10 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                             }
 
                             if let Some(handler) = handler_map.get(&event.method) {
-                                debug!("{}", LogColors::asic_to_bridge("===== PROCESSING MESSAGE ===== "));
+                                debug!(
+                                    "{}",
+                                    LogColors::asic_to_bridge("===== PROCESSING MESSAGE ===== ")
+                                );
                                 debug!(
                                     "{} {} {}",
                                     LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -406,12 +560,23 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                                     LogColors::label("  - Method:"),
                                     format!("'{}'", event.method)
                                 );
-                                debug!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), "  - Starting handler execution...");
+                                debug!(
+                                    "{} {}",
+                                    LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                    "  - Starting handler execution..."
+                                );
                                 if let Err(e) = handler(ctx.clone(), event).await {
                                     let error_msg = e.to_string();
-                                    if error_msg.contains("stale") || error_msg.contains("job does not exist") {
+                                    if error_msg.contains("stale")
+                                        || error_msg.contains("job does not exist")
+                                    {
                                         // Log stale job errors as debug (expected behavior, not important)
-                                        debug!("{}", LogColors::asic_to_bridge("===== HANDLER EXECUTION RESULT ===== "));
+                                        debug!(
+                                            "{}",
+                                            LogColors::asic_to_bridge(
+                                                "===== HANDLER EXECUTION RESULT ===== "
+                                            )
+                                        );
                                         debug!(
                                             "{} {} {}",
                                             LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -453,23 +618,51 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                                         );
                                     }
                                 } else {
-                                    debug!("{}", LogColors::asic_to_bridge("===== HANDLER EXECUTION RESULT ===== "));
+                                    debug!(
+                                        "{}",
+                                        LogColors::asic_to_bridge(
+                                            "===== HANDLER EXECUTION RESULT ===== "
+                                        )
+                                    );
                                     debug!(
                                         "{} {} {}",
                                         LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
                                         LogColors::label("  - Result:"),
                                         "SUCCESS"
                                     );
-                                    debug!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), "  - Message processed successfully");
+                                    debug!(
+                                        "{} {}",
+                                        LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                        "  - Message processed successfully"
+                                    );
                                 }
-                                debug!("{}", LogColors::asic_to_bridge("========================================"));
+                                debug!(
+                                    "{}",
+                                    LogColors::asic_to_bridge(
+                                        "========================================"
+                                    )
+                                );
                             }
                         }
                         Err(e) => {
-                            error!("{}", LogColors::asic_to_bridge("========================================"));
+                            error!(
+                                "{}",
+                                LogColors::asic_to_bridge(
+                                    "========================================"
+                                )
+                            );
                             error!("{}", LogColors::error("===== ERROR PARSING MESSAGE ===== "));
-                            error!("{}", LogColors::asic_to_bridge("========================================"));
-                            error!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("Client Information:"));
+                            error!(
+                                "{}",
+                                LogColors::asic_to_bridge(
+                                    "========================================"
+                                )
+                            );
+                            error!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                LogColors::label("Client Information:")
+                            );
                             error!(
                                 "{} {} {}",
                                 LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -494,7 +687,11 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                                 LogColors::label("  - Miner Application:"),
                                 format!("'{}'", remote_app)
                             );
-                            error!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("Failed Message:"));
+                            error!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                LogColors::label("Failed Message:")
+                            );
                             error!(
                                 "{} {} {}",
                                 LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
@@ -513,20 +710,54 @@ pub(crate) async fn spawn_client_listener(ctx: Arc<StratumContext>, handler_map:
                                 LogColors::label("  - Raw Bytes (hex):"),
                                 hex::encode(line.as_bytes())
                             );
-                            error!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("Parse Error Details:"));
+                            error!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                LogColors::label("Parse Error Details:")
+                            );
                             error!(
                                 "{} {} {}",
                                 LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
                                 LogColors::label("  - Error Type:"),
                                 "JSON Parsing Failed"
                             );
-                            error!("{} {} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::error("  - Error Message:"), e);
-                            error!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), LogColors::label("  - Possible Causes:"));
-                            error!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), "    * Malformed JSON syntax");
-                            error!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), "    * Protocol mismatch");
-                            error!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), "    * Incomplete message");
-                            error!("{} {}", LogColors::asic_to_bridge("[ASIC->BRIDGE]"), "    * Encoding issue");
-                            error!("{}", LogColors::asic_to_bridge("========================================"));
+                            error!(
+                                "{} {} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                LogColors::error("  - Error Message:"),
+                                e
+                            );
+                            error!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                LogColors::label("  - Possible Causes:")
+                            );
+                            error!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                "    * Malformed JSON syntax"
+                            );
+                            error!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                "    * Protocol mismatch"
+                            );
+                            error!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                "    * Incomplete message"
+                            );
+                            error!(
+                                "{} {}",
+                                LogColors::asic_to_bridge("[ASIC->BRIDGE]"),
+                                "    * Encoding issue"
+                            );
+                            error!(
+                                "{}",
+                                LogColors::asic_to_bridge(
+                                    "========================================"
+                                )
+                            );
                         }
                     }
                 }

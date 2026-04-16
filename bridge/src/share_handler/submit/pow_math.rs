@@ -22,17 +22,26 @@ pub(crate) fn meets_network_target_biguint(pow_value: &BigUint, network_target: 
 ///
 /// Mirrors the condition in `pow_loop`: stop trying older jobs when we wrapped or hit job `1`.
 #[inline]
-pub(crate) fn job_id_workaround_exhausted(current_job_id: u64, submitted_job_id: u64, max_jobs: u64) -> bool {
+pub(crate) fn job_id_workaround_exhausted(
+    current_job_id: u64,
+    submitted_job_id: u64,
+    max_jobs: u64,
+) -> bool {
     if max_jobs == 0 {
         return true;
     }
-    current_job_id == 1 || (current_job_id % max_jobs == ((submitted_job_id % max_jobs) + 1) % max_jobs)
+    current_job_id == 1
+        || (current_job_id % max_jobs == ((submitted_job_id % max_jobs) + 1) % max_jobs)
 }
 
 /// Previous job id to validate, if any (`current_job_id > 1`).
 #[inline]
 pub(crate) fn previous_job_id(current_job_id: u64) -> Option<u64> {
-    if current_job_id > 1 { Some(current_job_id - 1) } else { None }
+    if current_job_id > 1 {
+        Some(current_job_id - 1)
+    } else {
+        None
+    }
 }
 
 /// Pool target for comparisons; `None` or zero target is treated like “no pool target” for logging only.
@@ -54,7 +63,11 @@ pub(crate) enum WeakShareJobAdvance {
 
 /// Pure decision for the weak-share branch in `pow_loop` (caller loads `RetryPreviousJob` from state).
 #[inline]
-pub(crate) fn weak_share_job_advance(current_job_id: u64, submitted_job_id: u64, max_jobs: u64) -> WeakShareJobAdvance {
+pub(crate) fn weak_share_job_advance(
+    current_job_id: u64,
+    submitted_job_id: u64,
+    max_jobs: u64,
+) -> WeakShareJobAdvance {
     if job_id_workaround_exhausted(current_job_id, submitted_job_id, max_jobs) {
         WeakShareJobAdvance::Exhausted
     } else if let Some(job_id) = previous_job_id(current_job_id) {
@@ -110,19 +123,34 @@ mod tests {
     #[test]
     fn weak_share_advance_exhausted() {
         let max = 300u64;
-        assert_eq!(weak_share_job_advance(1, 10, max), WeakShareJobAdvance::Exhausted);
-        assert_eq!(weak_share_job_advance(6, 5, max), WeakShareJobAdvance::Exhausted);
+        assert_eq!(
+            weak_share_job_advance(1, 10, max),
+            WeakShareJobAdvance::Exhausted
+        );
+        assert_eq!(
+            weak_share_job_advance(6, 5, max),
+            WeakShareJobAdvance::Exhausted
+        );
     }
 
     #[test]
     fn weak_share_advance_no_previous_when_id_zero() {
-        assert_eq!(weak_share_job_advance(0, 5, 300), WeakShareJobAdvance::NoPreviousJob);
+        assert_eq!(
+            weak_share_job_advance(0, 5, 300),
+            WeakShareJobAdvance::NoPreviousJob
+        );
     }
 
     #[test]
     fn weak_share_advance_retry_when_not_exhausted() {
         let max = 300u64;
-        assert_eq!(weak_share_job_advance(5, 5, max), WeakShareJobAdvance::RetryPreviousJob { job_id: 4 });
-        assert_eq!(weak_share_job_advance(10, 5, max), WeakShareJobAdvance::RetryPreviousJob { job_id: 9 });
+        assert_eq!(
+            weak_share_job_advance(5, 5, max),
+            WeakShareJobAdvance::RetryPreviousJob { job_id: 4 }
+        );
+        assert_eq!(
+            weak_share_job_advance(10, 5, max),
+            WeakShareJobAdvance::RetryPreviousJob { job_id: 9 }
+        );
     }
 }

@@ -240,7 +240,9 @@ pub fn spawn_host_metrics_task() {
                     tokio::time::sleep(Duration::from_secs(20)).await;
                 }
             });
-            tracing::info!("host metrics collection enabled (rkstratum_host_metrics); refresh every 20s");
+            tracing::info!(
+                "host metrics collection enabled (rkstratum_host_metrics); refresh every 20s"
+            );
         });
     }
 }
@@ -312,7 +314,11 @@ fn take_network_rates(rx_sum: u64, tx_sum: u64) -> (Option<f64>, Option<f64>) {
     } else {
         (None, None)
     };
-    *g = Some(NetTotalsSample { at: now, rx: rx_sum, tx: tx_sum });
+    *g = Some(NetTotalsSample {
+        at: now,
+        rx: rx_sum,
+        tx: tx_sum,
+    });
     out
 }
 
@@ -329,7 +335,11 @@ fn take_bridge_disk_rates(read_tot: u64, write_tot: u64) -> (Option<f64>, Option
     } else {
         (None, None)
     };
-    *g = Some(DiskIoSample { at: now, read: read_tot, write: write_tot });
+    *g = Some(DiskIoSample {
+        at: now,
+        read: read_tot,
+        write: write_tot,
+    });
     out
 }
 
@@ -352,7 +362,10 @@ fn take_volume_free_rate(avail: u64) -> Option<f64> {
 fn collect_host_snapshot_blocking() -> Option<HostSnapshot> {
     use std::thread::sleep;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use sysinfo::{Disks, MemoryRefreshKind, Networks, Pid, ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
+    use sysinfo::{
+        Disks, MemoryRefreshKind, Networks, Pid, ProcessRefreshKind, ProcessesToUpdate,
+        RefreshKind, System,
+    };
 
     let mut sys = System::new_with_specifics(RefreshKind::everything());
     let mut disks = Disks::new_with_refreshed_list();
@@ -379,17 +392,27 @@ fn collect_host_snapshot_blocking() -> Option<HostSnapshot> {
 
     let hostname = System::host_name();
     let cpus = sys.cpus();
-    let cpu_brand =
-        cpus.first().map(|c| c.brand().trim().to_string()).filter(|s| !s.is_empty()).unwrap_or_else(|| "unknown".to_string());
+    let cpu_brand = cpus
+        .first()
+        .map(|c| c.brand().trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "unknown".to_string());
     let cpu_logical_count = cpus.len().max(1);
     let n_cpus = cpu_logical_count as f32;
 
     let load = System::load_average();
-    let operator_location = std::env::var("RKSTRATUM_LOCATION").ok().filter(|s| !s.trim().is_empty()).map(|s| s.trim().to_string());
+    let operator_location = std::env::var("RKSTRATUM_LOCATION")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string());
 
     let geo_location = try_geo_lookup();
 
-    let last_updated_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH).ok().map(|d| d.as_millis() as u64).unwrap_or(0);
+    let last_updated_unix_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
 
     let total_mem = sys.total_memory();
     let avail_mem = sys.available_memory();
@@ -436,7 +459,16 @@ fn collect_host_snapshot_blocking() -> Option<HostSnapshot> {
                 take_volume_free_rate(available),
             )
         } else {
-            (Some(p.to_string_lossy().to_string()), None, None, None, None, None, None, None)
+            (
+                Some(p.to_string_lossy().to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
         }
     } else {
         (None, None, None, None, None, None, None, None)
@@ -452,23 +484,39 @@ fn collect_host_snapshot_blocking() -> Option<HostSnapshot> {
         bridge_virtual_memory_bytes,
         bridge_disk_read_bytes_per_sec,
         bridge_disk_write_bytes_per_sec,
-    ) = sys.process(self_pid).map_or((None, None, None, None, None, None), |p| {
-        let cpu_raw = p.cpu_usage();
-        let pct = (cpu_raw / n_cpus).clamp(0.0, 100.0);
-        let du = p.disk_usage();
-        let (r_bps, w_bps) = take_bridge_disk_rates(du.total_read_bytes, du.total_written_bytes);
-        (Some(self_pid.as_u32()), Some((pct * 10.0).round() / 10.0), Some(p.memory()), Some(p.virtual_memory()), r_bps, w_bps)
-    });
-
-    let (kaspad_pid, kaspad_cpu_usage_percent, kaspad_memory_bytes, kaspad_virtual_memory_bytes) = if embedded {
-        (None, None, None, None)
-    } else {
-        pick_kaspad_process(&sys, self_pid).map_or((None, None, None, None), |p| {
+    ) = sys
+        .process(self_pid)
+        .map_or((None, None, None, None, None, None), |p| {
             let cpu_raw = p.cpu_usage();
             let pct = (cpu_raw / n_cpus).clamp(0.0, 100.0);
-            (Some(p.pid().as_u32()), Some((pct * 10.0).round() / 10.0), Some(p.memory()), Some(p.virtual_memory()))
-        })
-    };
+            let du = p.disk_usage();
+            let (r_bps, w_bps) =
+                take_bridge_disk_rates(du.total_read_bytes, du.total_written_bytes);
+            (
+                Some(self_pid.as_u32()),
+                Some((pct * 10.0).round() / 10.0),
+                Some(p.memory()),
+                Some(p.virtual_memory()),
+                r_bps,
+                w_bps,
+            )
+        });
+
+    let (kaspad_pid, kaspad_cpu_usage_percent, kaspad_memory_bytes, kaspad_virtual_memory_bytes) =
+        if embedded {
+            (None, None, None, None)
+        } else {
+            pick_kaspad_process(&sys, self_pid).map_or((None, None, None, None), |p| {
+                let cpu_raw = p.cpu_usage();
+                let pct = (cpu_raw / n_cpus).clamp(0.0, 100.0);
+                (
+                    Some(p.pid().as_u32()),
+                    Some((pct * 10.0).round() / 10.0),
+                    Some(p.memory()),
+                    Some(p.virtual_memory()),
+                )
+            })
+        };
 
     Some(HostSnapshot {
         hostname,
@@ -546,8 +594,9 @@ fn try_geo_lookup() -> Option<String> {
         );
     });
 
-    let url = std::env::var("RKSTRATUM_GEOIP_URL")
-        .unwrap_or_else(|_| "http://ip-api.com/json/?fields=status,message,country,regionName,city".to_string());
+    let url = std::env::var("RKSTRATUM_GEOIP_URL").unwrap_or_else(|_| {
+        "http://ip-api.com/json/?fields=status,message,country,regionName,city".to_string()
+    });
 
     #[derive(serde::Deserialize)]
     struct IpApiMini {
@@ -559,18 +608,29 @@ fn try_geo_lookup() -> Option<String> {
         city: Option<String>,
     }
 
-    let resp = ureq::get(&url).timeout(std::time::Duration::from_secs(6)).call().ok()?;
+    let resp = ureq::get(&url)
+        .timeout(std::time::Duration::from_secs(6))
+        .call()
+        .ok()?;
     let j: IpApiMini = resp.into_json().ok()?;
     if j.status != "success" {
         tracing::debug!("geoip lookup failed: {:?}", j.message);
         return None;
     }
-    let parts = [j.city.as_deref(), j.region_name.as_deref(), j.country.as_deref()]
-        .into_iter()
-        .flatten()
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>();
-    if parts.is_empty() { None } else { Some(parts.join(", ")) }
+    let parts = [
+        j.city.as_deref(),
+        j.region_name.as_deref(),
+        j.country.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .filter(|s| !s.is_empty())
+    .collect::<Vec<_>>();
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(", "))
+    }
 }
 
 #[cfg(all(feature = "rkstratum_host_metrics", not(feature = "rkstratum_geoip")))]

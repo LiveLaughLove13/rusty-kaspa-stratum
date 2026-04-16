@@ -23,8 +23,12 @@ pub(super) async fn handle_submit(
         return Ok(());
     }
 
-    match pow_loop::run_pow_validation_loop(handler, Arc::clone(&ctx), &event, kaspa_api, &prep).await? {
+    match pow_loop::run_pow_validation_loop(handler, Arc::clone(&ctx), &event, kaspa_api, &prep)
+        .await?
+    {
         PowDone::AlreadyFinished => Ok(()),
-        PowDone::Continue { invalid_share } => finish::after_pow_loop(handler, ctx, &event, &prep, invalid_share).await,
+        PowDone::Continue { invalid_share } => {
+            finish::after_pow_loop(handler, ctx, &event, &prep, invalid_share).await
+        }
     }
 }

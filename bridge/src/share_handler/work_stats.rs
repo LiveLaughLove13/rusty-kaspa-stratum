@@ -51,12 +51,14 @@ pub(crate) struct StatsPrinterEntry {
     pub overall: Arc<WorkStats>,
 }
 
-pub(crate) static STATS_PRINTER_REGISTRY: Lazy<Mutex<Vec<StatsPrinterEntry>>> = Lazy::new(|| Mutex::new(Vec::new()));
+pub(crate) static STATS_PRINTER_REGISTRY: Lazy<Mutex<Vec<StatsPrinterEntry>>> =
+    Lazy::new(|| Mutex::new(Vec::new()));
 pub static STATS_PRINTER_STARTED: AtomicBool = AtomicBool::new(false);
 
 #[cfg(feature = "rkstratum_cpu_miner")]
-pub static RKSTRATUM_CPU_MINER_METRICS: Lazy<parking_lot::Mutex<Option<Arc<InternalMinerMetrics>>>> =
-    Lazy::new(|| parking_lot::Mutex::new(None));
+pub static RKSTRATUM_CPU_MINER_METRICS: Lazy<
+    parking_lot::Mutex<Option<Arc<InternalMinerMetrics>>>,
+> = Lazy::new(|| parking_lot::Mutex::new(None));
 
 #[cfg(feature = "rkstratum_cpu_miner")]
 pub fn set_rkstratum_cpu_miner_metrics(metrics: Arc<InternalMinerMetrics>) {

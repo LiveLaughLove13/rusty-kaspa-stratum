@@ -1,6 +1,9 @@
 use super::{BIG_JOB_REGEX, CLIENT_TIMEOUT, send_client_diff};
 use crate::{
-    hasher::{calculate_target, generate_iceriver_job_params, generate_job_header, generate_large_job_params, serialize_block_header},
+    hasher::{
+        calculate_target, generate_iceriver_job_params, generate_job_header,
+        generate_large_job_params, serialize_block_header,
+    },
     jsonrpc_event::JsonRpcEvent,
     mining_state::{GetMiningState, Job},
     prom::*,
@@ -31,38 +34,68 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
             {
                 warn!("client misconfigured, no miner address specified - disconnecting");
                 let wallet_str = id.wallet_addr.clone();
-                record_worker_error(&instance_id, &wallet_str, crate::errors::ErrorShortCode::NoMinerAddress.as_str());
+                record_worker_error(
+                    &instance_id,
+                    &wallet_str,
+                    crate::errors::ErrorShortCode::NoMinerAddress.as_str(),
+                );
                 drop(id); // Drop before disconnect
                 client_clone.disconnect();
             }
-            debug!("new_block_available: client {} has no wallet address yet, skipping", client_clone.remote_addr);
+            debug!(
+                "new_block_available: client {} has no wallet address yet, skipping",
+                client_clone.remote_addr
+            );
             return;
         }
         id.wallet_addr.clone()
     };
 
-    debug!("new_block_available: fetching block template for client {} (wallet: {})", client_clone.remote_addr, wallet_addr_str);
+    debug!(
+        "new_block_available: fetching block template for client {} (wallet: {})",
+        client_clone.remote_addr, wallet_addr_str
+    );
 
     // Get block template
     let (wallet_addr, remote_app, canxium_addr) = {
         let id = client_clone.identity.lock();
-        (id.wallet_addr.clone(), id.remote_app.clone(), id.canxium_addr.clone())
+        (
+            id.wallet_addr.clone(),
+            id.remote_app.clone(),
+            id.canxium_addr.clone(),
+        )
     };
 
-    let template_result = kaspa_api_clone.get_block_template(&wallet_addr, &remote_app, &canxium_addr).await;
+    let template_result = kaspa_api_clone
+        .get_block_template(&wallet_addr, &remote_app, &canxium_addr)
+        .await;
 
     let block = match template_result {
         Ok(block) => {
-            debug!("new_block_available: successfully fetched block template for client {}", client_clone.remote_addr);
+            debug!(
+                "new_block_available: successfully fetched block template for client {}",
+                client_clone.remote_addr
+            );
             block
         }
         Err(e) => {
             if e.to_string().contains("Could not decode address") {
-                record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::InvalidAddressFmt.as_str());
-                error!("failed fetching new block template from kaspa, malformed address: {}", e);
+                record_worker_error(
+                    &instance_id,
+                    &wallet_addr,
+                    crate::errors::ErrorShortCode::InvalidAddressFmt.as_str(),
+                );
+                error!(
+                    "failed fetching new block template from kaspa, malformed address: {}",
+                    e
+                );
                 client_clone.disconnect();
             } else {
-                record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedBlockFetch.as_str());
+                record_worker_error(
+                    &instance_id,
+                    &wallet_addr,
+                    crate::errors::ErrorShortCode::FailedBlockFetch.as_str(),
+                );
                 error!("failed fetching new block template from kaspa: {}", e);
             }
             return;
@@ -81,7 +114,11 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
         Ok(h) => h,
         Err(e) => {
             let error_msg = e.to_string();
-            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::BadDataFromMiner.as_str());
+            record_worker_error(
+                &instance_id,
+                &wallet_addr,
+                crate::errors::ErrorShortCode::BadDataFromMiner.as_str(),
+            );
             error!("failed to serialize block header: {}", error_msg);
 
             // Log block header details for debugging
@@ -90,7 +127,10 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
             debug!("Block header bits: {}", block.header.bits);
             debug!("Block header daa_score: {}", block.header.daa_score);
             debug!("Block header blue_score: {}", block.header.blue_score);
-            debug!("Block header parents_by_level expanded_len: {}", block.header.parents_by_level.expanded_len());
+            debug!(
+                "Block header parents_by_level expanded_len: {}",
+                block.header.parents_by_level.expanded_len()
+            );
 
             // Skip this block and continue - the next block template should work
             return;
@@ -98,7 +138,10 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
     };
 
     // Create Job struct with both block and pre_pow_hash
-    let job = Job { block: block.clone(), pre_pow_hash };
+    let job = Job {
+        block: block.clone(),
+        pre_pow_hash,
+    };
 
     // Add job
     let job_id = state.add_job(job);
@@ -132,12 +175,19 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
                 worker_name: worker_name.clone(),
                 miner: remote_app.clone(),
                 wallet: wallet_addr.clone(),
-                ip: format!("{}:{}", client_clone.remote_addr(), client_clone.remote_port()),
+                ip: format!(
+                    "{}:{}",
+                    client_clone.remote_addr(),
+                    client_clone.remote_port()
+                ),
             },
             min_diff,
         );
 
-        let target = state.stratum_diff().map(|d| d.target_value.clone()).unwrap_or_else(BigUint::zero);
+        let target = state
+            .stratum_diff()
+            .map(|d| d.target_value.clone())
+            .unwrap_or_else(BigUint::zero);
         let target_bytes = target.to_bytes_be();
         debug!(
             "Initialized per-client MiningState with difficulty: {}, target: {:x} ({} bytes, {} bits)",
@@ -178,7 +228,11 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
                         worker_name: worker_name.clone(),
                         miner: remote_app.clone(),
                         wallet: wallet_addr.clone(),
-                        ip: format!("{}:{}", client_clone.remote_addr(), client_clone.remote_port()),
+                        ip: format!(
+                            "{}:{}",
+                            client_clone.remote_addr(),
+                            client_clone.remote_port()
+                        ),
                     },
                     var_diff,
                 );
@@ -193,10 +247,12 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
     // Check if this is an IceRiver or Bitmain miner - they need single hex string format
     let remote_app = client_clone.identity.lock().remote_app.clone();
     let remote_app_lower = remote_app.to_lowercase();
-    let is_iceriver =
-        remote_app_lower.contains("iceriver") || remote_app_lower.contains("icemining") || remote_app_lower.contains("icm");
-    let is_bitmain =
-        remote_app_lower.contains("godminer") || remote_app_lower.contains("bitmain") || remote_app_lower.contains("antminer");
+    let is_iceriver = remote_app_lower.contains("iceriver")
+        || remote_app_lower.contains("icemining")
+        || remote_app_lower.contains("icm");
+    let is_bitmain = remote_app_lower.contains("godminer")
+        || remote_app_lower.contains("bitmain")
+        || remote_app_lower.contains("antminer");
 
     debug!(
         "[JOB] new_block_available: client {}, is_iceriver: {}, is_bitmain: {}, use_big_job: {}",
@@ -212,7 +268,10 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
         // This matches Ghostpool and other working implementations
         debug!("[JOB] new_block_available: Generating IceRiver format job params");
         let iceriver_params = generate_iceriver_job_params(&pre_pow_hash, block.header.timestamp);
-        debug!("[JOB] new_block_available: IceRiver job_data length: {} (expected 80)", iceriver_params.len());
+        debug!(
+            "[JOB] new_block_available: IceRiver job_data length: {} (expected 80)",
+            iceriver_params.len()
+        );
         job_params.push(serde_json::Value::String(iceriver_params));
     } else if state.use_big_job() && !is_iceriver {
         // BzMiner format - single hex string (big endian hash)
@@ -220,14 +279,22 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
         debug!("[JOB] new_block_available: Generating BzMiner format job params");
         let header_bytes = pre_pow_hash.as_bytes();
         let large_params = generate_large_job_params(&header_bytes, block.header.timestamp);
-        debug!("[JOB] new_block_available: BzMiner job_data length: {} (expected 80)", large_params.len());
+        debug!(
+            "[JOB] new_block_available: BzMiner job_data length: {} (expected 80)",
+            large_params.len()
+        );
         job_params.push(serde_json::Value::String(large_params));
     } else {
         // Legacy format - array + number (for Bitmain and other miners)
         debug!("[JOB] new_block_available: Using Legacy format (array + timestamp)");
         let header_bytes = pre_pow_hash.as_bytes();
         let job_header = generate_job_header(&header_bytes);
-        job_params.push(serde_json::Value::Array(job_header.iter().map(|&v| serde_json::Value::Number(v.into())).collect()));
+        job_params.push(serde_json::Value::Array(
+            job_header
+                .iter()
+                .map(|&v| serde_json::Value::Number(v.into()))
+                .collect(),
+        ));
         job_params.push(serde_json::Value::Number(block.header.timestamp.into()));
     }
 
@@ -236,7 +303,10 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
     let (is_iceriver_client, is_bitmain_client) = {
         let app = client_clone.identity.lock().remote_app.clone();
         let lower = app.to_lowercase();
-        (app.contains("IceRiver"), lower.contains("godminer") || lower.contains("bitmain") || lower.contains("antminer"))
+        (
+            app.contains("IceRiver"),
+            lower.contains("godminer") || lower.contains("bitmain") || lower.contains("antminer"),
+        )
     };
 
     debug!(
@@ -252,7 +322,9 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
     // })
     let send_result = if is_iceriver_client {
         // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
-        client_clone.send_notification("mining.notify", job_params.clone()).await
+        client_clone
+            .send_notification("mining.notify", job_params.clone())
+            .await
     } else {
         // For non-IceRiver, use standard JSON-RPC format with job ID
         let notify_event = JsonRpcEvent {
@@ -266,12 +338,26 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
 
     if let Err(e) = send_result {
         if e.to_string().contains("disconnected") {
-            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::Disconnected.as_str());
-            warn!("new_block_available: failed to send job {} - client disconnected", job_id);
+            record_worker_error(
+                &instance_id,
+                &wallet_addr,
+                crate::errors::ErrorShortCode::Disconnected.as_str(),
+            );
+            warn!(
+                "new_block_available: failed to send job {} - client disconnected",
+                job_id
+            );
         } else {
-            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedSendWork.as_str());
+            record_worker_error(
+                &instance_id,
+                &wallet_addr,
+                crate::errors::ErrorShortCode::FailedSendWork.as_str(),
+            );
             error!("failed sending work packet {}: {}", job_id, e);
-            error!("new_block_available: failed to send job {} to client {}: {}", job_id, client_clone.remote_addr, e);
+            error!(
+                "new_block_available: failed to send job {} to client {}: {}",
+                job_id, client_clone.remote_addr, e
+            );
         }
     } else {
         let wallet_addr_str = wallet_addr.clone();
@@ -281,8 +367,15 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
             worker_name: worker_name.clone(),
             miner: String::new(),
             wallet: wallet_addr_str.clone(),
-            ip: format!("{}:{}", client_clone.remote_addr(), client_clone.remote_port()),
+            ip: format!(
+                "{}:{}",
+                client_clone.remote_addr(),
+                client_clone.remote_port()
+            ),
         });
-        debug!("new_block_available: successfully sent job ID {} to client {}", job_id, client_clone.remote_addr);
+        debug!(
+            "new_block_available: successfully sent job ID {} to client {}",
+            job_id, client_clone.remote_addr
+        );
     }
 }

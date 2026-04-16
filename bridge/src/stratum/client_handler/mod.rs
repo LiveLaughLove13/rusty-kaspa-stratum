@@ -26,8 +26,17 @@ pub struct ClientHandler {
 }
 
 impl ClientHandler {
-    pub fn new(share_handler: Arc<ShareHandler>, min_share_diff: f64, extranonce_size: i8, instance_id: String) -> Self {
-        let max_extranonce = if extranonce_size > 0 { (2_f64.powi(8 * extranonce_size.min(3) as i32) - 1.0) as i32 } else { 0 };
+    pub fn new(
+        share_handler: Arc<ShareHandler>,
+        min_share_diff: f64,
+        extranonce_size: i8,
+        instance_id: String,
+    ) -> Self {
+        let max_extranonce = if extranonce_size > 0 {
+            (2_f64.powi(8 * extranonce_size.min(3) as i32) - 1.0) as i32
+        } else {
+            0
+        };
 
         Self {
             clients: Arc::new(Mutex::new(HashMap::new())),
@@ -84,7 +93,11 @@ impl ClientHandler {
         }
         let (wallet_addr, worker_name, remote_app) = {
             let id = ctx.identity.lock();
-            (id.wallet_addr.clone(), id.worker_name.clone(), id.remote_app.clone())
+            (
+                id.wallet_addr.clone(),
+                id.worker_name.clone(),
+                id.remote_app.clone(),
+            )
         };
 
         let is_unauthed = wallet_addr.is_empty() && worker_name.is_empty();
@@ -123,14 +136,20 @@ impl ClientHandler {
         let _wallet_addr_str = {
             let id = client.identity.lock();
             if id.wallet_addr.is_empty() {
-                debug!("send_immediate_job: client {} has no wallet address yet, skipping", client.remote_addr);
+                debug!(
+                    "send_immediate_job: client {} has no wallet address yet, skipping",
+                    client.remote_addr
+                );
                 return;
             }
             id.wallet_addr.clone()
         };
 
         if !client.connected() {
-            debug!("send_immediate_job: client {} not connected, skipping", client.remote_addr);
+            debug!(
+                "send_immediate_job: client {} not connected, skipping",
+                client.remote_addr
+            );
             return;
         }
 
@@ -141,11 +160,21 @@ impl ClientHandler {
         let instance_id = self.instance_id.clone();
 
         tokio::spawn(async move {
-            job_dispatch::send_immediate_job_task(client_clone, kaspa_api_clone, share_handler, min_diff, instance_id).await;
+            job_dispatch::send_immediate_job_task(
+                client_clone,
+                kaspa_api_clone,
+                share_handler,
+                min_diff,
+                instance_id,
+            )
+            .await;
         });
     }
 
-    pub async fn new_block_available<T: KaspaApiTrait + Send + Sync + 'static>(&self, kaspa_api: Arc<T>) {
+    pub async fn new_block_available<T: KaspaApiTrait + Send + Sync + 'static>(
+        &self,
+        kaspa_api: Arc<T>,
+    ) {
         // Rate limit templates (250ms minimum between sends)
         {
             let mut last_time = self.last_template_time.lock();
@@ -189,7 +218,14 @@ impl ClientHandler {
             let instance_id = self.instance_id.clone();
 
             tokio::spawn(async move {
-                job_dispatch::new_block_job_task(client_clone, kaspa_api_clone, share_handler, min_diff, instance_id).await;
+                job_dispatch::new_block_job_task(
+                    client_clone,
+                    kaspa_api_clone,
+                    share_handler,
+                    min_diff,
+                    instance_id,
+                )
+                .await;
             });
         }
 
@@ -205,13 +241,19 @@ impl ClientHandler {
                 let kaspa_api_clone = Arc::clone(&kaspa_api);
                 let instance_id = self.instance_id.clone();
                 tokio::spawn(async move {
-                    match kaspa_api_clone.get_balances_by_addresses(&addresses_clone).await {
+                    match kaspa_api_clone
+                        .get_balances_by_addresses(&addresses_clone)
+                        .await
+                    {
                         Ok(balances) => {
                             // Record balances
                             crate::prom::record_balances(&instance_id, &balances);
                         }
                         Err(e) => {
-                            warn!("failed to get balances from kaspa, prom stats will be out of date: {}", e);
+                            warn!(
+                                "failed to get balances from kaspa, prom stats will be out of date: {}",
+                                e
+                            );
                         }
                     }
                 });

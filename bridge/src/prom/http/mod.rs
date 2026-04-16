@@ -25,7 +25,9 @@ mod tests {
         let request = request.to_string();
         let server = tokio::spawn(async move {
             let (stream, peer) = listener.accept().await.unwrap();
-            handle_http_request(stream, &request, &mode, peer).await.unwrap();
+            handle_http_request(stream, &request, &mode, peer)
+                .await
+                .unwrap();
         });
 
         let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
@@ -36,8 +38,15 @@ mod tests {
     }
 
     fn temp_config_path() -> PathBuf {
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
-        std::env::temp_dir().join(format!("rkstratum_config_test_{}_{}.yaml", std::process::id(), nanos))
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "rkstratum_config_test_{}_{}.yaml",
+            std::process::id(),
+            nanos
+        ))
     }
 
     #[tokio::test]
@@ -56,7 +65,10 @@ min_share_diff: 8192
 
         set_web_status_config("127.0.0.1:16110".to_string(), 2);
 
-        let mode = HttpMode::Instance { instance_id: "0".to_string(), web_bind: "127.0.0.1:0".to_string() };
+        let mode = HttpMode::Instance {
+            instance_id: "0".to_string(),
+            web_bind: "127.0.0.1:0".to_string(),
+        };
 
         let status_resp = send_request(mode.clone(), "GET /api/status HTTP/1.1\r\n\r\n").await;
         assert!(status_resp.contains("200 OK"));
@@ -77,8 +89,13 @@ min_share_diff: 8192
         unsafe {
             std::env::set_var("RKSTRATUM_ALLOW_CONFIG_WRITE", "1");
         }
-        let json_body = r#"{"kaspad_address":"127.0.0.2:16110","stratum_port":":5556","min_share_diff":4096}"#;
-        let post_req = format!("POST /api/config HTTP/1.1\r\nContent-Length: {}\r\n\r\n{}", json_body.len(), json_body);
+        let json_body =
+            r#"{"kaspad_address":"127.0.0.2:16110","stratum_port":":5556","min_share_diff":4096}"#;
+        let post_req = format!(
+            "POST /api/config HTTP/1.1\r\nContent-Length: {}\r\n\r\n{}",
+            json_body.len(),
+            json_body
+        );
         let post_resp = send_request(mode, &post_req).await;
         assert!(post_resp.contains("\"success\": true"));
 

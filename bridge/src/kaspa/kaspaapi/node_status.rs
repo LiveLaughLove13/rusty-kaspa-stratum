@@ -21,7 +21,8 @@ pub struct NodeStatusSnapshot {
     pub mempool_size: Option<u64>,
 }
 
-pub static NODE_STATUS: Lazy<Mutex<NodeStatusSnapshot>> = Lazy::new(|| Mutex::new(NodeStatusSnapshot::default()));
+pub static NODE_STATUS: Lazy<Mutex<NodeStatusSnapshot>> =
+    Lazy::new(|| Mutex::new(NodeStatusSnapshot::default()));
 
 /// JSON-friendly node snapshot for `/api/status` (camelCase matches prior dashboard conventions for nested objects).
 #[derive(Debug, Clone, Serialize)]

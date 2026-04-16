@@ -7,4 +7,6 @@ mod coinbase_tag;
 mod node_status;
 
 pub use api::KaspaApi;
-pub use node_status::{NODE_STATUS, NodeStatusApi, NodeStatusSnapshot, network_display_from_id, node_status_for_api};
+pub use node_status::{
+    NODE_STATUS, NodeStatusApi, NodeStatusSnapshot, network_display_from_id, node_status_for_api,
+};

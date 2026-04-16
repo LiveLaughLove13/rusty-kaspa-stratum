@@ -11,7 +11,10 @@ use tracing::{info, warn};
 
 use crate::log_colors::LogColors;
 
-async fn block_until_synced_or_shutdown(api: Arc<KaspaApi>, shutdown_rx: &mut watch::Receiver<bool>) -> bool {
+async fn block_until_synced_or_shutdown(
+    api: Arc<KaspaApi>,
+    shutdown_rx: &mut watch::Receiver<bool>,
+) -> bool {
     loop {
         if *shutdown_rx.borrow() {
             return false;
@@ -28,7 +31,9 @@ async fn block_until_synced_or_shutdown(api: Arc<KaspaApi>, shutdown_rx: &mut wa
         if ready {
             return true;
         }
-        warn!("Kaspa is not synced (or P2P IBD still active), waiting for sync before starting bridge");
+        warn!(
+            "Kaspa is not synced (or P2P IBD still active), waiting for sync before starting bridge"
+        );
 
         tokio::select! {
             _ = shutdown_rx.wait_for(|v| *v) => {
@@ -45,11 +50,19 @@ async fn block_until_synced_or_shutdown(api: Arc<KaspaApi>, shutdown_rx: &mut wa
 ///
 /// **Sync safety:** templates are only dispatched while the node is mining-ready (same as
 /// [`KaspaApi::is_node_synced_for_mining`](crate::kaspaapi::KaspaApi::is_node_synced_for_mining)). If sync is lost or P2P IBD resumes, we stop calling the callback.
-pub(super) async fn start_block_template_listener<F>(api: Arc<KaspaApi>, block_wait_time: Duration, mut block_cb: F) -> Result<()>
+pub(super) async fn start_block_template_listener<F>(
+    api: Arc<KaspaApi>,
+    block_wait_time: Duration,
+    mut block_cb: F,
+) -> Result<()>
 where
     F: FnMut() + Send + 'static,
 {
-    let mut rx = api.notification_rx.lock().take().ok_or_else(|| anyhow::anyhow!("Notification receiver already taken"))?;
+    let mut rx = api
+        .notification_rx
+        .lock()
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("Notification receiver already taken"))?;
 
     let api_clone = Arc::clone(&api);
     tokio::spawn(async move {
@@ -62,7 +75,9 @@ where
                 info!(
                     "{} {}",
                     LogColors::api("[API]"),
-                    LogColors::label("Node fully synced — distributing block templates to stratum miners")
+                    LogColors::label(
+                        "Node fully synced — distributing block templates to stratum miners"
+                    )
                 );
             }
 
@@ -131,7 +146,11 @@ pub(super) async fn start_block_template_listener_with_shutdown<F>(
 where
     F: FnMut() + Send + 'static,
 {
-    let mut rx = api.notification_rx.lock().take().ok_or_else(|| anyhow::anyhow!("Notification receiver already taken"))?;
+    let mut rx = api
+        .notification_rx
+        .lock()
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("Notification receiver already taken"))?;
 
     let api_clone = Arc::clone(&api);
     tokio::spawn(async move {
@@ -146,7 +165,9 @@ where
                 info!(
                     "{} {}",
                     LogColors::api("[API]"),
-                    LogColors::label("Node fully synced — distributing block templates to stratum miners")
+                    LogColors::label(
+                        "Node fully synced — distributing block templates to stratum miners"
+                    )
                 );
             }
 

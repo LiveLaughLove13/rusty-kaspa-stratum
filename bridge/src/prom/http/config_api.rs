@@ -21,7 +21,10 @@ pub fn set_web_config_path(path: PathBuf) {
 }
 
 pub(super) fn get_web_config_path() -> PathBuf {
-    WEB_CONFIG_PATH.get().cloned().unwrap_or_else(|| PathBuf::from("config.yaml"))
+    WEB_CONFIG_PATH
+        .get()
+        .cloned()
+        .unwrap_or_else(|| PathBuf::from("config.yaml"))
 }
 
 pub(crate) fn config_write_allowed() -> bool {
@@ -36,14 +39,26 @@ pub(crate) fn config_write_allowed() -> bool {
 /// This avoids re-reading `config.yaml` from within the web/prom servers (which can be wrong when
 /// using `--config` / CLI overrides, and also breaks when the working directory differs).
 pub fn set_web_status_config(kaspad_address: String, instances: usize) {
-    let lock =
-        WEB_STATUS_CONFIG.get_or_init(|| parking_lot::RwLock::new(WebStatusConfig { kaspad_address: "-".to_string(), instances: 1 }));
-    *lock.write() = WebStatusConfig { kaspad_address, instances: instances.max(1) };
+    let lock = WEB_STATUS_CONFIG.get_or_init(|| {
+        parking_lot::RwLock::new(WebStatusConfig {
+            kaspad_address: "-".to_string(),
+            instances: 1,
+        })
+    });
+    *lock.write() = WebStatusConfig {
+        kaspad_address,
+        instances: instances.max(1),
+    };
 }
 
 pub(crate) fn get_web_status_config() -> WebStatusConfig {
     WEB_STATUS_CONFIG
-        .get_or_init(|| parking_lot::RwLock::new(WebStatusConfig { kaspad_address: "-".to_string(), instances: 1 }))
+        .get_or_init(|| {
+            parking_lot::RwLock::new(WebStatusConfig {
+                kaspad_address: "-".to_string(),
+                instances: 1,
+            })
+        })
         .read()
         .clone()
 }
@@ -87,13 +102,17 @@ pub(crate) async fn get_config_json() -> String {
 }
 
 /// Update config from JSON
-pub(crate) async fn update_config_from_json(json_body: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub(crate) async fn update_config_from_json(
+    json_body: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use std::fs;
     use std::time::Duration;
 
     let updates: serde_json::Value = serde_json::from_str(json_body)?;
     let config_path = get_web_config_path();
-    let _guard = WEB_CONFIG_WRITE_LOCK.get_or_init(|| parking_lot::Mutex::new(())).lock();
+    let _guard = WEB_CONFIG_WRITE_LOCK
+        .get_or_init(|| parking_lot::Mutex::new(()))
+        .lock();
 
     // Read existing config
     let content = fs::read_to_string(&config_path).unwrap_or_else(|_| String::new());
@@ -142,10 +161,17 @@ pub(crate) async fn update_config_from_json(json_body: &str) -> Result<(), Box<d
             config.global.coinbase_tag_suffix = None;
         } else if let Some(s) = suffix.as_str() {
             let trimmed = s.trim();
-            config.global.coinbase_tag_suffix = if trimmed.is_empty() { None } else { Some(trimmed.to_string()) };
+            config.global.coinbase_tag_suffix = if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            };
         }
     }
-    if let Some(geo) = updates.get("approximate_geo_lookup").and_then(|v| v.as_bool()) {
+    if let Some(geo) = updates
+        .get("approximate_geo_lookup")
+        .and_then(|v| v.as_bool())
+    {
         config.global.approximate_geo_lookup = geo;
         crate::host_metrics::set_geoip_enabled_from_config(geo);
     }
@@ -169,12 +195,18 @@ pub(crate) async fn update_config_from_json(json_body: &str) -> Result<(), Box<d
         } else {
             instance.prom_port = Some(normalized);
         }
-    } else if updates.get("prom_port").map(|v| v.is_null()).unwrap_or(false) {
+    } else if updates
+        .get("prom_port")
+        .map(|v| v.is_null())
+        .unwrap_or(false)
+    {
         instance.prom_port = None;
     }
 
     // Convert back to YAML with flattened global fields
-    let yaml_content = config.to_yaml().map_err(|e| format!("Failed to serialize config to YAML: {}", e))?;
+    let yaml_content = config
+        .to_yaml()
+        .map_err(|e| format!("Failed to serialize config to YAML: {}", e))?;
 
     // Write to file
     fs::write(config_path, yaml_content)?;

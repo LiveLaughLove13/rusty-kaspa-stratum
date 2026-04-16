@@ -39,7 +39,10 @@ pub(super) async fn run_pow_validation_loop(
     let mut pow_value;
     let max_jobs = state.max_jobs() as u64;
 
-    debug!("[SUBMIT] Starting PoW validation for job_id: {} (max_jobs: {})", current_job_id, max_jobs);
+    debug!(
+        "[SUBMIT] Starting PoW validation for job_id: {} (max_jobs: {})",
+        current_job_id, max_jobs
+    );
 
     loop {
         // DIAGNOSTIC: Run full diagnostic on first share
@@ -54,12 +57,19 @@ pub(super) async fn run_pow_validation_loop(
         });
 
         // DEBUG: Compare what we sent to ASIC vs what we're validating (moved to debug level)
-        debug!("{} {}", LogColors::validation("[DEBUG]"), LogColors::label("===== VALIDATION DEBUG ====="));
+        debug!(
+            "{} {}",
+            LogColors::validation("[DEBUG]"),
+            LogColors::label("===== VALIDATION DEBUG =====")
+        );
         debug!(
             "{} {} {}",
             LogColors::validation("[DEBUG]"),
             LogColors::label("Job we sent to ASIC:"),
-            format!("job_id={}, timestamp={}", current_job_id, current_job.block.header.timestamp)
+            format!(
+                "job_id={}, timestamp={}",
+                current_job_id, current_job.block.header.timestamp
+            )
         );
         debug!(
             "{} {} {}",
@@ -71,7 +81,10 @@ pub(super) async fn run_pow_validation_loop(
             "{} {} {}",
             LogColors::validation("[DEBUG]"),
             LogColors::label("Header we're validating:"),
-            format!("timestamp={}, nonce={}, bits=0x{:08x}", header_clone.timestamp, header_clone.nonce, header_clone.bits)
+            format!(
+                "timestamp={}, nonce={}, bits=0x{:08x}",
+                header_clone.timestamp, header_clone.nonce, header_clone.bits
+            )
         );
 
         // Set the nonce in the header
@@ -81,7 +94,10 @@ pub(super) async fn run_pow_validation_loop(
             "{} {} {}",
             LogColors::validation("[DEBUG]"),
             LogColors::label("After setting nonce:"),
-            format!("timestamp={}, nonce=0x{:x}, bits=0x{:08x}", header_clone.timestamp, header_clone.nonce, header_clone.bits)
+            format!(
+                "timestamp={}, nonce=0x{:x}, bits=0x{:08x}",
+                header_clone.timestamp, header_clone.nonce, header_clone.bits
+            )
         );
 
         let snapshot = evaluate_job_pow(&header_clone, nonce_val);
@@ -96,16 +112,30 @@ pub(super) async fn run_pow_validation_loop(
             "{} {} {}",
             LogColors::validation("[DEBUG]"),
             LogColors::label("PowState result:"),
-            format!("check_passed={}, pow_value={:x}", snapshot.check_passed, pow_value)
+            format!(
+                "check_passed={}, pow_value={:x}",
+                snapshot.check_passed, pow_value
+            )
         );
 
         let pow_value_bytes = pow_value.to_bytes_be();
         let network_target_bytes = network_target.to_bytes_be();
 
         debug!("[SUBMIT] Target comparison:");
-        debug!("[SUBMIT]   - pow_value: {:x} ({} bytes)", pow_value, pow_value_bytes.len());
-        debug!("[SUBMIT]   - network_target: {:x} ({} bytes)", network_target, network_target_bytes.len());
-        debug!("[SUBMIT]   - meets_network_target(BigUint): {}", meets_network_target);
+        debug!(
+            "[SUBMIT]   - pow_value: {:x} ({} bytes)",
+            pow_value,
+            pow_value_bytes.len()
+        );
+        debug!(
+            "[SUBMIT]   - network_target: {:x} ({} bytes)",
+            network_target,
+            network_target_bytes.len()
+        );
+        debug!(
+            "[SUBMIT]   - meets_network_target(BigUint): {}",
+            meets_network_target
+        );
         debug!("[SUBMIT]   - check_passed(kaspa_pow): {}", pow_passed);
 
         debug!(
@@ -131,13 +161,19 @@ pub(super) async fn run_pow_validation_loop(
             "{} {} {}",
             LogColors::validation("[VALIDATION]"),
             LogColors::label("Comparison:"),
-            format!("pow_value <= network_target = {} (lower hash is better)", meets_network_target)
+            format!(
+                "pow_value <= network_target = {} (lower hash is better)",
+                meets_network_target
+            )
         );
         debug!(
             "{} {} {}",
             LogColors::validation("[VALIDATION]"),
             LogColors::label("PowState.check_pow() result:"),
-            format!("passed={}, Header bits: {}", pow_passed, snapshot.header_bits)
+            format!(
+                "passed={}, Header bits: {}",
+                pow_passed, snapshot.header_bits
+            )
         );
 
         // On devnet, network difficulty is very low, so we should see blocks being found
@@ -147,13 +183,20 @@ pub(super) async fn run_pow_validation_loop(
                 "{} {} {}",
                 LogColors::validation("[VALIDATION]"),
                 LogColors::block("*** NETWORK TARGET PASSED ***"),
-                format!("pow_value={:x} <= network_target={:x}", pow_value, network_target)
+                format!(
+                    "pow_value={:x} <= network_target={:x}",
+                    pow_value, network_target
+                )
             );
         } else if !network_target.is_zero() {
             let ratio = if !pow_value.is_zero() {
                 let target_f64 = network_target.to_f64().unwrap_or(0.0);
                 let pow_f64 = pow_value.to_f64().unwrap_or(1.0);
-                if pow_f64 > 0.0 { (target_f64 / pow_f64) * 100.0 } else { 0.0 }
+                if pow_f64 > 0.0 {
+                    (target_f64 / pow_f64) * 100.0
+                } else {
+                    0.0
+                }
             } else {
                 0.0
             };
@@ -161,10 +204,17 @@ pub(super) async fn run_pow_validation_loop(
                 "{} {} {}",
                 LogColors::validation("[VALIDATION]"),
                 LogColors::label("Network target NOT met -"),
-                format!("pow_value={:x} > network_target={:x} ({}% of target)", pow_value, network_target, ratio)
+                format!(
+                    "pow_value={:x} > network_target={:x} ({}% of target)",
+                    pow_value, network_target, ratio
+                )
             );
         } else {
-            warn!("{} {}", LogColors::validation("[VALIDATION]"), LogColors::error("Network target is ZERO - cannot validate!"));
+            warn!(
+                "{} {}",
+                LogColors::validation("[VALIDATION]"),
+                LogColors::error("Network target is ZERO - cannot validate!")
+            );
         }
 
         // Check network target (block)
@@ -197,7 +247,8 @@ pub(super) async fn run_pow_validation_loop(
         }
 
         // Check pool difficulty
-        let pool_target = pow_math::pool_target_or_zero(state.stratum_diff().map(|d| d.target_value.clone()));
+        let pool_target =
+            pow_math::pool_target_or_zero(state.stratum_diff().map(|d| d.target_value.clone()));
 
         // Compare FULL pow_value against pool_target (not just lower bits)
         // Compare full 256-bit values
@@ -206,7 +257,10 @@ pub(super) async fn run_pow_validation_loop(
 
         // Log difficulty check for debugging
         if pool_target.is_zero() {
-            warn!("stratum_diff target is zero! pow_value: {:x}, pool_target: {:x}", pow_value, pool_target);
+            warn!(
+                "stratum_diff target is zero! pow_value: {:x}, pool_target: {:x}",
+                pow_value, pool_target
+            );
         } else {
             let pow_len = pow_bytes.len();
             let target_len = target_bytes.len();
@@ -245,7 +299,10 @@ pub(super) async fn run_pow_validation_loop(
             );
 
             if current_job_id == prep.job_id {
-                debug!("low diff share... checking for bad job ID ({})", current_job_id);
+                debug!(
+                    "low diff share... checking for bad job ID ({})",
+                    current_job_id
+                );
                 invalid_share = true;
             }
 
@@ -253,18 +310,29 @@ pub(super) async fn run_pow_validation_loop(
             // Validate job ID: jobId == 1 || jobId%maxJobs == submitInfo.jobId%maxJobs+1
             match pow_math::weak_share_job_advance(current_job_id, prep.job_id, max_jobs) {
                 pow_math::WeakShareJobAdvance::Exhausted => {
-                    debug!("Job ID loop exhausted: current_job_id={}, job_id={}, max_jobs={}", current_job_id, prep.job_id, max_jobs);
+                    debug!(
+                        "Job ID loop exhausted: current_job_id={}, job_id={}, max_jobs={}",
+                        current_job_id, prep.job_id, max_jobs
+                    );
                     break;
                 }
                 pow_math::WeakShareJobAdvance::NoPreviousJob => break,
-                pow_math::WeakShareJobAdvance::RetryPreviousJob { job_id: prev_job_id } => {
+                pow_math::WeakShareJobAdvance::RetryPreviousJob {
+                    job_id: prev_job_id,
+                } => {
                     if let Some(prev_job) = state.get_job(prev_job_id) {
                         current_job_id = prev_job_id;
                         current_job = prev_job;
-                        debug!("Trying previous job ID: {} (submitted as {})", current_job_id, prep.job_id);
+                        debug!(
+                            "Trying previous job ID: {} (submitted as {})",
+                            current_job_id, prep.job_id
+                        );
                         continue;
                     } else {
-                        debug!("Previous job ID {} doesn't exist, exiting loop", prev_job_id);
+                        debug!(
+                            "Previous job ID {} doesn't exist, exiting loop",
+                            prev_job_id
+                        );
                         break;
                     }
                 }
@@ -283,7 +351,10 @@ pub(super) async fn run_pow_validation_loop(
             );
 
             if invalid_share {
-                debug!("found correct job ID: {} (submitted as {})", current_job_id, prep.job_id);
+                debug!(
+                    "found correct job ID: {} (submitted as {})",
+                    current_job_id, prep.job_id
+                );
             }
             invalid_share = false;
             break;

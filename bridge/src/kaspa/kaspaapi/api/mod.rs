@@ -6,8 +6,8 @@ use kaspa_grpc_client::GrpcClient;
 use kaspa_notify::{listener::ListenerId, scope::NewBlockTemplateScope};
 use kaspa_rpc_core::notify::mode::NotificationMode;
 use kaspa_rpc_core::{
-    GetBlockDagInfoRequest, GetConnectedPeerInfoRequest, GetInfoRequest, GetServerInfoRequest, GetSinkBlueScoreRequest, Notification,
-    api::rpc::RpcApi,
+    GetBlockDagInfoRequest, GetConnectedPeerInfoRequest, GetInfoRequest, GetServerInfoRequest,
+    GetSinkBlueScoreRequest, Notification, api::rpc::RpcApi,
 };
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -47,12 +47,30 @@ impl KaspaApi {
 
         // GrpcClient requires explicit "grpc://" prefix for connection
         // Always add it if not present (avoids unnecessary connection failure)
-        let grpc_address = if address.starts_with("grpc://") { address.clone() } else { format!("grpc://{}", address) };
+        let grpc_address = if address.starts_with("grpc://") {
+            address.clone()
+        } else {
+            format!("grpc://{}", address)
+        };
 
         // Log connection attempt (detailed logs moved to debug)
-        debug!("{} {}", LogColors::api("[API]"), LogColors::label("Establishing RPC connection to Kaspa node:"));
-        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Address:"), &grpc_address);
-        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Protocol:"), "gRPC (via RPC client wrapper)");
+        debug!(
+            "{} {}",
+            LogColors::api("[API]"),
+            LogColors::label("Establishing RPC connection to Kaspa node:")
+        );
+        debug!(
+            "{} {} {}",
+            LogColors::api("[API]"),
+            LogColors::label("  - Address:"),
+            &grpc_address
+        );
+        debug!(
+            "{} {} {}",
+            LogColors::api("[API]"),
+            LogColors::label("  - Protocol:"),
+            "gRPC (via RPC client wrapper)"
+        );
 
         let mut attempt: u64 = 0;
         let mut backoff_ms: u64 = 250;
@@ -102,9 +120,23 @@ impl KaspaApi {
         };
 
         // Log successful connection (detailed logs moved to debug)
-        debug!("{} {}", LogColors::api("[API]"), LogColors::block("RPC Connection Established Successfully"));
-        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Connected to:"), &grpc_address);
-        debug!("{} {} {}", LogColors::api("[API]"), LogColors::label("  - Connection Type:"), "gRPC (via RPC client wrapper)");
+        debug!(
+            "{} {}",
+            LogColors::api("[API]"),
+            LogColors::block("RPC Connection Established Successfully")
+        );
+        debug!(
+            "{} {} {}",
+            LogColors::api("[API]"),
+            LogColors::label("  - Connected to:"),
+            &grpc_address
+        );
+        debug!(
+            "{} {} {}",
+            LogColors::api("[API]"),
+            LogColors::label("  - Connection Type:"),
+            "gRPC (via RPC client wrapper)"
+        );
 
         // Start the client (no notify needed for Direct mode)
         client.start(None).await;
@@ -117,7 +149,8 @@ impl KaspaApi {
         let mut backoff_ms: u64 = 250;
         loop {
             attempt += 1;
-            let notify_fut = client.start_notify(ListenerId::default(), NewBlockTemplateScope {}.into());
+            let notify_fut =
+                client.start_notify(ListenerId::default(), NewBlockTemplateScope {}.into());
 
             let res = tokio::select! {
                 _ = shutdown_rx.wait_for(|v| *v) => {
@@ -163,7 +196,12 @@ impl KaspaApi {
         };
 
         let coinbase_tag = build_coinbase_tag_bytes(coinbase_tag_suffix.as_deref());
-        let api = Arc::new(Self { client, notification_rx, connected: Arc::new(Mutex::new(true)), coinbase_tag });
+        let api = Arc::new(Self {
+            client,
+            notification_rx,
+            connected: Arc::new(Mutex::new(true)),
+            coinbase_tag,
+        });
 
         // Start network stats thread
         let api_clone = Arc::clone(&api);
@@ -192,10 +230,17 @@ impl KaspaApi {
 
             // Get block DAG info
             // GetBlockDagInfoRequest is a unit struct, construct directly
-            let dag_response = match self.client.get_block_dag_info_call(None, GetBlockDagInfoRequest {}).await {
+            let dag_response = match self
+                .client
+                .get_block_dag_info_call(None, GetBlockDagInfoRequest {})
+                .await
+            {
                 Ok(r) => r,
                 Err(e) => {
-                    warn!("failed to get network hashrate from kaspa, prom stats will be out of date: {}", e);
+                    warn!(
+                        "failed to get network hashrate from kaspa, prom stats will be out of date: {}",
+                        e
+                    );
                     continue;
                 }
             };
@@ -215,18 +260,28 @@ impl KaspaApi {
             // RpcHash is the same as Hash, so we can use tip_hash directly
             let hashrate_response = match self
                 .client
-                .estimate_network_hashes_per_second_call(None, EstimateNetworkHashesPerSecondRequest::new(1000, tip_hash))
+                .estimate_network_hashes_per_second_call(
+                    None,
+                    EstimateNetworkHashesPerSecondRequest::new(1000, tip_hash),
+                )
                 .await
             {
                 Ok(r) => r,
                 Err(e) => {
-                    warn!("failed to get network hashrate from kaspa, prom stats will be out of date: {}", e);
+                    warn!(
+                        "failed to get network hashrate from kaspa, prom stats will be out of date: {}",
+                        e
+                    );
                     continue;
                 }
             };
 
             // Record network stats
-            record_network_stats(hashrate_response.network_hashes_per_second, dag_response.block_count, dag_response.difficulty);
+            record_network_stats(
+                hashrate_response.network_hashes_per_second,
+                dag_response.block_count,
+                dag_response.difficulty,
+            );
         }
     }
 
@@ -236,19 +291,36 @@ impl KaspaApi {
     async fn refresh_node_status_snapshot(&self) {
         let connected = self.client.is_connected();
 
-        let server_info_fut = self.client.get_server_info_call(None, GetServerInfoRequest {});
-        let dag_info_fut = self.client.get_block_dag_info_call(None, GetBlockDagInfoRequest {});
-        let peers_fut = self.client.get_connected_peer_info_call(None, GetConnectedPeerInfoRequest {});
+        let server_info_fut = self
+            .client
+            .get_server_info_call(None, GetServerInfoRequest {});
+        let dag_info_fut = self
+            .client
+            .get_block_dag_info_call(None, GetBlockDagInfoRequest {});
+        let peers_fut = self
+            .client
+            .get_connected_peer_info_call(None, GetConnectedPeerInfoRequest {});
         let info_fut = self.client.get_info_call(None, GetInfoRequest {});
-        let sink_bs_fut = self.client.get_sink_blue_score_call(None, GetSinkBlueScoreRequest {});
+        let sink_bs_fut = self
+            .client
+            .get_sink_blue_score_call(None, GetSinkBlueScoreRequest {});
         let sync_fut = self.client.get_sync_status();
 
-        let (server_info, dag_info, peers_info, info_resp, sink_bs_resp, sync_res) =
-            tokio::join!(server_info_fut, dag_info_fut, peers_fut, info_fut, sink_bs_fut, sync_fut);
+        let (server_info, dag_info, peers_info, info_resp, sink_bs_resp, sync_res) = tokio::join!(
+            server_info_fut,
+            dag_info_fut,
+            peers_fut,
+            info_fut,
+            sink_bs_fut,
+            sync_fut
+        );
 
         let mut snapshot = NODE_STATUS.lock();
         snapshot.last_updated = Some(Instant::now());
-        snapshot.last_updated_unix_ms = SystemTime::now().duration_since(UNIX_EPOCH).ok().map(|d| d.as_millis() as u64);
+        snapshot.last_updated_unix_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_millis() as u64);
         snapshot.is_connected = connected;
 
         // Prefer `getSyncStatus` over `getServerInfo.is_synced`; clear "synced" while any peer is
@@ -321,14 +393,21 @@ impl KaspaApi {
             return false;
         }
 
-        let peers_fut = self.client.get_connected_peer_info_call(None, GetConnectedPeerInfoRequest {});
-        let dag_fut = self.client.get_block_dag_info_call(None, GetBlockDagInfoRequest {});
+        let peers_fut = self
+            .client
+            .get_connected_peer_info_call(None, GetConnectedPeerInfoRequest {});
+        let dag_fut = self
+            .client
+            .get_block_dag_info_call(None, GetBlockDagInfoRequest {});
         let (peers_res, dag_res) = tokio::join!(peers_fut, dag_fut);
 
         let ibd_peer_active = match &peers_res {
             Ok(resp) => resp.peer_info.iter().any(|p| p.is_ibd_peer),
             Err(e) => {
-                debug!("getConnectedPeerInfo failed while checking P2P IBD; ignoring IBD-peer gate: {}", e);
+                debug!(
+                    "getConnectedPeerInfo failed while checking P2P IBD; ignoring IBD-peer gate: {}",
+                    e
+                );
                 false
             }
         };
@@ -339,7 +418,10 @@ impl KaspaApi {
         match &dag_res {
             Ok(dag) => dag.block_count == dag.header_count,
             Err(e) => {
-                debug!("getBlockDagInfo failed while checking block/header parity; not mining-ready: {}", e);
+                debug!(
+                    "getBlockDagInfo failed while checking block/header parity; not mining-ready: {}",
+                    e
+                );
                 false
             }
         }
@@ -347,7 +429,10 @@ impl KaspaApi {
 
     /// Wait until [`is_node_synced_for_mining`] stays true for [`MIN_MINING_READY_STABLE`]. If
     /// `shutdown_rx` is set, returns `false` when shutdown is requested; otherwise only returns `true`.
-    async fn wait_until_mining_ready_stable(&self, mut shutdown_rx: Option<&mut watch::Receiver<bool>>) -> bool {
+    async fn wait_until_mining_ready_stable(
+        &self,
+        mut shutdown_rx: Option<&mut watch::Receiver<bool>>,
+    ) -> bool {
         let mut stable_since: Option<Instant> = None;
         // So the first "not synced" path can warn without waiting 10s from process start.
         let mut last_slow_warn = Instant::now() - Duration::from_secs(30);
@@ -391,7 +476,9 @@ impl KaspaApi {
                     );
                 }
                 if now.duration_since(last_slow_warn) >= Duration::from_secs(10) {
-                    warn!("Kaspa is not synced (or P2P IBD still active), waiting before starting bridge");
+                    warn!(
+                        "Kaspa is not synced (or P2P IBD still active), waiting before starting bridge"
+                    );
                     last_slow_warn = now;
                 }
             }
@@ -414,9 +501,15 @@ impl KaspaApi {
         Ok(())
     }
 
-    pub async fn wait_for_sync_with_shutdown(&self, mut shutdown_rx: watch::Receiver<bool>) -> Result<()> {
+    pub async fn wait_for_sync_with_shutdown(
+        &self,
+        mut shutdown_rx: watch::Receiver<bool>,
+    ) -> Result<()> {
         debug!("checking kaspad sync state");
-        if !self.wait_until_mining_ready_stable(Some(&mut shutdown_rx)).await {
+        if !self
+            .wait_until_mining_ready_stable(Some(&mut shutdown_rx))
+            .await
+        {
             return Err(anyhow::anyhow!("shutdown requested"));
         }
         debug!("kaspad mining-ready (stable window passed), starting stratum");
@@ -424,7 +517,11 @@ impl KaspaApi {
     }
 
     /// Block template notifications plus ticker fallback (implementation in `streams` submodule).
-    pub async fn start_block_template_listener<F>(self: Arc<Self>, block_wait_time: Duration, block_cb: F) -> Result<()>
+    pub async fn start_block_template_listener<F>(
+        self: Arc<Self>,
+        block_wait_time: Duration,
+        block_cb: F,
+    ) -> Result<()>
     where
         F: FnMut() + Send + 'static,
     {
@@ -441,7 +538,13 @@ impl KaspaApi {
     where
         F: FnMut() + Send + 'static,
     {
-        streams::start_block_template_listener_with_shutdown(self, block_wait_time, shutdown_rx, block_cb).await
+        streams::start_block_template_listener_with_shutdown(
+            self,
+            block_wait_time,
+            shutdown_rx,
+            block_cb,
+        )
+        .await
     }
 
     /// Check if connected
@@ -452,7 +555,12 @@ impl KaspaApi {
 
 #[async_trait::async_trait]
 impl KaspaApiTrait for KaspaApi {
-    async fn get_block_template(&self, wallet_addr: &str, _remote_app: &str, _canxium_addr: &str) -> Result<Block> {
+    async fn get_block_template(
+        &self,
+        wallet_addr: &str,
+        _remote_app: &str,
+        _canxium_addr: &str,
+    ) -> Result<Block> {
         KaspaApi::get_block_template(self, wallet_addr, "", "").await
     }
 

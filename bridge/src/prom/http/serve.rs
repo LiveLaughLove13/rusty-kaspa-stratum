@@ -9,7 +9,9 @@
 //! POST rate limit). **TLS:** terminate HTTPS in front of the bridge (reverse proxy or load balancer).
 
 use super::super::metrics::{filter_metric_families_for_instance, init_metrics};
-use super::config_api::{config_write_allowed, get_config_json, get_web_status_config, update_config_from_json};
+use super::config_api::{
+    config_write_allowed, get_config_json, get_web_status_config, update_config_from_json,
+};
 use super::ops_access::{ConfigRouteDeny, check_config_route_access};
 use super::static_files::{content_type_for_path, try_read_static_file};
 use super::stats_json::{get_stats_json, get_stats_json_all};
@@ -36,8 +38,13 @@ struct WebStatusResponse {
 
 #[derive(Clone, Debug)]
 pub(crate) enum HttpMode {
-    Aggregated { web_bind: String },
-    Instance { instance_id: String, web_bind: String },
+    Aggregated {
+        web_bind: String,
+    },
+    Instance {
+        instance_id: String,
+        web_bind: String,
+    },
 }
 
 fn json_ok_headers(content_len: usize) -> String {
@@ -91,7 +98,11 @@ pub(crate) async fn handle_http_request(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use tokio::io::AsyncWriteExt;
 
-    let path = request.lines().next().and_then(|line| line.split_whitespace().nth(1)).unwrap_or("/");
+    let path = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .unwrap_or("/");
     let path = path.split('?').next().unwrap_or(path);
     let path = path.split('#').next().unwrap_or(path);
 
@@ -100,7 +111,9 @@ pub(crate) async fn handle_http_request(
         let encoder = prometheus::TextEncoder::new();
         let metric_families = match mode {
             HttpMode::Aggregated { .. } => prometheus::gather(),
-            HttpMode::Instance { instance_id, .. } => filter_metric_families_for_instance(prometheus::gather(), instance_id),
+            HttpMode::Instance { instance_id, .. } => {
+                filter_metric_families_for_instance(prometheus::gather(), instance_id)
+            }
         };
         let mut buf = Vec::new();
         encoder.encode(&metric_families, &mut buf)?;
@@ -116,7 +129,10 @@ pub(crate) async fn handle_http_request(
 
     if request.starts_with("GET /api/status") {
         let node = node_status_for_api();
-        let kaspad_version = node.server_version.clone().unwrap_or_else(|| "-".to_string());
+        let kaspad_version = node
+            .server_version
+            .clone()
+            .unwrap_or_else(|| "-".to_string());
         let status_cfg = get_web_status_config();
         let web_bind = match mode {
             HttpMode::Aggregated { web_bind } => web_bind.clone(),
@@ -180,9 +196,12 @@ pub(crate) async fn handle_http_request(
             return Ok(());
         }
         if !config_write_allowed() {
-            let json_response =
-                r#"{"success": false, "message": "Config write disabled. Set RKSTRATUM_ALLOW_CONFIG_WRITE=1 to enable."}"#;
-            let response = format!("{}{}", json_forbidden_headers(json_response.len()), json_response);
+            let json_response = r#"{"success": false, "message": "Config write disabled. Set RKSTRATUM_ALLOW_CONFIG_WRITE=1 to enable."}"#;
+            let response = format!(
+                "{}{}",
+                json_forbidden_headers(json_response.len()),
+                json_response
+            );
             stream.write_all(response.as_bytes()).await?;
             return Ok(());
         }
@@ -203,19 +222,30 @@ pub(crate) async fn handle_http_request(
     if request.starts_with("GET /") {
         if let Some((rel, bytes)) = try_read_static_file(path) {
             let ct = content_type_for_path(&rel);
-            let response = format!("HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n", ct, bytes.len());
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n",
+                ct,
+                bytes.len()
+            );
             write_response(stream, response, Some(bytes)).await?;
         } else {
-            stream.write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes()).await?;
+            stream
+                .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
+                .await?;
         }
         return Ok(());
     }
 
-    stream.write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes()).await?;
+    stream
+        .write_all("HTTP/1.1 404 Not Found\r\n\r\n".as_bytes())
+        .await?;
     Ok(())
 }
 
-async fn serve_http_loop(listener: tokio::net::TcpListener, mode: HttpMode) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn serve_http_loop(
+    listener: tokio::net::TcpListener,
+    mode: HttpMode,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use tokio::io::AsyncReadExt;
 
     loop {
@@ -229,7 +259,9 @@ async fn serve_http_loop(listener: tokio::net::TcpListener, mode: HttpMode) -> R
     }
 }
 
-pub async fn start_web_server_all(port: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn start_web_server_all(
+    port: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use std::net::SocketAddr;
     use tokio::net::TcpListener;
 
@@ -242,11 +274,20 @@ pub async fn start_web_server_all(port: &str) -> Result<(), Box<dyn std::error::
     let web_bind_for_status = addr_str.clone();
 
     tracing::debug!("Hosting aggregated web stats on {}/", addr);
-    serve_http_loop(listener, HttpMode::Aggregated { web_bind: web_bind_for_status }).await
+    serve_http_loop(
+        listener,
+        HttpMode::Aggregated {
+            web_bind: web_bind_for_status,
+        },
+    )
+    .await
 }
 
 /// Start Prometheus metrics server
-pub async fn start_prom_server(port: &str, instance_id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn start_prom_server(
+    port: &str,
+    instance_id: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use std::net::SocketAddr;
     use tokio::net::TcpListener;
 
@@ -261,5 +302,12 @@ pub async fn start_prom_server(port: &str, instance_id: &str) -> Result<(), Box<
     let listener = TcpListener::bind(addr).await?;
 
     tracing::debug!("Hosting prom stats on {}/metrics", addr);
-    serve_http_loop(listener, HttpMode::Instance { instance_id, web_bind: addr_str }).await
+    serve_http_loop(
+        listener,
+        HttpMode::Instance {
+            instance_id,
+            web_bind: addr_str,
+        },
+    )
+    .await
 }

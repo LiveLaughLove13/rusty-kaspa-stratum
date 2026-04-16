@@ -96,9 +96,14 @@ impl StratumContext {
         if !self.disconnecting.swap(true, Ordering::Release) {
             let (worker_name, remote_app, wallet_addr) = {
                 let id = self.identity.lock();
-                (id.worker_name.clone(), id.remote_app.clone(), id.wallet_addr.clone())
+                (
+                    id.worker_name.clone(),
+                    id.remote_app.clone(),
+                    id.wallet_addr.clone(),
+                )
             };
-            let is_pre_handshake = worker_name.is_empty() && remote_app.is_empty() && wallet_addr.is_empty();
+            let is_pre_handshake =
+                worker_name.is_empty() && remote_app.is_empty() && wallet_addr.is_empty();
             if is_pre_handshake {
                 tracing::debug!(
                     "disconnecting client {}:{} worker='{}' app='{}'",
@@ -149,7 +154,9 @@ impl StratumContext {
     }
 
     /// Get a reference to the read half (for reading)
-    pub fn get_read_half(&self) -> parking_lot::MutexGuard<'_, Option<tokio::io::ReadHalf<TcpStream>>> {
+    pub fn get_read_half(
+        &self,
+    ) -> parking_lot::MutexGuard<'_, Option<tokio::io::ReadHalf<TcpStream>>> {
         self.read_half.lock()
     }
 }

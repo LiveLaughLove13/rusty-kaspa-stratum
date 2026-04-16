@@ -17,7 +17,11 @@ fn vardiff_pow2_clamp_towards(current: f64, next: f64) -> f64 {
         return 1.0;
     }
 
-    let exp = if next >= current { next.log2().ceil() } else { next.log2().floor() };
+    let exp = if next >= current {
+        next.log2().ceil()
+    } else {
+        next.log2().floor()
+    };
     let clamped = 2_f64.powi(exp as i32);
     if clamped < 1.0 { 1.0 } else { clamped }
 }
@@ -44,7 +48,11 @@ pub(crate) fn vardiff_compute_next_diff(
         if clamp_pow2 {
             next = vardiff_pow2_clamp_towards(current, next);
         }
-        return if (next - current).abs() > f64::EPSILON { Some(next) } else { None };
+        return if (next - current).abs() > f64::EPSILON {
+            Some(next)
+        } else {
+            None
+        };
     }
 
     if elapsed_secs < VARDIFF_MIN_ELAPSED_SECS || shares < VARDIFF_MIN_SHARES {
@@ -60,7 +68,9 @@ pub(crate) fn vardiff_compute_next_diff(
         return None;
     }
 
-    let step = ratio.sqrt().clamp(VARDIFF_MAX_STEP_DOWN, VARDIFF_MAX_STEP_UP);
+    let step = ratio
+        .sqrt()
+        .clamp(VARDIFF_MAX_STEP_DOWN, VARDIFF_MAX_STEP_UP);
     let mut next = current * step;
     if next < 1.0 {
         next = 1.0;
@@ -73,7 +83,11 @@ pub(crate) fn vardiff_compute_next_diff(
     if rel_change < 0.10 {
         return None;
     }
-    if (next - current).abs() > f64::EPSILON { Some(next) } else { None }
+    if (next - current).abs() > f64::EPSILON {
+        Some(next)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -97,7 +111,11 @@ mod tests {
         let next = vardiff_compute_next_diff(8.0, 0.0, 95.0, 10.0, true).expect("adjust");
         assert!(next.is_finite() && next >= 1.0);
         let log2 = next.log2();
-        assert!((log2 - log2.round()).abs() < 1e-9, "expected power of 2, got {}", next);
+        assert!(
+            (log2 - log2.round()).abs() < 1e-9,
+            "expected power of 2, got {}",
+            next
+        );
     }
 
     #[test]

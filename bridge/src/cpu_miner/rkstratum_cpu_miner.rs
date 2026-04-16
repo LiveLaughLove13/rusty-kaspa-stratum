@@ -21,7 +21,11 @@ pub struct InternalMinerMetrics {
 #[cfg(feature = "rkstratum_cpu_miner")]
 impl Default for InternalMinerMetrics {
     fn default() -> Self {
-        Self { hashes_tried: AtomicU64::new(0), blocks_submitted: AtomicU64::new(0), blocks_accepted: AtomicU64::new(0) }
+        Self {
+            hashes_tried: AtomicU64::new(0),
+            blocks_submitted: AtomicU64::new(0),
+            blocks_accepted: AtomicU64::new(0),
+        }
     }
 }
 
@@ -52,7 +56,13 @@ struct SharedWork {
 
 impl SharedWork {
     fn new() -> Self {
-        Self { slot: Mutex::new(WorkSlot { work: None, version: 0 }), cv: Condvar::new() }
+        Self {
+            slot: Mutex::new(WorkSlot {
+                work: None,
+                version: 0,
+            }),
+            cv: Condvar::new(),
+        }
     }
 
     fn publish(&self, work: Work) {
@@ -70,7 +80,14 @@ impl SharedWork {
         if shutdown_flag.load(Ordering::Acquire) && slot.version == last_seen {
             return (last_seen, None);
         }
-        (slot.version, slot.work.as_ref().map(|w| Work { id: w.id, block: w.block.clone(), pow_state: Arc::clone(&w.pow_state) }))
+        (
+            slot.version,
+            slot.work.as_ref().map(|w| Work {
+                id: w.id,
+                block: w.block.clone(),
+                pow_state: Arc::clone(&w.pow_state),
+            }),
+        )
     }
 
     fn notify_all(&self) {
@@ -88,7 +105,9 @@ pub fn spawn_internal_cpu_miner(
     }
 
     if cfg.mining_address.trim().is_empty() {
-        return Err(anyhow::anyhow!("internal mining address is required when internal cpu miner is enabled"));
+        return Err(anyhow::anyhow!(
+            "internal mining address is required when internal cpu miner is enabled"
+        ));
     }
 
     let work = Arc::new(SharedWork::new());
@@ -114,7 +133,9 @@ pub fn spawn_internal_cpu_miner(
             if shutdown_flag_submit.load(Ordering::Acquire) {
                 break;
             }
-            metrics_submit.blocks_submitted.fetch_add(1, Ordering::Relaxed);
+            metrics_submit
+                .blocks_submitted
+                .fetch_add(1, Ordering::Relaxed);
 
             // Capture details for dashboard before moving the block into submit_block.
             let (hash_str, nonce, bluescore) = {
@@ -136,16 +157,24 @@ pub fn spawn_internal_cpu_miner(
                             for _ in 0..INTERNAL_BLOCK_CONFIRM_MAX_ATTEMPTS {
                                 match kaspa_api_confirm.get_current_block_color(&hash_str).await {
                                     Ok(true) => {
-                                        metrics_confirm.blocks_accepted.fetch_add(1, Ordering::Relaxed);
-                                        prom::record_internal_cpu_recent_block(hash_str, nonce, bluescore);
-                                        tracing::info!("[InternalMiner] block confirmed BLUE in DAG");
+                                        metrics_confirm
+                                            .blocks_accepted
+                                            .fetch_add(1, Ordering::Relaxed);
+                                        prom::record_internal_cpu_recent_block(
+                                            hash_str, nonce, bluescore,
+                                        );
+                                        tracing::info!(
+                                            "[InternalMiner] block confirmed BLUE in DAG"
+                                        );
                                         return;
                                     }
                                     Ok(false) => {
-                                        tokio::time::sleep(INTERNAL_BLOCK_CONFIRM_RETRY_DELAY).await;
+                                        tokio::time::sleep(INTERNAL_BLOCK_CONFIRM_RETRY_DELAY)
+                                            .await;
                                     }
                                     Err(_) => {
-                                        tokio::time::sleep(INTERNAL_BLOCK_CONFIRM_RETRY_DELAY).await;
+                                        tokio::time::sleep(INTERNAL_BLOCK_CONFIRM_RETRY_DELAY)
+                                            .await;
                                     }
                                 }
                             }
@@ -155,7 +184,10 @@ pub fn spawn_internal_cpu_miner(
                             );
                         });
                     } else {
-                        tracing::warn!("[InternalMiner] block rejected by node: {:?}", response.report);
+                        tracing::warn!(
+                            "[InternalMiner] block rejected by node: {:?}",
+                            response.report
+                        );
                     }
                 }
                 Err(e) => {
@@ -184,12 +216,19 @@ pub fn spawn_internal_cpu_miner(
                 break;
             }
 
-            match kaspa_api_templates.get_block_template(&mining_address, "internal", "").await {
+            match kaspa_api_templates
+                .get_block_template(&mining_address, "internal", "")
+                .await
+            {
                 Ok(block) => {
                     let id = next_id_templates.fetch_add(1, Ordering::Relaxed);
                     let header = block.header.clone();
                     let pow_state = Arc::new(kaspa_pow::State::new(&header));
-                    work_publisher.publish(Work { id, block, pow_state });
+                    work_publisher.publish(Work {
+                        id,
+                        block,
+                        pow_state,
+                    });
                 }
                 Err(e) => {
                     tracing::warn!("[InternalMiner] get_block_template failed: {e}");

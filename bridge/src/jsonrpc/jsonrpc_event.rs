@@ -71,7 +71,12 @@ fn default_version() -> String {
 
 impl JsonRpcEvent {
     pub fn new(id: Option<String>, method: &str, params: Vec<Value>) -> Self {
-        Self { id: id.map(Value::String), jsonrpc: "2.0".to_string(), method: method.to_string(), params }
+        Self {
+            id: id.map(Value::String),
+            jsonrpc: "2.0".to_string(),
+            method: method.to_string(),
+            params,
+        }
     }
 
     pub fn method_enum(&self) -> StratumMethod {
@@ -93,21 +98,36 @@ pub struct JsonRpcResponse {
 
 impl JsonRpcResponse {
     pub fn new(event: &JsonRpcEvent, result: Option<Value>, error: Option<Vec<Value>>) -> Self {
-        Self { id: event.id.clone(), result, error }
+        Self {
+            id: event.id.clone(),
+            result,
+            error,
+        }
     }
 
     pub fn success(id: Option<Value>, result: Value) -> Self {
-        Self { id, result: Some(result), error: None }
+        Self {
+            id,
+            result: Some(result),
+            error: None,
+        }
     }
 
     pub fn error(id: Option<Value>, code: i32, message: &str, data: Option<Value>) -> Self {
-        let mut error_vec = vec![Value::Number(code.into()), Value::String(message.to_string())];
+        let mut error_vec = vec![
+            Value::Number(code.into()),
+            Value::String(message.to_string()),
+        ];
         if let Some(d) = data {
             error_vec.push(d);
         } else {
             error_vec.push(Value::Null);
         }
-        Self { id, result: None, error: Some(error_vec) }
+        Self {
+            id,
+            result: None,
+            error: Some(error_vec),
+        }
     }
 }
 
@@ -135,7 +155,9 @@ fn sanitize_json_input(input: &str) -> String {
 /// Automatically sanitizes control characters that are invalid in JSON
 pub fn unmarshal_event(input: &str) -> Result<JsonRpcEvent, serde_json::Error> {
     // Check if sanitization is needed
-    let needs_sanitization = input.chars().any(|c| c.is_control() && c != '\n' && c != '\r');
+    let needs_sanitization = input
+        .chars()
+        .any(|c| c.is_control() && c != '\n' && c != '\r');
 
     if needs_sanitization {
         let sanitized = sanitize_json_input(input);

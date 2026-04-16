@@ -6,8 +6,8 @@ use crate::health_check;
 use crate::inprocess_node::{self, InProcessNode};
 use crate::tracing_setup;
 use crate::{
-    BridgeConfig, KaspaApi, StratumServerBridgeConfig as StratumBridgeConfig, listen_and_serve_with_shutdown, log_colors::LogColors,
-    net_utils, prom,
+    BridgeConfig, KaspaApi, StratumServerBridgeConfig as StratumBridgeConfig,
+    listen_and_serve_with_shutdown, log_colors::LogColors, net_utils, prom,
 };
 use futures_util::future::try_join_all;
 use kaspad_lib::args as kaspad_args;
@@ -61,7 +61,10 @@ unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> i32 {
         return 0;
     };
 
-    let now_ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
 
     // Debounce: Windows can invoke the handler multiple times for a single keypress.
     // Treat multiple invocations within a short window as the same press.
@@ -84,11 +87,17 @@ unsafe extern "system" fn console_ctrl_handler(ctrl_type: u32) -> i32 {
 
 #[cfg(windows)]
 fn install_windows_ctrl_handler(shutdown_tx: watch::Sender<bool>) -> Result<(), anyhow::Error> {
-    let _ = CTRL_HANDLER_STATE.set(CtrlHandlerState { presses: AtomicUsize::new(0), last_event_ms: AtomicU64::new(0), shutdown_tx });
+    let _ = CTRL_HANDLER_STATE.set(CtrlHandlerState {
+        presses: AtomicUsize::new(0),
+        last_event_ms: AtomicU64::new(0),
+        shutdown_tx,
+    });
 
     let ok = unsafe { SetConsoleCtrlHandler(Some(console_ctrl_handler), 1) };
     if ok == 0 {
-        return Err(anyhow::anyhow!("failed to install Windows console control handler"));
+        return Err(anyhow::anyhow!(
+            "failed to install Windows console control handler"
+        ));
     }
     Ok(())
 }
@@ -98,7 +107,9 @@ async fn shutdown_inprocess_with_timeout(node: InProcessNode) {
     match tokio::time::timeout(timeout, inprocess_node::shutdown_inprocess(node)).await {
         Ok(()) => {}
         Err(_) => {
-            tracing::warn!("Timed out waiting for embedded kaspad shutdown; continuing without clean node teardown");
+            tracing::warn!(
+                "Timed out waiting for embedded kaspad shutdown; continuing without clean node teardown"
+            );
         }
     }
 }
@@ -106,8 +117,14 @@ async fn shutdown_inprocess_with_timeout(node: InProcessNode) {
 /// Same search order as the bridge binary: cwd, `./bridge/`, next to the executable, etc.
 pub fn config_yaml_candidate_paths(config_path: &Path) -> Vec<PathBuf> {
     let fallback_path = Path::new("bridge").join(config_path);
-    let exe_base = std::env::current_exe().ok().and_then(|p| p.parent().map(|p| p.to_path_buf()));
-    let exe_root = exe_base.as_ref().and_then(|p| p.parent()).and_then(|p| p.parent()).map(|p| p.to_path_buf());
+    let exe_base = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let exe_root = exe_base
+        .as_ref()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .map(|p| p.to_path_buf());
 
     let mut candidates: Vec<PathBuf> = vec![config_path.to_path_buf(), fallback_path];
 
@@ -125,13 +142,20 @@ pub fn config_yaml_candidate_paths(config_path: &Path) -> Vec<PathBuf> {
 
 /// Best-effort dashboard URL for embedding UIs (e.g. Tauri) from the same config file the bridge would load.
 pub fn default_dashboard_iframe_url(cli: &Cli) -> String {
-    let requested = cli.config.clone().unwrap_or_else(|| PathBuf::from("config.yaml"));
+    let requested = cli
+        .config
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("config.yaml"));
     for path in config_yaml_candidate_paths(requested.as_path()) {
         if !path.exists() {
             continue;
         }
-        let Ok(content) = std::fs::read_to_string(&path) else { continue };
-        let Ok(cfg) = BridgeConfig::from_yaml(&content) else { continue };
+        let Ok(content) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(cfg) = BridgeConfig::from_yaml(&content) else {
+            continue;
+        };
         let w = cfg.global.web_dashboard_port.trim();
         if !w.is_empty()
             && let Some(u) = net_utils::http_operator_dashboard_origin(w)
@@ -140,22 +164,28 @@ pub fn default_dashboard_iframe_url(cli: &Cli) -> String {
         }
         break;
     }
-    net_utils::http_operator_dashboard_origin(":3030").unwrap_or_else(|| "http://127.0.0.1:3030/".to_string())
+    net_utils::http_operator_dashboard_origin(":3030")
+        .unwrap_or_else(|| "http://127.0.0.1:3030/".to_string())
 }
 
 fn load_initial_config() -> Result<BridgeConfig, anyhow::Error> {
-    let config_path = REQUESTED_CONFIG_PATH.get().map(PathBuf::as_path).unwrap_or_else(|| Path::new("config.yaml"));
+    let config_path = REQUESTED_CONFIG_PATH
+        .get()
+        .map(PathBuf::as_path)
+        .unwrap_or_else(|| Path::new("config.yaml"));
     let candidates = config_yaml_candidate_paths(config_path);
 
     let mut loaded_from: Option<std::path::PathBuf> = None;
     let mut config: Option<BridgeConfig> = None;
     for path in candidates.iter() {
         if path.exists() {
-            let content =
-                std::fs::read_to_string(path).map_err(|e| anyhow::anyhow!("Failed to read config file {}: {}", path.display(), e))?;
+            let content = std::fs::read_to_string(path).map_err(|e| {
+                anyhow::anyhow!("Failed to read config file {}: {}", path.display(), e)
+            })?;
 
-            let parsed = BridgeConfig::from_yaml(&content)
-                .map_err(|e| anyhow::anyhow!("Failed to parse config file {}: {}", path.display(), e))?;
+            let parsed = BridgeConfig::from_yaml(&content).map_err(|e| {
+                anyhow::anyhow!("Failed to parse config file {}: {}", path.display(), e)
+            })?;
 
             config = Some(parsed);
             loaded_from = Some(path.clone());
@@ -173,8 +203,15 @@ fn load_initial_config() -> Result<BridgeConfig, anyhow::Error> {
 fn log_bridge_configuration(config: &BridgeConfig) {
     let instance_count = config.instances.len();
     tracing::info!("----------------------------------");
-    tracing::info!("initializing bridge ({} instance{})", instance_count, if instance_count > 1 { "s" } else { "" });
-    tracing::info!("\tkaspad:          {} (shared)", config.global.kaspad_address);
+    tracing::info!(
+        "initializing bridge ({} instance{})",
+        instance_count,
+        if instance_count > 1 { "s" } else { "" }
+    );
+    tracing::info!(
+        "\tkaspad:          {} (shared)",
+        config.global.kaspad_address
+    );
     tracing::info!("\tblock wait:      {:?}", config.global.block_wait_time);
     tracing::info!("\tprint stats:     {}", config.global.print_stats);
     tracing::info!("\tvar diff:        {}", config.global.var_diff);
@@ -183,7 +220,10 @@ fn log_bridge_configuration(config: &BridgeConfig) {
     tracing::info!("\tpow2 clamp:      {}", config.global.pow2_clamp);
     tracing::info!("\textranonce:      auto-detected per client");
     tracing::info!("\thealth check:    {}", config.global.health_check_port);
-    tracing::info!("\tapprox geo IP:   {} (HTTP lookup; requires rkstratum_geoip build)", config.global.approximate_geo_lookup);
+    tracing::info!(
+        "\tapprox geo IP:   {} (HTTP lookup; requires rkstratum_geoip build)",
+        config.global.approximate_geo_lookup
+    );
 
     for (idx, instance) in config.instances.iter().enumerate() {
         tracing::info!("\t--- Instance {} ---", idx + 1);
@@ -203,7 +243,10 @@ fn log_bridge_configuration(config: &BridgeConfig) {
 pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
     // Single-config model: default to `config.yaml` for both mainnet and testnet runs.
     // `--testnet` affects the network behavior, but does not imply a different config file.
-    let requested_config = cli.config.clone().unwrap_or_else(|| PathBuf::from("config.yaml"));
+    let requested_config = cli
+        .config
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("config.yaml"));
 
     if REQUESTED_CONFIG_PATH.set(requested_config.clone()).is_err() {
         tracing::warn!("Failed to set requested config path - may already be initialized");
@@ -225,7 +268,11 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
     // This is best-effort and does not affect any mining logic.
     prom::set_web_status_config(config.global.kaspad_address.clone(), config.instances.len());
     // Point the web config endpoint at the actual config file path the bridge is using.
-    let loaded_config_path = CONFIG_LOADED_FROM.get().and_then(|p| p.as_ref()).cloned().unwrap_or_else(|| requested_config.clone());
+    let loaded_config_path = CONFIG_LOADED_FROM
+        .get()
+        .and_then(|p| p.as_ref())
+        .cloned()
+        .unwrap_or_else(|| requested_config.clone());
     prom::set_web_config_path(loaded_config_path);
 
     // Initialize tracing with WARN level by default (less verbose)
@@ -235,7 +282,9 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
         // Default: warn level, but allow info from the bridge. In inprocess mode we also
         // enable info-level logs from the embedded node (which uses the `log` crate).
         if node_mode == NodeMode::Inprocess {
-            EnvFilter::new("warn,kaspa_stratum_bridge=info,kaspa=info,kaspad=info,kaspad_lib=info,log=info")
+            EnvFilter::new(
+                "warn,kaspa_stratum_bridge=info,kaspa=info,kaspad=info,kaspad_lib=info,log=info",
+            )
         } else {
             EnvFilter::new("warn,kaspa_stratum_bridge=info")
         }
@@ -244,8 +293,11 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
     // Note: The file_guard must be kept alive for the lifetime of the program
     // to ensure logs are flushed to the file
     // Store it in a OnceLock to prevent it from being dropped
-    static FILE_GUARD: std::sync::OnceLock<tracing_appender::non_blocking::WorkerGuard> = std::sync::OnceLock::new();
-    if let Some(guard) = tracing_setup::init_tracing(&config, filter, node_mode == NodeMode::Inprocess) {
+    static FILE_GUARD: std::sync::OnceLock<tracing_appender::non_blocking::WorkerGuard> =
+        std::sync::OnceLock::new();
+    if let Some(guard) =
+        tracing_setup::init_tracing(&config, filter, node_mode == NodeMode::Inprocess)
+    {
         let _ = FILE_GUARD.set(guard);
     }
 
@@ -273,7 +325,10 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
             node_args.push("--appdir".to_string());
             node_args.push(appdir_to_use.to_string_lossy().to_string());
         } else {
-            assert!(cli.appdir.is_none(), "appdir should not be specified both in bridge args and kaspad args");
+            assert!(
+                cli.appdir.is_none(),
+                "appdir should not be specified both in bridge args and kaspad args"
+            );
         }
 
         let mut argv: Vec<OsString> = Vec::with_capacity(node_args.len() + 1);
@@ -297,7 +352,11 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
     if CONFIG_LOADED_FROM.get().and_then(|p| p.as_ref()).is_none() {
         let config_path = requested_config.as_path();
         let cwd = std::env::current_dir().ok();
-        tracing::warn!("config.yaml not found, using defaults (requested: {:?}, cwd: {:?})", config_path, cwd);
+        tracing::warn!(
+            "config.yaml not found, using defaults (requested: {:?}, cwd: {:?})",
+            config_path,
+            cwd
+        );
     }
 
     log_bridge_configuration(&config);
@@ -309,10 +368,13 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
     }
 
     // Create shared kaspa API client (all instances use the same node)
-    let kaspa_api =
-        KaspaApi::new(config.global.kaspad_address.clone(), config.global.coinbase_tag_suffix.clone(), shutdown_rx.clone())
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?;
+    let kaspa_api = KaspaApi::new(
+        config.global.kaspad_address.clone(),
+        config.global.coinbase_tag_suffix.clone(),
+        shutdown_rx.clone(),
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("Failed to create Kaspa API client: {}", e))?;
 
     if !config.global.web_dashboard_port.is_empty() {
         let web_dashboard_port = config.global.web_dashboard_port.clone();
@@ -334,16 +396,26 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
     #[cfg(feature = "rkstratum_cpu_miner")]
     {
         if cli.internal_cpu_miner {
-            let mining_address = cli
-                .internal_cpu_miner_address
-                .clone()
-                .ok_or_else(|| anyhow::anyhow!("--internal-cpu-miner requires --internal-cpu-miner-address <kaspa:...>"))?;
+            let mining_address = cli.internal_cpu_miner_address.clone().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--internal-cpu-miner requires --internal-cpu-miner-address <kaspa:...>"
+                )
+            })?;
 
             let threads = cli.internal_cpu_miner_threads.unwrap_or(1);
-            let throttle = cli.internal_cpu_miner_throttle_ms.map(Duration::from_millis);
-            let template_poll_interval = Duration::from_millis(cli.internal_cpu_miner_template_poll_ms.unwrap_or(250));
+            let throttle = cli
+                .internal_cpu_miner_throttle_ms
+                .map(Duration::from_millis);
+            let template_poll_interval =
+                Duration::from_millis(cli.internal_cpu_miner_template_poll_ms.unwrap_or(250));
 
-            let cfg = crate::InternalCpuMinerConfig { enabled: true, mining_address, threads, throttle, template_poll_interval };
+            let cfg = crate::InternalCpuMinerConfig {
+                enabled: true,
+                mining_address,
+                threads,
+                throttle,
+                template_poll_interval,
+            };
 
             tracing::info!(
                 "[InternalMiner] enabled: threads={}, throttle_ms={:?}, template_poll_ms={}",
@@ -354,7 +426,8 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
 
             crate::prom::set_internal_cpu_mining_address(cfg.mining_address.clone());
 
-            let metrics = crate::spawn_internal_cpu_miner(Arc::clone(&kaspa_api), cfg, shutdown_rx.clone())?;
+            let metrics =
+                crate::spawn_internal_cpu_miner(Arc::clone(&kaspa_api), cfg, shutdown_rx.clone())?;
             crate::set_rkstratum_cpu_miner_metrics(metrics);
 
             // Periodically export internal miner stats to Prometheus (if a /metrics server is running).
@@ -364,7 +437,9 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
                 let internal_metrics = crate::RKSTRATUM_CPU_MINER_METRICS.lock().as_ref().cloned();
 
                 tokio::spawn(async move {
-                    let Some(internal_metrics) = internal_metrics else { return };
+                    let Some(internal_metrics) = internal_metrics else {
+                        return;
+                    };
 
                     let mut last_hashes: u64 = 0;
                     let mut last_ts = tokio::time::Instant::now();
@@ -383,9 +458,15 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
                         let dt = (now - last_ts).as_secs_f64().max(0.001);
                         last_ts = now;
 
-                        let hashes_tried = internal_metrics.hashes_tried.load(std::sync::atomic::Ordering::Relaxed);
-                        let blocks_submitted = internal_metrics.blocks_submitted.load(std::sync::atomic::Ordering::Relaxed);
-                        let blocks_accepted = internal_metrics.blocks_accepted.load(std::sync::atomic::Ordering::Relaxed);
+                        let hashes_tried = internal_metrics
+                            .hashes_tried
+                            .load(std::sync::atomic::Ordering::Relaxed);
+                        let blocks_submitted = internal_metrics
+                            .blocks_submitted
+                            .load(std::sync::atomic::Ordering::Relaxed);
+                        let blocks_accepted = internal_metrics
+                            .blocks_accepted
+                            .load(std::sync::atomic::Ordering::Relaxed);
 
                         let dh = hashes_tried.saturating_sub(last_hashes);
                         last_hashes = hashes_tried;
@@ -393,7 +474,12 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
                         // Hashrate as GH/s
                         let hashrate_ghs = (dh as f64 / dt) / 1e9;
 
-                        crate::prom::record_internal_cpu_miner_snapshot(hashes_tried, blocks_submitted, blocks_accepted, hashrate_ghs);
+                        crate::prom::record_internal_cpu_miner_snapshot(
+                            hashes_tried,
+                            blocks_submitted,
+                            blocks_accepted,
+                            hashrate_ghs,
+                        );
                     }
                 });
             }
@@ -418,7 +504,11 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
             let instance_id_prom = instance_id_str.clone();
             tokio::spawn(async move {
                 if let Err(e) = prom::start_prom_server(&prom_port, &instance_id_prom).await {
-                    tracing::error!("[Instance {}] Prometheus server error: {}", instance_num_prom, e);
+                    tracing::error!(
+                        "[Instance {}] Prometheus server error: {}",
+                        instance_num_prom,
+                        e
+                    );
                 }
             });
         }
@@ -427,7 +517,11 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
             tracing_setup::register_instance(instance_id_str.clone(), instance_num);
 
             let colored_instance_id = LogColors::format_instance_id(instance_num);
-            tracing::info!("{} Starting on stratum port {}", colored_instance_id, instance.stratum_port);
+            tracing::info!(
+                "{} Starting on stratum port {}",
+                colored_instance_id,
+                instance.stratum_port
+            );
 
             let bridge_config = StratumBridgeConfig {
                 instance_id: instance_id_str.clone(),
@@ -450,7 +544,11 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
             listen_and_serve_with_shutdown(
                 bridge_config,
                 Arc::clone(&kaspa_api_clone),
-                if is_first_instance { Some(kaspa_api_clone) } else { None },
+                if is_first_instance {
+                    Some(kaspa_api_clone)
+                } else {
+                    None
+                },
                 instance_shutdown_rx,
             )
             .await
@@ -459,7 +557,10 @@ pub async fn run(cli: Cli) -> Result<(), anyhow::Error> {
         instance_handles.push(handle);
     }
 
-    tracing::info!("All {} instance(s) started, waiting for completion...", config.instances.len());
+    tracing::info!(
+        "All {} instance(s) started, waiting for completion...",
+        config.instances.len()
+    );
 
     let bridge_fut = async {
         let result = try_join_all(instance_handles).await;

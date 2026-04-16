@@ -62,7 +62,11 @@ pub(crate) struct WorkerInfo {
     pub(crate) disconnects: u64,
     #[serde(default, rename = "jobs")]
     pub(crate) jobs: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "balanceKas")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "balanceKas"
+    )]
     pub(crate) balance_kas: Option<f64>,
     #[serde(default, rename = "errors")]
     pub(crate) errors: u64,

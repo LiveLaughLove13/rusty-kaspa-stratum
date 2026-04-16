@@ -27,7 +27,13 @@ pub(super) fn evaluate_job_pow(header: &Header, nonce_val: u64) -> JobPowSnapsho
     let pow_value = BigUint::from_bytes_be(&pow_value_uint256.to_be_bytes());
     let network_target = calculate_target(header_clone.bits as u64);
     let meets_network_target = pow_math::meets_network_target_biguint(&pow_value, &network_target);
-    JobPowSnapshot { pow_value, check_passed, network_target, meets_network_target, header_bits: header_clone.bits }
+    JobPowSnapshot {
+        pow_value,
+        check_passed,
+        network_target,
+        meets_network_target,
+        header_bits: header_clone.bits,
+    }
 }
 
 #[cfg(test)]
@@ -53,7 +59,10 @@ mod tests {
         let h = test_header(0x1d00ffff, 0u64);
         let s = evaluate_job_pow(&h, 0x1234);
         assert_eq!(s.header_bits, h.bits);
-        assert_eq!(s.meets_network_target, pow_math::meets_network_target_biguint(&s.pow_value, &s.network_target));
+        assert_eq!(
+            s.meets_network_target,
+            pow_math::meets_network_target_biguint(&s.pow_value, &s.network_target)
+        );
         let s2 = evaluate_job_pow(&h, 0x1234);
         assert_eq!(s.pow_value, s2.pow_value);
         assert_eq!(s.check_passed, s2.check_passed);

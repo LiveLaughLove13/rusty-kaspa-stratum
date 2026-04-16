@@ -1,6 +1,9 @@
 use super::{BIG_JOB_REGEX, send_client_diff};
 use crate::{
-    hasher::{calculate_target, generate_iceriver_job_params, generate_job_header, generate_large_job_params, serialize_block_header},
+    hasher::{
+        calculate_target, generate_iceriver_job_params, generate_job_header,
+        generate_large_job_params, serialize_block_header,
+    },
     jsonrpc_event::JsonRpcEvent,
     mining_state::{GetMiningState, Job},
     prom::*,
@@ -31,19 +34,30 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
         (wallet, app, canx)
     };
 
-    debug!("send_immediate_job: fetching block template for client {} (wallet: {})", client_clone.remote_addr, wallet_addr);
+    debug!(
+        "send_immediate_job: fetching block template for client {} (wallet: {})",
+        client_clone.remote_addr, wallet_addr
+    );
 
     // Get block template
-    let template_result = kaspa_api_clone.get_block_template(&wallet_addr, &remote_app, &canxium_addr).await;
+    let template_result = kaspa_api_clone
+        .get_block_template(&wallet_addr, &remote_app, &canxium_addr)
+        .await;
 
     let block = match template_result {
         Ok(block) => {
-            debug!("send_immediate_job: successfully fetched block template for client {}", client_clone.remote_addr);
+            debug!(
+                "send_immediate_job: successfully fetched block template for client {}",
+                client_clone.remote_addr
+            );
 
             // === LOG NEW BLOCK TEMPLATE HEADER === (moved to debug level)
             debug!("=== NEW BLOCK TEMPLATE RECEIVED ===");
             debug!("  blue_score: {}", block.header.blue_score);
-            debug!("  bits: {} (0x{:08x})", block.header.bits, block.header.bits);
+            debug!(
+                "  bits: {} (0x{:08x})",
+                block.header.bits, block.header.bits
+            );
             debug!("  timestamp: {}", block.header.timestamp);
             debug!("  version: {}", block.header.version);
             debug!("  daa_score: {}", block.header.daa_score);
@@ -51,14 +65,35 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
             // Track and log what changed from previous header
             if let Some(old_header) = state.get_last_header() {
                 debug!("=== HEADER CHANGES ===");
-                debug!("  blue_score_changed: {}", old_header.blue_score != block.header.blue_score);
-                debug!("    old: {}, new: {}", old_header.blue_score, block.header.blue_score);
+                debug!(
+                    "  blue_score_changed: {}",
+                    old_header.blue_score != block.header.blue_score
+                );
+                debug!(
+                    "    old: {}, new: {}",
+                    old_header.blue_score, block.header.blue_score
+                );
                 debug!("  bits_changed: {}", old_header.bits != block.header.bits);
-                debug!("    old: 0x{:08x}, new: 0x{:08x}", old_header.bits, block.header.bits);
-                debug!("  timestamp_changed: {}", old_header.timestamp != block.header.timestamp);
-                debug!("    delta: {} ms", block.header.timestamp - old_header.timestamp);
-                debug!("  daa_score_changed: {}", old_header.daa_score != block.header.daa_score);
-                debug!("  version_changed: {}", old_header.version != block.header.version);
+                debug!(
+                    "    old: 0x{:08x}, new: 0x{:08x}",
+                    old_header.bits, block.header.bits
+                );
+                debug!(
+                    "  timestamp_changed: {}",
+                    old_header.timestamp != block.header.timestamp
+                );
+                debug!(
+                    "    delta: {} ms",
+                    block.header.timestamp - old_header.timestamp
+                );
+                debug!(
+                    "  daa_score_changed: {}",
+                    old_header.daa_score != block.header.daa_score
+                );
+                debug!(
+                    "  version_changed: {}",
+                    old_header.version != block.header.version
+                );
             } else {
                 debug!("=== FIRST HEADER === (no previous header to compare)");
             }
@@ -70,11 +105,22 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
         }
         Err(e) => {
             if e.to_string().contains("Could not decode address") {
-                record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::InvalidAddressFmt.as_str());
-                error!("send_immediate_job: failed fetching block template, malformed address: {}", e);
+                record_worker_error(
+                    &instance_id,
+                    &wallet_addr,
+                    crate::errors::ErrorShortCode::InvalidAddressFmt.as_str(),
+                );
+                error!(
+                    "send_immediate_job: failed fetching block template, malformed address: {}",
+                    e
+                );
                 client_clone.disconnect();
             } else {
-                record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedBlockFetch.as_str());
+                record_worker_error(
+                    &instance_id,
+                    &wallet_addr,
+                    crate::errors::ErrorShortCode::FailedBlockFetch.as_str(),
+                );
                 error!("send_immediate_job: failed fetching block template: {}", e);
             }
             return;
@@ -93,8 +139,15 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
         Ok(h) => h,
         Err(e) => {
             let error_msg = e.to_string();
-            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::BadDataFromMiner.as_str());
-            error!("send_immediate_job: failed to serialize block header: {}", error_msg);
+            record_worker_error(
+                &instance_id,
+                &wallet_addr,
+                crate::errors::ErrorShortCode::BadDataFromMiner.as_str(),
+            );
+            error!(
+                "send_immediate_job: failed to serialize block header: {}",
+                error_msg
+            );
 
             // Log block header details for debugging
             debug!("Block header version: {}", block.header.version);
@@ -107,7 +160,10 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
     };
 
     // Create Job struct with both block and pre_pow_hash
-    let job = Job { block: block.clone(), pre_pow_hash };
+    let job = Job {
+        block: block.clone(),
+        pre_pow_hash,
+    };
 
     // Add job
     let job_id = state.add_job(job);
@@ -140,12 +196,19 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
                 worker_name: worker_name.clone(),
                 miner: remote_app_clone.clone(),
                 wallet: wallet_addr.clone(),
-                ip: format!("{}:{}", client_clone.remote_addr(), client_clone.remote_port()),
+                ip: format!(
+                    "{}:{}",
+                    client_clone.remote_addr(),
+                    client_clone.remote_port()
+                ),
             },
             min_diff,
         );
 
-        let target = state.stratum_diff().map(|d| d.target_value.clone()).unwrap_or_else(BigUint::zero);
+        let target = state
+            .stratum_diff()
+            .map(|d| d.target_value.clone())
+            .unwrap_or_else(BigUint::zero);
         let target_bytes = target.to_bytes_be();
         debug!(
             "send_immediate_job: Initialized MiningState with difficulty: {}, target: {:x} ({} bytes, {} bits)",
@@ -159,7 +222,10 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
     // CRITICAL: Always send difficulty to each client (IceRiver expects this on every connection)
     // Even if state is already initialized, we need to send difficulty to this specific client
     // Use the actual current difficulty from state if available, otherwise use min_diff
-    let current_diff = state.stratum_diff().map(|d| d.diff_value).unwrap_or(min_diff);
+    let current_diff = state
+        .stratum_diff()
+        .map(|d| d.diff_value)
+        .unwrap_or(min_diff);
 
     // Update metric to ensure displayed difficulty matches what we're sending
     // (This handles the case where state was already initialized but metric wasn't updated)
@@ -172,31 +238,55 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
             worker_name: worker_name.clone(),
             miner: remote_app.clone(),
             wallet: wallet_addr.clone(),
-            ip: format!("{}:{}", client_clone.remote_addr(), client_clone.remote_port()),
+            ip: format!(
+                "{}:{}",
+                client_clone.remote_addr(),
+                client_clone.remote_port()
+            ),
         },
         current_diff,
     );
 
-    debug!("[DIFFICULTY] ===== SENDING DIFFICULTY TO {} =====", client_clone.remote_addr);
-    debug!("[DIFFICULTY] Difficulty value: {} (from state: {})", current_diff, state.stratum_diff().is_some());
+    debug!(
+        "[DIFFICULTY] ===== SENDING DIFFICULTY TO {} =====",
+        client_clone.remote_addr
+    );
+    debug!(
+        "[DIFFICULTY] Difficulty value: {} (from state: {})",
+        current_diff,
+        state.stratum_diff().is_some()
+    );
     send_client_diff(&instance_id, &client_clone, &state, current_diff);
     share_handler.set_client_vardiff(&client_clone, min_diff);
-    debug!("[DIFFICULTY] ===== DIFFICULTY SENT TO {} =====", client_clone.remote_addr);
+    debug!(
+        "[DIFFICULTY] ===== DIFFICULTY SENT TO {} =====",
+        client_clone.remote_addr
+    );
 
     // Small delay to ensure difficulty is sent before job
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Build job params - check if this is an IceRiver or Bitmain miner
     let remote_app_lower = remote_app.to_lowercase();
-    let is_iceriver =
-        remote_app_lower.contains("iceriver") || remote_app_lower.contains("icemining") || remote_app_lower.contains("icm");
-    let is_bitmain =
-        remote_app_lower.contains("godminer") || remote_app_lower.contains("bitmain") || remote_app_lower.contains("antminer");
+    let is_iceriver = remote_app_lower.contains("iceriver")
+        || remote_app_lower.contains("icemining")
+        || remote_app_lower.contains("icm");
+    let is_bitmain = remote_app_lower.contains("godminer")
+        || remote_app_lower.contains("bitmain")
+        || remote_app_lower.contains("antminer");
 
-    debug!("[JOB] ===== BUILDING JOB FOR {} =====", client_clone.remote_addr);
+    debug!(
+        "[JOB] ===== BUILDING JOB FOR {} =====",
+        client_clone.remote_addr
+    );
     debug!("[JOB] Job ID: {}", job_id);
     debug!("[JOB] Remote app: '{}'", remote_app);
-    debug!("[JOB] Is IceRiver: {}, Is Bitmain: {}, use_big_job: {}", is_iceriver, is_bitmain, state.use_big_job());
+    debug!(
+        "[JOB] Is IceRiver: {}, Is Bitmain: {}, use_big_job: {}",
+        is_iceriver,
+        is_bitmain,
+        state.use_big_job()
+    );
     debug!("[JOB] Pre-PoW hash: {}", pre_pow_hash);
     debug!("[JOB] Block timestamp: {}", block.header.timestamp);
 
@@ -208,8 +298,14 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
         debug!("[JOB] Generating BzMiner format job params");
         let header_bytes = pre_pow_hash.as_bytes();
         let large_params = generate_large_job_params(&header_bytes, block.header.timestamp);
-        debug!("[JOB] BzMiner job_data length: {} (expected 80)", large_params.len());
-        debug!("[JOB] BzMiner job_data (first 20 chars): {}", &large_params[..large_params.len().min(20)]);
+        debug!(
+            "[JOB] BzMiner job_data length: {} (expected 80)",
+            large_params.len()
+        );
+        debug!(
+            "[JOB] BzMiner job_data (first 20 chars): {}",
+            &large_params[..large_params.len().min(20)]
+        );
         debug!("[JOB] BzMiner job_data (full): {}", large_params);
         job_params.push(serde_json::Value::String(large_params));
     } else if is_iceriver {
@@ -217,20 +313,37 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
         // This matches Ghostpool and other working implementations
         debug!("[JOB] Generating IceRiver format job params");
         let iceriver_params = generate_iceriver_job_params(&pre_pow_hash, block.header.timestamp);
-        debug!("[JOB] IceRiver job_data length: {} (expected 80)", iceriver_params.len());
-        debug!("[JOB] IceRiver job_data (first 20 chars): {}", &iceriver_params[..iceriver_params.len().min(20)]);
+        debug!(
+            "[JOB] IceRiver job_data length: {} (expected 80)",
+            iceriver_params.len()
+        );
+        debug!(
+            "[JOB] IceRiver job_data (first 20 chars): {}",
+            &iceriver_params[..iceriver_params.len().min(20)]
+        );
         debug!("[JOB] IceRiver job_data (full): {}", iceriver_params);
         job_params.push(serde_json::Value::String(iceriver_params));
     } else {
         // Legacy format - array + number (for Bitmain and other miners)
         let header_bytes = pre_pow_hash.as_bytes();
         let job_header = generate_job_header(&header_bytes);
-        debug!("send_immediate_job: using Legacy format, array size: {}", job_header.len());
-        job_params.push(serde_json::Value::Array(job_header.iter().map(|&v| serde_json::Value::Number(v.into())).collect()));
+        debug!(
+            "send_immediate_job: using Legacy format, array size: {}",
+            job_header.len()
+        );
+        job_params.push(serde_json::Value::Array(
+            job_header
+                .iter()
+                .map(|&v| serde_json::Value::Number(v.into()))
+                .collect(),
+        ));
         job_params.push(serde_json::Value::Number(block.header.timestamp.into()));
     }
 
-    debug!("[JOB] ===== SENDING MINING.NOTIFY TO {} =====", client_clone.remote_addr);
+    debug!(
+        "[JOB] ===== SENDING MINING.NOTIFY TO {} =====",
+        client_clone.remote_addr
+    );
     debug!("[JOB] Method: mining.notify");
     debug!("[JOB] Params count: {}", job_params.len());
 
@@ -251,7 +364,11 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
             } else {
                 "standard"
             };
-            warn!("[JOB] WARNING - job_data length is {} (expected 80 for {})", job_data.len(), expected_for);
+            warn!(
+                "[JOB] WARNING - job_data length is {} (expected 80 for {})",
+                job_data.len(),
+                expected_for
+            );
         }
     }
 
@@ -262,13 +379,21 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
     } else {
         "Legacy"
     };
-    debug!("[JOB] Sending job ID {} to {} (format: {}, params: {})", job_id, client_clone.remote_addr, format_name, job_params.len());
+    debug!(
+        "[JOB] Sending job ID {} to {} (format: {}, params: {})",
+        job_id,
+        client_clone.remote_addr,
+        format_name,
+        job_params.len()
+    );
 
     // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
     // Send job ID in mining.notify
     let send_result = if is_iceriver {
         // IceRiver expects minimal notification format (method + params only, no id or jsonrpc)
-        client_clone.send_notification("mining.notify", job_params.clone()).await
+        client_clone
+            .send_notification("mining.notify", job_params.clone())
+            .await
     } else {
         // For non-IceRiver, use standard JSON-RPC format with job ID
         let notify_event = JsonRpcEvent {
@@ -282,13 +407,27 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
 
     if let Err(e) = send_result {
         if e.to_string().contains("disconnected") {
-            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::Disconnected.as_str());
-            error!("[JOB] ERROR: Failed to send job {} - client disconnected", job_id);
+            record_worker_error(
+                &instance_id,
+                &wallet_addr,
+                crate::errors::ErrorShortCode::Disconnected.as_str(),
+            );
+            error!(
+                "[JOB] ERROR: Failed to send job {} - client disconnected",
+                job_id
+            );
         } else {
-            record_worker_error(&instance_id, &wallet_addr, crate::errors::ErrorShortCode::FailedSendWork.as_str());
+            record_worker_error(
+                &instance_id,
+                &wallet_addr,
+                crate::errors::ErrorShortCode::FailedSendWork.as_str(),
+            );
             error!("[JOB] ERROR: Failed sending work packet {}: {}", job_id, e);
         }
-        debug!("[JOB] ===== JOB SEND FAILED FOR {} =====", client_clone.remote_addr);
+        debug!(
+            "[JOB] ===== JOB SEND FAILED FOR {} =====",
+            client_clone.remote_addr
+        );
     } else {
         let wallet_addr_str = wallet_addr.clone();
         let worker_name = client_clone.identity.lock().worker_name.clone();
@@ -297,9 +436,19 @@ pub(crate) async fn send_immediate_job_task<T: KaspaApiTrait + Send + Sync + ?Si
             worker_name: worker_name.clone(),
             miner: String::new(),
             wallet: wallet_addr_str.clone(),
-            ip: format!("{}:{}", client_clone.remote_addr(), client_clone.remote_port()),
+            ip: format!(
+                "{}:{}",
+                client_clone.remote_addr(),
+                client_clone.remote_port()
+            ),
         });
-        debug!("[JOB] Successfully sent job ID {} to client {}", job_id, client_clone.remote_addr);
-        debug!("[JOB] ===== JOB SENT SUCCESSFULLY TO {} =====", client_clone.remote_addr);
+        debug!(
+            "[JOB] Successfully sent job ID {} to client {}",
+            job_id, client_clone.remote_addr
+        );
+        debug!(
+            "[JOB] ===== JOB SENT SUCCESSFULLY TO {} =====",
+            client_clone.remote_addr
+        );
     }
 }

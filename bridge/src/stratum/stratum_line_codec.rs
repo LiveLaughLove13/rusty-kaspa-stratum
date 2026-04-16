@@ -67,6 +67,8 @@ mod tests {
     fn http_detection() {
         assert!(line_looks_like_http("GET / HTTP/1.1"));
         assert!(line_looks_like_http("PRI * HTTP/2.0\r"));
-        assert!(!line_looks_like_http("{\"jsonrpc\":\"2.0\",\"method\":\"mining.subscribe\"}"));
+        assert!(!line_looks_like_http(
+            "{\"jsonrpc\":\"2.0\",\"method\":\"mining.subscribe\"}"
+        ));
     }
 }

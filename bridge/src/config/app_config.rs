@@ -13,7 +13,11 @@ pub struct InstanceConfig {
     #[serde(default, deserialize_with = "deserialize_optional_port")]
     pub prom_port: Option<String>, // Optional per-instance prom port
     pub log_to_file: Option<bool>, // Optional per-instance logging
-    #[serde(default, deserialize_with = "deserialize_optional_duration_ms", serialize_with = "serialize_optional_duration_ms")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_duration_ms",
+        serialize_with = "serialize_optional_duration_ms"
+    )]
     pub block_wait_time: Option<Duration>,
     pub extranonce_size: Option<u8>,
     // Instance-specific settings that can override global defaults
@@ -28,7 +32,10 @@ pub struct InstanceConfig {
 #[serde(default)]
 pub struct GlobalConfig {
     pub kaspad_address: String,
-    #[serde(deserialize_with = "deserialize_duration_ms", serialize_with = "serialize_duration_ms")]
+    #[serde(
+        deserialize_with = "deserialize_duration_ms",
+        serialize_with = "serialize_duration_ms"
+    )]
     pub block_wait_time: Duration,
     pub print_stats: bool,
     pub log_to_file: bool, // Default for instances that don't specify
@@ -79,7 +86,11 @@ where
 {
     Ok(Option::<String>::deserialize(deserializer)?.and_then(|s| {
         let normalized = normalize_port(&s);
-        if normalized.is_empty() { None } else { Some(normalized) }
+        if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        }
     }))
 }
 
@@ -142,7 +153,11 @@ where
     let s = Option::<String>::deserialize(deserializer)?;
     Ok(s.and_then(|s| {
         let trimmed = s.trim();
-        if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
     }))
 }
 
@@ -157,7 +172,10 @@ where
 }
 
 /// Serialize an optional duration as milliseconds (u64)
-fn serialize_optional_duration_ms<S>(duration: &Option<Duration>, serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_optional_duration_ms<S>(
+    duration: &Option<Duration>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -226,7 +244,10 @@ impl Default for InstanceConfig {
 
 impl Default for BridgeConfig {
     fn default() -> Self {
-        Self { global: GlobalConfig::default(), instances: vec![InstanceConfig::default()] }
+        Self {
+            global: GlobalConfig::default(),
+            instances: vec![InstanceConfig::default()],
+        }
     }
 }
 
@@ -247,7 +268,10 @@ impl BridgeConfig {
             // Validate: required fields are present (serde will error if missing, but we check anyway)
             for (idx, instance) in instances.iter().enumerate() {
                 if instance.stratum_port.is_empty() {
-                    return Err(anyhow::anyhow!("Instance {} missing required 'stratum_port'", idx));
+                    return Err(anyhow::anyhow!(
+                        "Instance {} missing required 'stratum_port'",
+                        idx
+                    ));
                 }
                 if instance.min_share_diff == 0 {
                     // Note: 0 is technically valid but unlikely, we'll allow it
@@ -257,7 +281,10 @@ impl BridgeConfig {
             instances
         } else {
             // Single-instance mode (backward compatible)
-            let mut instance = InstanceConfig { prom_port: raw.prom_port, ..InstanceConfig::default() };
+            let mut instance = InstanceConfig {
+                prom_port: raw.prom_port,
+                ..InstanceConfig::default()
+            };
             if let Some(stratum_port) = raw.stratum_port {
                 instance.stratum_port = stratum_port;
             }
@@ -272,15 +299,24 @@ impl BridgeConfig {
         let mut ports = HashSet::new();
         for instance in &instances {
             if !ports.insert(&instance.stratum_port) {
-                return Err(anyhow::anyhow!("Duplicate stratum_port: {}", instance.stratum_port));
+                return Err(anyhow::anyhow!(
+                    "Duplicate stratum_port: {}",
+                    instance.stratum_port
+                ));
             }
         }
 
-        Ok(BridgeConfig { global: raw.global, instances })
+        Ok(BridgeConfig {
+            global: raw.global,
+            instances,
+        })
     }
 
     pub(crate) fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
-        let yaml = BridgeConfigYaml { global: &self.global, instances: &self.instances };
+        let yaml = BridgeConfigYaml {
+            global: &self.global,
+            instances: &self.instances,
+        };
         serde_yaml::to_string(&yaml)
     }
 }
