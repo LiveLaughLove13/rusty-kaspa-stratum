@@ -61,7 +61,7 @@ ureq = { version = "2.12", optional = true, default-features = false, features =
 windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Console"] }
 
 # For musl builds, we declare mimalloc without 'override' to override kaspa-alloc's version
-# The .cargo/config.toml linker flag handles any remaining conflicts
+# Workspace `.cargo/config.toml` musl rustflags handle any remaining link conflicts
 [target.'cfg(all(not(target_os = "macos"), target_env = "musl"))'.dependencies]
 mimalloc = { version = "0.1.48", default-features = false }
 

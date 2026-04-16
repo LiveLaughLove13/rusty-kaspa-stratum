@@ -10,14 +10,16 @@ RUN apk --no-cache add \
   openssl-dev \
   pkgconfig
 
-ENV RUSTFLAGS="-C target-feature=-crt-static" \
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
+# Musl link flags: repo `.cargo/config.toml` (`--allow-multiple-definition`). Do not set global
+# `RUSTFLAGS` here (was `-crt-static`, which is MSVC-oriented and not needed on this Linux image).
+ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
 
 WORKDIR /usr/src/rustbridge
 
 # Workspace root: `members = ["bridge", "bridge-tauri/src-tauri"]` — the Tauri member must exist
 # on disk for Cargo to load the workspace, even though we only build `kaspa-stratum-bridge` here.
 COPY Cargo.toml Cargo.lock ./
+COPY .cargo/config.toml .cargo/config.toml
 COPY bridge ./bridge
 COPY bridge-tauri/src-tauri ./bridge-tauri/src-tauri
 

@@ -111,16 +111,28 @@ jobs:
         if: runner.os == 'Linux'
         run: rustup target add x86_64-unknown-linux-musl
 
-      # kaspanet/rusty-kaspa CI: musl stratum-bridge needs this link flag for mimalloc / C++ symbol collisions (see bridge comments).
-      - name: Build stratum-bridge (musl) and AppImage (Linux)
-        id: appimage
+      # Musl + AppImage: keep compile separate from packaging so logs show which step failed.
+      # CC/CXX: help native deps (e.g. kaspa-hashes cc) find the musl toolchain from musl-tools.
+      # CARGO_INCREMENTAL=0: avoid rare incremental-cache issues mixing host + musl artifacts in one target dir.
+      - name: Build stratum-bridge (musl) for Linux
+        id: musl
         if: runner.os == 'Linux'
         env:
-          TAG: ${{ github.ref_name }}
+          # musl-tools (Debian/Ubuntu): cross-linker + cc for C deps (kaspa-hashes, etc.). Not in `.cargo/` so Alpine Docker stays valid.
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: x86_64-linux-musl-gcc
+          CC_x86_64_unknown_linux_musl: x86_64-linux-musl-gcc
+          CXX_x86_64_unknown_linux_musl: x86_64-linux-musl-g++
+          CARGO_INCREMENTAL: "0"
         run: |
-          export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-Wl,--allow-multiple-definition"
+          # Musl link flags come from repo `.cargo/config.toml` (same as kaspanet/rusty-kaspa fork).
           cargo build --locked --verbose --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge
-          bash bridge/appimage/build.sh "$TAG"
+
+      - name: Build AppImage (Linux)
+        id: appimage
+        if: runner.os == 'Linux' && steps.musl.outcome == 'success'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: bash bridge/appimage/build.sh "$TAG"
 
       - name: Pack AppImage tarball (Linux)
         if: runner.os == 'Linux' && steps.appimage.outcome == 'success'
@@ -206,7 +218,9 @@ jobs:
       - name: Publish release and upload assets
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          # download-artifact merge-multiple nests files under dist/<artifact-name>/; resolve globs from dist/.
+          working_directory: dist
+          files: "**/*"
           generate_release_notes: true
 
   build-and-push-docker:

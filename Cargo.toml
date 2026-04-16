@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = ["bridge", "bridge-tauri/src-tauri"]
+# Root `cargo build` / `cargo test` without `-p` only touch the headless bridge (not Tauri on Linux CI).
+default-members = ["bridge"]
 
 [workspace.package]
 rust-version = "1.88.0"

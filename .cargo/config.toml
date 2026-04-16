@@ -1,0 +1,12 @@
+# Cargo configuration for musl builds (same idea as kaspanet / fork rusty-kaspa).
+# Linker flags handle mimalloc vs libstdc++ symbol collisions in musl static builds
+# (kaspa-alloc / mimalloc + C++ runtime). See bridge/Cargo.toml musl mimalloc note.
+
+[target.x86_64-unknown-linux-musl]
+rustflags = [
+    "-C", "link-arg=-Wl,--allow-multiple-definition",
+]
+
+# Static link CRT on Windows to avoid VCRedist dependency
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

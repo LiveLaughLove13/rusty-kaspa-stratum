@@ -101,19 +101,27 @@ fn bridge_logs_dir() -> PathBuf {
     #[cfg(target_os = "windows")]
     {
         if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
-            return PathBuf::from(local_app_data).join("kaspa-stratum-bridge").join("logs");
+            return PathBuf::from(local_app_data)
+                .join("kaspa-stratum-bridge")
+                .join("logs");
         }
         if let Some(home) = std::env::var_os("USERPROFILE") {
-            return PathBuf::from(home).join("kaspa-stratum-bridge").join("logs");
+            return PathBuf::from(home)
+                .join("kaspa-stratum-bridge")
+                .join("logs");
         }
         PathBuf::from(".").join("kaspa-stratum-bridge").join("logs")
     }
     #[cfg(not(target_os = "windows"))]
     {
         if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home).join(".kaspa-stratum-bridge").join("logs");
+            return PathBuf::from(home)
+                .join(".kaspa-stratum-bridge")
+                .join("logs");
         }
-        PathBuf::from(".").join(".kaspa-stratum-bridge").join("logs")
+        PathBuf::from(".")
+            .join(".kaspa-stratum-bridge")
+            .join("logs")
     }
 }
 
@@ -150,7 +158,10 @@ fn spawn_running_bridge(cli: Cli) -> Result<RunningBridge, String> {
         .name("kaspa-stratum-bridge".into())
         .spawn(move || {
             init_allocator_with_default_settings();
-            let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("tokio runtime");
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("tokio runtime");
             if let Err(e) = rt.block_on(run(cli_thread)) {
                 eprintln!("stratum bridge: {e:#}");
             }
@@ -160,7 +171,9 @@ fn spawn_running_bridge(cli: Cli) -> Result<RunningBridge, String> {
 }
 
 fn cli_from_start_dto(dto: StartBridgeDto) -> Result<Cli, String> {
-    let argv0 = std::env::args().next().unwrap_or_else(|| "rkstratum-bridge-desktop".into());
+    let argv0 = std::env::args()
+        .next()
+        .unwrap_or_else(|| "rkstratum-bridge-desktop".into());
     let mut args = vec![argv0];
     if let Some(c) = dto.config {
         let c = c.trim();
@@ -343,16 +356,33 @@ fn cpu_miner_feature_enabled() -> bool {
 #[tauri::command]
 fn gui_defaults() -> GuiDefaults {
     let exe = std::env::current_exe().ok();
-    let exe_directory = exe.as_ref().and_then(|p| p.parent()).map(|p| p.to_string_lossy().into_owned());
-    let beside = exe.as_ref().and_then(|p| p.parent()).map(|d| d.join("config.yaml")).filter(|p| p.is_file());
+    let exe_directory = exe
+        .as_ref()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_string_lossy().into_owned());
+    let beside = exe
+        .as_ref()
+        .and_then(|p| p.parent())
+        .map(|d| d.join("config.yaml"))
+        .filter(|p| p.is_file());
     let config_path = beside.as_ref().map(|p| p.to_string_lossy().into_owned());
-    let suggested_appdir = exe.as_ref().and_then(|p| p.parent()).map(|d| d.join("kaspa-data").to_string_lossy().into_owned());
-    GuiDefaults { config_path, exe_directory, suggested_appdir }
+    let suggested_appdir = exe
+        .as_ref()
+        .and_then(|p| p.parent())
+        .map(|d| d.join("kaspa-data").to_string_lossy().into_owned());
+    GuiDefaults {
+        config_path,
+        exe_directory,
+        suggested_appdir,
+    }
 }
 
 #[tauri::command]
 fn start_bridge(state: tauri::State<AppState>, dto: StartBridgeDto) -> Result<String, String> {
-    let mut g = state.bridge.lock().map_err(|_| "bridge state lock poisoned".to_string())?;
+    let mut g = state
+        .bridge
+        .lock()
+        .map_err(|_| "bridge state lock poisoned".to_string())?;
     if g.is_some() {
         return Err("Bridge is already running. Use Bridge → Stop bridge first.".into());
     }
@@ -365,12 +395,18 @@ fn start_bridge(state: tauri::State<AppState>, dto: StartBridgeDto) -> Result<St
 
 #[tauri::command]
 fn stop_bridge(state: tauri::State<AppState>) -> Result<(), String> {
-    let mut g = state.bridge.lock().map_err(|_| "bridge state lock poisoned".to_string())?;
+    let mut g = state
+        .bridge
+        .lock()
+        .map_err(|_| "bridge state lock poisoned".to_string())?;
     let Some(running) = g.take() else {
         return Err("Bridge is not running.".into());
     };
     request_bridge_shutdown();
-    running.join.join().map_err(|_| "Bridge thread panicked while stopping.".to_string())?;
+    running
+        .join
+        .join()
+        .map_err(|_| "Bridge thread panicked while stopping.".to_string())?;
     Ok(())
 }
 
@@ -381,7 +417,10 @@ fn bridge_is_running(state: tauri::State<AppState>) -> bool {
 
 #[tauri::command]
 fn dashboard_default_url(state: tauri::State<AppState>) -> Result<String, String> {
-    let g = state.bridge.lock().map_err(|_| "lock poisoned".to_string())?;
+    let g = state
+        .bridge
+        .lock()
+        .map_err(|_| "lock poisoned".to_string())?;
     let Some(r) = g.as_ref() else {
         return Err("Bridge is not running.".into());
     };
@@ -391,17 +430,26 @@ fn dashboard_default_url(state: tauri::State<AppState>) -> Result<String, String
 #[tauri::command]
 fn bridge_log_tail(req: LogTailRequest) -> Result<LogTailResponse, String> {
     let Some(path) = newest_bridge_log_file() else {
-        return Ok(LogTailResponse { cursor: 0, text: String::new(), path: None });
+        return Ok(LogTailResponse {
+            cursor: 0,
+            text: String::new(),
+            path: None,
+        });
     };
     let mut file = fs::File::open(&path).map_err(|e| format!("open log failed: {e}"))?;
-    let len = file.metadata().map_err(|e| format!("log metadata failed: {e}"))?.len();
+    let len = file
+        .metadata()
+        .map_err(|e| format!("log metadata failed: {e}"))?
+        .len();
     let mut cursor = req.cursor.unwrap_or(0);
     if cursor > len {
         cursor = 0;
     }
-    file.seek(SeekFrom::Start(cursor)).map_err(|e| format!("seek log failed: {e}"))?;
+    file.seek(SeekFrom::Start(cursor))
+        .map_err(|e| format!("seek log failed: {e}"))?;
     let mut buf = Vec::new();
-    file.read_to_end(&mut buf).map_err(|e| format!("read log failed: {e}"))?;
+    file.read_to_end(&mut buf)
+        .map_err(|e| format!("read log failed: {e}"))?;
     let max_bytes = req.max_bytes.unwrap_or(32 * 1024).clamp(1024, 256 * 1024);
     let text = if buf.len() > max_bytes {
         let start = buf.len() - max_bytes;
@@ -409,15 +457,28 @@ fn bridge_log_tail(req: LogTailRequest) -> Result<LogTailResponse, String> {
     } else {
         String::from_utf8_lossy(&buf).into_owned()
     };
-    Ok(LogTailResponse { cursor: len, text, path: Some(path.to_string_lossy().into_owned()) })
+    Ok(LogTailResponse {
+        cursor: len,
+        text,
+        path: Some(path.to_string_lossy().into_owned()),
+    })
 }
 
 /// Parse `http://127.0.0.1:3030/...` into a socket address for readiness checks.
 fn dashboard_socket_addr(url: &str) -> Result<std::net::SocketAddr, String> {
     let u = url.trim();
-    let rest = u.strip_prefix("http://").or_else(|| u.strip_prefix("https://")).ok_or("URL must start with http:// or https://")?;
-    let authority = rest.split(&['/', '?', '#'][..]).next().filter(|s| !s.is_empty()).ok_or("missing host in dashboard URL")?;
-    authority.parse().map_err(|e| format!("invalid host:port in URL: {e}"))
+    let rest = u
+        .strip_prefix("http://")
+        .or_else(|| u.strip_prefix("https://"))
+        .ok_or("URL must start with http:// or https://")?;
+    let authority = rest
+        .split(&['/', '?', '#'][..])
+        .next()
+        .filter(|s| !s.is_empty())
+        .ok_or("missing host in dashboard URL")?;
+    authority
+        .parse()
+        .map_err(|e| format!("invalid host:port in URL: {e}"))
 }
 
 /// Opens the repository README for setup (browser).
@@ -431,24 +492,45 @@ fn open_bridge_documentation() -> Result<(), String> {
 #[tauri::command]
 fn reveal_exe_directory() -> Result<(), String> {
     let dir = std::env::current_exe().map_err(|e| e.to_string())?;
-    let dir = dir.parent().ok_or_else(|| "executable has no parent directory".to_string())?;
+    let dir = dir
+        .parent()
+        .ok_or_else(|| "executable has no parent directory".to_string())?;
     if cfg!(windows) {
-        std::process::Command::new("explorer").arg(dir.as_os_str()).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("explorer")
+            .arg(dir.as_os_str())
+            .spawn()
+            .map_err(|e| e.to_string())?;
     } else if cfg!(target_os = "macos") {
-        std::process::Command::new("open").arg(dir).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("open")
+            .arg(dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
     } else {
-        std::process::Command::new("xdg-open").arg(dir).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("xdg-open")
+            .arg(dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
 fn open_os_url(url: &str) -> Result<(), String> {
     if cfg!(windows) {
-        std::process::Command::new("cmd").args(["/C", "start", ""]).arg(url).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("cmd")
+            .args(["/C", "start", ""])
+            .arg(url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
     } else if cfg!(target_os = "macos") {
-        std::process::Command::new("open").arg(url).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("open")
+            .arg(url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
     } else {
-        std::process::Command::new("xdg-open").arg(url).spawn().map_err(|e| e.to_string())?;
+        std::process::Command::new("xdg-open")
+            .arg(url)
+            .spawn()
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -499,7 +581,9 @@ fn main() {
 
     let menu = Menu::new().add_submenu(Submenu::new(
         "Bridge",
-        Menu::new().add_item(CustomMenuItem::new("stop_bridge", "Stop bridge")).add_native_item(tauri::MenuItem::Quit),
+        Menu::new()
+            .add_item(CustomMenuItem::new("stop_bridge", "Stop bridge"))
+            .add_native_item(tauri::MenuItem::Quit),
     ));
 
     tauri::Builder::default()
