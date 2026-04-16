@@ -15,11 +15,13 @@ ENV RUSTFLAGS="-C target-feature=-crt-static" \
 
 WORKDIR /usr/src/rustbridge
 
-# Workspace root + bridge crate (matches kaspanet/rusty-kaspa `bridge/` layout).
+# Workspace root: `members = ["bridge", "bridge-tauri/src-tauri"]` — the Tauri member must exist
+# on disk for Cargo to load the workspace, even though we only build `kaspa-stratum-bridge` here.
 COPY Cargo.toml Cargo.lock ./
 COPY bridge ./bridge
+COPY bridge-tauri/src-tauri ./bridge-tauri/src-tauri
 
-RUN cargo build --release -p kaspa-stratum-bridge --features rkstratum_cpu_miner \
+RUN cargo build --locked --release -p kaspa-stratum-bridge --features rkstratum_cpu_miner \
   && cp target/release/stratum-bridge /stratum-bridge
 
 # ---------------------------------------- Runtime image ----------------------------------------

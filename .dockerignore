@@ -1,4 +1,5 @@
 target/
+bridge-tauri/src-tauri/target/
 *.pdb
 
 .git/
