@@ -55,6 +55,12 @@ jobs:
             binary_name: stratum-bridge.exe
             asset_name: stratum-bridge-windows-amd64
             binary_path: target/release/stratum-bridge.exe
+          # macos-latest is Apple Silicon (arm64); stratum-bridge + rkstratum-bridge-desktop for that target.
+          - os: macos-latest
+            os_key: macos
+            binary_name: stratum-bridge
+            asset_name: stratum-bridge-macos-arm64
+            binary_path: target/release/stratum-bridge
 
     steps:
       - name: Checkout code
@@ -67,9 +73,11 @@ jobs:
           cache: true
           cache-key: rust-${{ matrix.os_key }}-${{ hashFiles('**/Cargo.lock') }}
 
+      # fuse/libfuse2: appimagetool (and some AppImage runs) on GitHub-hosted runners; rsvg: bridge/appimage/build.sh icon step.
+      # Mirrors kaspanet deploy.yaml “Install AppImage packaging deps”.
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip musl-tools librsvg2-bin
+        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip musl-tools librsvg2-bin fuse libfuse2
 
       - name: Install protoc (Windows)
         if: runner.os == 'Windows'
@@ -78,20 +86,33 @@ jobs:
           version: '25.3'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install protoc (macOS)
+        if: runner.os == 'macOS'
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '25.3'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build binary
         run: cargo build --locked --verbose --release --features rkstratum_cpu_miner -p kaspa-stratum-bridge
+
+      # Desktop shell is not a workspace member; same feature as local: cargo build --manifest-path bridge-tauri/src-tauri/Cargo.toml --features rkstratum_cpu_miner
+      - name: Build rkstratum-bridge-desktop (Windows, macOS)
+        if: runner.os == 'Windows' || runner.os == 'macOS'
+        run: cargo build --locked --verbose --release --features rkstratum_cpu_miner --manifest-path bridge-tauri/src-tauri/Cargo.toml
 
       - name: Add musl Rust target (Linux)
         if: runner.os == 'Linux'
         run: rustup target add x86_64-unknown-linux-musl
 
+      # kaspanet/rusty-kaspa CI: musl stratum-bridge needs this link flag for mimalloc / C++ symbol collisions (see bridge comments).
       - name: Build stratum-bridge (musl) and AppImage (Linux)
         id: appimage
         if: runner.os == 'Linux'
-        continue-on-error: true
         env:
           TAG: ${{ github.ref_name }}
         run: |
+          export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-Wl,--allow-multiple-definition"
           cargo build --locked --verbose --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge
           bash bridge/appimage/build.sh "$TAG"
 
@@ -117,6 +138,13 @@ jobs:
           cp LICENSE staging/
           cp bridge/config.yaml staging/config.yaml
           cp ${{ matrix.binary_path }} staging/${{ matrix.binary_name }}
+      - name: Add rkstratum-bridge-desktop to staging (Windows)
+        if: runner.os == 'Windows'
+        run: cp bridge-tauri/src-tauri/target/release/rkstratum-bridge-desktop.exe staging/
+
+      - name: Add rkstratum-bridge-desktop to staging (macOS)
+        if: runner.os == 'macOS'
+        run: cp bridge-tauri/src-tauri/target/release/rkstratum-bridge-desktop staging/
 
       - name: Create tar.gz archive (Linux)
         if: runner.os == 'Linux'
@@ -126,6 +154,11 @@ jobs:
       - name: Create zip archive (Windows)
         if: runner.os == 'Windows'
         run: Compress-Archive -Path staging\* -DestinationPath ${{ matrix.asset_name }}.zip
+
+      - name: Create tar.gz archive (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          tar -C staging -czf ${{ matrix.asset_name }}.tar.gz .
 
       - name: Upload workflow artifact (Linux)
         if: runner.os == 'Linux'
@@ -140,6 +173,13 @@ jobs:
         with:
           name: ${{ matrix.asset_name }}
           path: ./${{ matrix.asset_name }}.zip
+
+      - name: Upload workflow artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ./${{ matrix.asset_name }}.tar.gz
 
   publish-release:
     name: Publish GitHub Release
