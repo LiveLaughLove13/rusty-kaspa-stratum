@@ -7,9 +7,9 @@
 target/
 !Cargo.lock
 
-# AppImage tooling / outputs (see appimage/build.sh)
-appimage/appimagetool-x86_64.AppImage
-appimage/StratumBridge.AppDir/
+# AppImage tooling / outputs (see bridge/appimage/build.sh)
+bridge/appimage/appimagetool-x86_64.AppImage
+bridge/appimage/StratumBridge.AppDir/
 stratum-bridge-*-x86_64.AppImage
 
 # Log files (runtime artifacts)

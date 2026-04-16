@@ -1,6 +1,6 @@
 ## Stratum Bridge Beta
 
-Repository layout (CLI binary, `static/` dashboard, `appimage/` Linux bundle, `bridge-tauri/` **RKStratum Bridge** GUI) is summarized in [PACKAGING.md](PACKAGING.md).
+Repository layout (crate under **`bridge/`** like kaspanet, `bridge-tauri/` **RKStratum Bridge** GUI) is summarized in [PACKAGING.md](PACKAGING.md).
 
 This Stratum Bridge is currently in BETA. Support is available in the Kaspa Discord’s [#mining-and-hardware](https://discord.com/channels/599153230659846165/910178666099646584) channel.
 
@@ -18,7 +18,7 @@ The bridge can run against:
 
 The sample configuration file is:
 
-`config.yaml`
+`bridge/config.yaml`
 
 When running from the repository root, pass the config path explicitly:
 
@@ -34,7 +34,7 @@ By default it exposes these Stratum ports:
 For detailed command-line options:
 
 ```bash
-cargo run --release --bin stratum-bridge -- --help
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --help
 ```
 
 This will show all available bridge options and guidance for kaspad arguments.
@@ -52,7 +52,7 @@ cargo build -p kaspa-stratum-bridge --release --features rkstratum_cpu_miner
 Run (external node mode + internal CPU miner enabled):
 
 ```bash
-cargo run -p kaspa-stratum-bridge --release --features rkstratum_cpu_miner --bin stratum-bridge -- --config config.yaml --node-mode external --internal-cpu-miner --internal-cpu-miner-address kaspa:YOUR_WALLET_ADDRESS --internal-cpu-miner-threads 1
+cargo run -p kaspa-stratum-bridge --release --features rkstratum_cpu_miner --bin stratum-bridge -- --config bridge/config.yaml --node-mode external --internal-cpu-miner --internal-cpu-miner-address kaspa:YOUR_WALLET_ADDRESS --internal-cpu-miner-threads 1
 ```
 
 ### Running two bridges at once (two dashboards)
@@ -64,13 +64,13 @@ they **cannot share the same**:
 - any per-instance Prometheus ports
 
 Recommended setup:
-- **In-process bridge**: run normally with `--config config.yaml` (uses `web_port: ":3030"` and the configured instance ports)
+- **In-process bridge**: run normally with `--config bridge/config.yaml` (uses `web_port: ":3030"` and the configured instance ports)
 - **External bridge**: do **not** reuse the same instance ports; instead, run a single custom Stratum instance on a different port and set a different web port.
 
 Example (external bridge on `:3031` + Stratum `:16120`):
 
 ```bash
-cargo run -p kaspa-stratum-bridge --release --features rkstratum_cpu_miner --bin stratum-bridge -- --config config.yaml --web-port :3031 --node-mode external --kaspad-address 127.0.0.1:16210 --instance "port=:16120,diff=1" --internal-cpu-miner --internal-cpu-miner-address "kaspatest:address" --internal-cpu-miner-threads 1
+cargo run -p kaspa-stratum-bridge --release --features rkstratum_cpu_miner --bin stratum-bridge -- --config bridge/config.yaml --web-port :3031 --node-mode external --kaspad-address 127.0.0.1:16210 --instance "port=:16120,diff=1" --internal-cpu-miner --internal-cpu-miner-address "kaspatest:address" --internal-cpu-miner-threads 1
 ```
 
 Open:
@@ -88,13 +88,13 @@ cargo run --release --bin kaspad -- --utxoindex --rpclisten=127.0.0.1:16110 --rp
 Terminal B (bridge):
 
 ```bash
-cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config config.yaml --node-mode external
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode external
 ```
 
 ### Run (in-process node)
 
 ```bash
-cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config config.yaml --node-mode inprocess -- --utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode inprocess -- --utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110
 ```
 
 **Important:** Use `--` separator before kaspad arguments. Arguments starting with hyphens must come after the `--` separator.
@@ -102,10 +102,10 @@ cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config con
 **Examples:**
 ```bash
 # ✓ Correct - bridge args first, then --, then kaspad args
-cargo run --release --bin stratum-bridge -- --config config.yaml --node-mode inprocess -- --utxoindex --rpclisten=127.0.0.1:16110
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode inprocess -- --utxoindex --rpclisten=127.0.0.1:16110
 
 # ✗ Incorrect - will show error message
-cargo run --release --bin stratum-bridge -- --rpclisten=127.0.0.1:16110 --config config.yaml --node-mode inprocess
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --rpclisten=127.0.0.1:16110 --config bridge/config.yaml --node-mode inprocess
 # Error: tip: to pass '--rpclisten' as a value, use '-- --rpclisten'
 ```
 
@@ -114,7 +114,7 @@ cargo run --release --bin stratum-bridge -- --rpclisten=127.0.0.1:16110 --config
 If you want to override it, pass `--appdir` to the bridge (before the `--` separator):
 
 ```bash
-cargo run --release --bin stratum-bridge -- --config config.yaml --node-mode inprocess --appdir "C:\path\to\custom\datadir" -- --utxoindex --rpclisten=127.0.0.1:16110
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode inprocess --appdir "C:\path\to\custom\datadir" -- --utxoindex --rpclisten=127.0.0.1:16110
 ```
 
 ### Miner / ASIC connection

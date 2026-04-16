@@ -1,6 +1,6 @@
 # RK Stratum Bridge — desktop (Tauri)
 
-Optional **bridge GUI** (window title and product name: **RKStratum Bridge**, see `src-tauri/tauri.conf.json`) that embeds the **same** `kaspa-stratum-bridge` library API as [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) (`bridge/` crate: runner, CLI, embedded dashboard). The standalone `stratum-bridge` binary at this repository root is unchanged and remains the primary way to run the bridge headlessly.
+Optional **bridge GUI** (window title and product name: **RKStratum Bridge**, see `src-tauri/tauri.conf.json`) that embeds this repository’s **`bridge/`** crate (`kaspa-stratum-bridge` — same layout as [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) `bridge/`). The standalone `stratum-bridge` **binary** remains the primary way to run the bridge headlessly.
 
 ## Prerequisites
 
@@ -9,32 +9,23 @@ Optional **bridge GUI** (window title and product name: **RKStratum Bridge**, se
 
 ## Build / check
 
+`kaspa-stratum-bridge` is a **path** dependency to `../../bridge`. `kaspa-alloc` comes from **git** (`kaspanet/rusty-kaspa`, `branch = "master"`) to match the bridge’s allocator.
+
+The workspace root `Cargo.toml` defines `[patch.crates-io]` for **serde_nested_with** (yanked on crates.io). Building only the Tauri crate may require the same patch in this manifest or building from a workspace that includes the patch.
+
 From the repository root:
 
 ```bash
 cargo check --manifest-path bridge-tauri/src-tauri/Cargo.toml
-```
-
-With the optional internal CPU miner feature (matches `kaspa-stratum-bridge` feature name):
-
-```bash
 cargo check --manifest-path bridge-tauri/src-tauri/Cargo.toml --features rkstratum_cpu_miner
 ```
 
-Release bundle (installer / app — platform-specific):
+Release bundle:
 
 ```bash
 cargo tauri build --manifest-path bridge-tauri/src-tauri/Cargo.toml
 ```
 
-## Kaspa dependency pin
-
-`src-tauri/Cargo.toml` pulls `kaspa-stratum-bridge` and `kaspa-alloc` from **git** at a fixed `rev` on `kaspanet/rusty-kaspa`. Bump that revision when you intentionally upgrade the embedded bridge.
-
-## `serde_nested_with` (crates.io yank)
-
-Upstream Kaspa crates depend on `serde_nested_with`; all releases were **yanked** from crates.io. This crate uses `[patch.crates-io]` in `src-tauri/Cargo.toml` to build the same sources from [murar8/serde_nested_with](https://github.com/murar8/serde_nested_with) (tag `0.2.6`). If upstream Kaspa removes that dependency or republishes the crate, this patch can be dropped.
-
 ## Lockfile
 
-`bridge-tauri/src-tauri/Cargo.lock` is generated for this subtree and should be committed so CI and fresh clones resolve dependencies consistently.
+Commit `bridge-tauri/src-tauri/Cargo.lock` when it changes so CI and fresh clones stay reproducible.

@@ -1,14 +1,17 @@
-[package]
-name = "kaspa-stratum-bridge"
-version = "1.0.9"
-edition = "2021"
-authors = ["Kaspa developers"]
-description = "Kaspa Stratum Bridge - Mining pool connectivity for Kaspa ASIC miners"
-license = "ISC"
-repository = "https://github.com/kaspanet/rusty-kaspa"
+[workspace]
+resolver = "2"
+members = ["bridge"]
 
-[dependencies]
-# Kaspa dependencies - using git versions
+[workspace.package]
+rust-version = "1.88.0"
+version = "1.1.0"
+authors = ["Kaspa developers"]
+license = "ISC"
+repository = "https://github.com/LiveLaughLove13/rusty-kaspa-stratum"
+edition = "2024"
+
+# Match kaspanet/rusty-kaspa `bridge/` crate; Kaspa libs track `master` (pin in Cargo.lock for reproducible builds).
+[workspace.dependencies]
 kaspa-consensus-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
 kaspa-hashes = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
 kaspa-pow = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
@@ -21,50 +24,27 @@ kaspa-core = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "ma
 kaspa-utils = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
 kaspad = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
 kaspa-alloc = { git = "https://github.com/kaspanet/rusty-kaspa.git", branch = "master" }
-dirs = "5.0"
 
-# External dependencies
-tokio = { version = "1.32", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-thiserror = "1.0"
-hex = "0.4"
-num-traits = "0.2"
-async-trait = "0.1"
-once_cell = "1.3"
-futures-util = "0.3"
-parking_lot = "0.12"
-regex = "1.7"
-uuid = { version = "1.3", features = ["v4"] }
+dirs = "5.0.1"
+tokio = { version = "1.33.0", features = ["full"] }
+serde = { version = "1.0.190", features = ["derive", "rc"] }
+serde_json = "1.0.107"
+thiserror = "1.0.50"
+hex = { version = "0.4.3", features = ["serde"] }
+num-traits = "0.2.17"
+async-trait = "0.1.88"
+once_cell = "1.18.0"
+futures-util = { version = "0.3.29", default-features = false, features = ["alloc"] }
+parking_lot = "0.12.1"
+regex = "1.10.2"
+uuid = { version = "1.16.0", features = ["v4", "fast-rng", "serde", "js"] }
+clap = { version = "4.5.35", features = ["derive", "string", "cargo"] }
+chrono = "0.4.31"
+sysinfo = "0.31.2"
 
-# CLI
-clap = { version = "4.3", features = ["derive"] }
+[patch.crates-io]
+serde_nested_with = { git = "https://github.com/murar8/serde_nested_with.git", tag = "0.2.6" }
 
-# Logging and monitoring
-tracing = "0.1"
-tracing-log = "0.2"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-appender = "0.2"
-prometheus = "0.13"
-
-# Utility
-yaml-rust = "0.4"
-anyhow = "1.0"
-blake2 = "0.10"
-num-bigint = "0.4"
-faster-hex = "0.1"
-chrono = "0.4"
-include_dir = "0.7"
-
-[target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Console"] }
-
-[dev-dependencies]
-tokio-test = "0.4"
-
-[[bin]]
-name = "stratum-bridge"
-path = "src/main.rs"
-
-[features]
-rkstratum_cpu_miner = []
+[workspace.lints.clippy]
+empty_docs = "allow"
+uninlined_format_args = "allow"

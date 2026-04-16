@@ -1,6 +1,8 @@
 # Stratum Bridge
 
-This repository contains a standalone Stratum bridge binary:
+This repository tracks **kaspanet/rusty-kaspa**’s [`bridge/`](https://github.com/kaspanet/rusty-kaspa/tree/master/bridge) crate layout: Rust sources and `static/` live under **`bridge/`**, built as package `kaspa-stratum-bridge` from the workspace root.
+
+Binary name:
 
 `stratum-bridge`
 
@@ -15,9 +17,9 @@ The bridge no longer supports spawning `kaspad` as a subprocess.
 
 The sample configuration file is:
 
-`config.yaml`
+`bridge/config.yaml`
 
-When running from the repository root, pass this full relative path via `--config`.
+When running from the repository root, pass this path via `--config` (or copy it elsewhere).
 
 By default it exposes these Stratum ports:
 
@@ -37,13 +39,13 @@ cargo run --release --bin kaspad -- --utxoindex --rpclisten=127.0.0.1:16110 --rp
 Terminal B (bridge):
 
 ```bash
-cargo run --release --bin stratum-bridge -- --config config.yaml --node-mode external
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode external
 ```
 
 ## Run (in-process node)
 
 ```bash
-cargo run --release --bin stratum-bridge -- --config config.yaml --node-mode inprocess --node-args="--utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110"
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode inprocess --node-args="--utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110"
 ```
 
 **Note:** If you already have a `kaspad` running, in-process mode may fail with a DB lock error (RocksDB `meta/LOCK`). Either stop the other `kaspad` or run in-process with a separate app directory, e.g. add to `--node-args`:
@@ -73,11 +75,11 @@ On Windows, Ctrl+C may show `STATUS_CONTROL_C_EXIT` which is expected.
 
 ## Linux AppImage (optional)
 
-Headless **CLI** releases can also be packaged as an AppImage (same flow as [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) `bridge/appimage/`, adapted to this repo’s root `static/` layout). After a musl `stratum-bridge` build, run `bash appimage/build.sh <version-label>` from the repo root. The AppImage uses `$XDG_CONFIG_HOME/stratum-bridge/config.yaml` when present; see [`docs/PACKAGING.md`](docs/PACKAGING.md).
+Headless **CLI** releases can also be packaged as an AppImage (same scripts as [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) under `bridge/appimage/`). After a musl `stratum-bridge` build, run `bash bridge/appimage/build.sh <version-label>` from the repo root. The AppImage uses `$XDG_CONFIG_HOME/stratum-bridge/config.yaml` when present; see [`docs/PACKAGING.md`](docs/PACKAGING.md).
 
 ## Desktop UI — RKStratum Bridge (optional)
 
-The **Tauri** desktop shell (“bridge GUI”) lives under [`bridge-tauri/`](bridge-tauri/). It embeds the `kaspa-stratum-bridge` **library** from [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) (pinned by git revision in `bridge-tauri/src-tauri/Cargo.toml`). It does not replace the standalone `stratum-bridge` CLI binary above.
+The **Tauri** desktop shell (“bridge GUI”) lives under [`bridge-tauri/`](bridge-tauri/). It embeds the local **`bridge/`** crate (`kaspa-stratum-bridge`) via a path dependency (`bridge-tauri/src-tauri/Cargo.toml`). It does not replace the standalone `stratum-bridge` CLI binary above.
 
 See [`bridge-tauri/README.md`](bridge-tauri/README.md) and [`docs/PACKAGING.md`](docs/PACKAGING.md) for build commands and layout.
 

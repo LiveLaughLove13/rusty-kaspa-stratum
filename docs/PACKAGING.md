@@ -1,30 +1,26 @@
 # Packaging layout (CLI, AppImage, desktop GUI)
 
-This repository mirrors the **kaspanet/rusty-kaspa** bridge layout where it makes sense:
+This repository matches **kaspanet/rusty-kaspa** [`bridge/`](https://github.com/kaspanet/rusty-kaspa/tree/master/bridge): the Stratum bridge **crate and sources** live under `bridge/`, not at the repository root.
 
 | Path | Role |
 | --- | --- |
-| `src/` | Standalone `stratum-bridge` binary (CLI). |
-| `static/` | Embedded web dashboard assets; `static/assets/kaspa.svg` is the source for the AppImage PNG icon. |
-| `appimage/` | Linux **AppImage** scripts — same behavior as `bridge/appimage/` in [rusty-kaspa](https://github.com/kaspanet/rusty-kaspa), but at repo root (`appimage/build.sh` uses `static/assets/kaspa.svg`). |
-| `bridge-tauri/` | **RKStratum Bridge** desktop shell (Tauri), the graphical “bridge GUI” that embeds the upstream `kaspa-stratum-bridge` library from rusty-kaspa. |
+| `Cargo.toml` (root) | **Workspace** manifest only: `members = ["bridge"]`, shared `[workspace.dependencies]`, `[patch.crates-io]` for `serde_nested_with`. |
+| `bridge/` | `kaspa-stratum-bridge` package: `src/`, `static/`, `appimage/`, `config.yaml`, `docs/`. |
+| `bridge/appimage/` | Linux **AppImage** scripts (same behavior as upstream `bridge/appimage/`). |
+| `bridge-tauri/` | **RKStratum Bridge** Tauri shell; depends on `kaspa-stratum-bridge` via `path = "../../bridge"`. |
 
 ## Linux AppImage (CLI binary)
 
 Requires a **musl** release build, then:
 
 ```bash
-cargo build --release --locked --bin stratum-bridge \
+cargo build --release --locked -p kaspa-stratum-bridge \
   --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner
-bash appimage/build.sh "$(git describe --tags --always)"
+bash bridge/appimage/build.sh "$(git describe --tags --always)"
 ```
 
-Output: `stratum-bridge-<version>-x86_64.AppImage` at the repository root.
-
-`AppRun` matches upstream: optional terminal relaunch when there is no TTY, default `--config` from `$XDG_CONFIG_HOME/stratum-bridge/config.yaml` when present, `RKSTRATUM_NO_AUTO_TERMINAL=1` to disable the terminal wrapper.
-
-Ship the `.AppImage` inside a `.tar.gz` if you need to preserve the executable bit after download (GitHub’s web UI can strip `+x`).
+Icon source: `bridge/static/assets/kaspa.svg`.
 
 ## Desktop GUI (Tauri)
 
-See [`bridge-tauri/README.md`](../bridge-tauri/README.md). The window title and bundle name are **RKStratum Bridge**, consistent with `bridge-tauri/src-tauri/tauri.conf.json`.
+See [`bridge-tauri/README.md`](../bridge-tauri/README.md). The window title and bundle name are **RKStratum Bridge** (`bridge-tauri/src-tauri/tauri.conf.json`).

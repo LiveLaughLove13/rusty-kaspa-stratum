@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RK-Stratum — Workers</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/css/site.css">
+</head>
+<body>
+  <nav class="rk-main-nav border-b border-card relative rounded-b-2xl shadow-lg shadow-black/25">
+    <div class="container mx-auto px-4 sm:px-5 py-4 sm:py-5 max-w-[1680px]">
+      <div class="rk-nav-top flex flex-col gap-3 sm:gap-4">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
+          <div id="rkNavClockSlot" class="shrink-0"></div>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto">
+          <nav class="rk-dash-subnav flex flex-wrap items-center gap-1 sm:gap-1.5 rounded-xl border border-white/[0.08] bg-black/25 px-2 py-1.5 sm:px-2.5" aria-label="Dashboard pages">
+            <a class="rk-dash-subnav__link" href="/">Overview</a>
+            <a class="rk-dash-subnav__link" href="/metrics.html">Metrics</a>
+            <a class="rk-dash-subnav__link" href="/node.html">Node</a>
+            <a class="rk-dash-subnav__link" href="/trends.html">Trends</a>
+            <a class="rk-dash-subnav__link" href="/blocks.html">Blocks</a>
+            <a class="rk-dash-subnav__link rk-dash-subnav__link--active" href="/workers.html">Workers</a>
+          </nav>
+            <a class="rk-nav-cta rk-nav-cta--ghost" href="/raw.html">Raw</a>
+            <a class="rk-nav-cta rk-nav-cta--primary"
+               href="https://github.com/kaspanet" target="_blank" rel="noopener noreferrer">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="currentColor"><path d="M12 .297a12 12 0 0 0-3.793 23.405c.6.111.793-.261.793-.58v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.757-1.333-1.757-1.089-.745.083-.73.083-.73 1.205.084 1.84 1.237 1.84 1.237 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.604-2.665-.3-5.466-1.334-5.466-5.932 0-1.31.468-2.381 1.235-3.221-.123-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.301 1.23a11.52 11.52 0 0 1 6.003 0c2.29-1.552 3.297-1.23 3.297-1.23.654 1.653.242 2.873.119 3.176.77.84 1.233 1.911 1.233 3.221 0 4.61-2.807 5.628-5.479 5.922.43.372.823 1.102.823 2.222v3.293c0 .322.192.694.801.576A12 12 0 0 0 12 .297z"/></svg>
+              </span>
+              GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+  <div class="container mx-auto px-4 pt-4 pb-6 max-w-[1680px]">
+    <div class="rk-workers-panel rk-panel-chart bg-surface-2 rounded-xl p-4 sm:p-6 border border-card">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+          <div class="min-w-0">
+            <h3 class="text-lg font-semibold kaspa-primary rk-panel-title">Workers</h3>
+            <p class="text-xs text-gray-500 mt-1 max-w-2xl">Per-worker comparison (hashrate, difficulty, shares, rejects, blocks, uptime). Set the wallet filter on the <a class="kaspa-primary hover:underline font-medium" href="/metrics.html">Metrics</a> page (stored in this browser).</p>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">
+            <button type="button" class="bg-surface-1 border border-card px-3 py-1.5 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-2" data-collapsible-toggle="workers" aria-expanded="true">
+              <svg class="h-4 w-4 transition-transform" data-collapsible-icon="workers" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+              <span data-collapsible-label="workers">Collapse</span>
+            </button>
+            <button id="downloadWorkersCsv" type="button" class="bg-surface-1 border border-card px-4 py-2 rounded-lg text-sm font-medium text-white hover:border-kaspa-primary">Download CSV</button>
+          </div>
+        </div>
+        <div data-collapsible-body="workers">
+          <div class="rk-subcollapsible mb-4 sm:mb-5">
+            <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+              <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Charts &amp; summary</span>
+              <button type="button" class="rk-subcollapsible-toggle bg-surface-1 border border-card px-2 py-1 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-1.5 shrink-0" data-collapsible-toggle="workersViz" aria-expanded="true" title="Collapse or expand charts and summary">
+                <svg class="h-3.5 w-3.5 transition-transform" data-collapsible-icon="workersViz" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+                <span data-collapsible-label="workersViz" class="hidden sm:inline">Collapse</span>
+              </button>
+            </div>
+            <div data-collapsible-body="workersViz">
+          <div id="workersVizWrap" class="rk-workers-viz mb-0 space-y-3">
+            <div class="rk-workers-stats grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+              <div class="rk-recent-blocks-stat rounded-lg border border-card/80 bg-surface-1/40 px-3 py-2">
+                <div class="text-[0.65rem] uppercase tracking-wide text-gray-500">Rows in view</div>
+                <div id="workersStatCount" class="text-lg font-semibold text-white tabular-nums">—</div>
+              </div>
+              <div class="rk-recent-blocks-stat rounded-lg border border-card/80 bg-surface-1/40 px-3 py-2">
+                <div class="text-[0.65rem] uppercase tracking-wide text-gray-500">Σ Hashrate</div>
+                <div id="workersStatHashrateSum" class="text-lg font-semibold text-white tabular-nums">—</div>
+              </div>
+              <div class="rk-recent-blocks-stat rounded-lg border border-card/80 bg-surface-1/40 px-3 py-2">
+                <div class="text-[0.65rem] uppercase tracking-wide text-gray-500">Σ Shares</div>
+                <div id="workersStatSharesSum" class="text-lg font-semibold text-white tabular-nums">—</div>
+              </div>
+              <div class="rk-recent-blocks-stat rounded-lg border border-card/80 bg-surface-1/40 px-3 py-2">
+                <div class="text-[0.65rem] uppercase tracking-wide text-gray-500">Σ Blocks</div>
+                <div id="workersStatBlocksSum" class="text-lg font-semibold text-white tabular-nums">—</div>
+              </div>
+            </div>
+            <div id="workersVizCharts" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head">
+                  <span class="rk-trends-chart-title">Hashrate</span>
+                  <span class="rk-trends-chart-stats" id="workersChartHashrateStats"></span>
+                </div>
+                <div class="rk-trends-canvas-wrap rk-workers-chart-canvas-wrap"><canvas id="workerChartHashrate" aria-label="Worker hashrate"></canvas></div>
+              </div>
+              <div id="workersCardDifficulty" class="rk-trends-chart-card">
+                <div class="rk-trends-chart-head">
+                  <span class="rk-trends-chart-title">Diff</span>
+                  <span class="rk-trends-chart-stats" id="workersChartDifficultyStats"></span>
+                </div>
+                <div class="rk-trends-canvas-wrap rk-workers-chart-canvas-wrap"><canvas id="workerChartDifficulty" aria-label="Worker difficulty"></canvas></div>
+              </div>
+              <div class="rk-trends-chart-card xl:col-span-2">
+                <div class="rk-trends-chart-head">
+                  <span class="rk-trends-chart-title">Shares · rejects · blocks · node</span>
+                  <span class="rk-trends-chart-stats" id="workersChartSubmissionStats"></span>
+                </div>
+                <div class="rk-trends-canvas-wrap rk-workers-chart-canvas-wrap rk-workers-chart-canvas-wrap--wide"><canvas id="workerChartSubmission" aria-label="Worker shares and blocks"></canvas></div>
+              </div>
+              <div id="workersCardSession" class="rk-trends-chart-card xl:col-span-2">
+                <div class="rk-trends-chart-head">
+                  <span class="rk-trends-chart-title">Session uptime</span>
+                  <span class="rk-trends-chart-stats" id="workersChartSessionStats"></span>
+                </div>
+                <div class="rk-trends-canvas-wrap rk-workers-chart-canvas-wrap"><canvas id="workerChartSession" aria-label="Worker session uptime"></canvas></div>
+              </div>
+            </div>
+            <p id="workersVizEmpty" class="hidden text-sm text-gray-500 text-center py-8 border border-dashed border-card rounded-lg bg-surface-1/30">No workers in the current view. Clear the wallet filter or wait for workers to connect.</p>
+          </div>
+            </div>
+          </div>
+          <div class="rk-subcollapsible">
+            <div class="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+              <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Worker table</span>
+              <button type="button" class="rk-subcollapsible-toggle bg-surface-1 border border-card px-2 py-1 rounded-lg text-xs font-medium text-white hover:border-kaspa-primary flex items-center gap-1.5 shrink-0" data-collapsible-toggle="workersTable" aria-expanded="true" title="Collapse or expand worker table">
+                <svg class="h-3.5 w-3.5 transition-transform" data-collapsible-icon="workersTable" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08z" clip-rule="evenodd"/></svg>
+                <span data-collapsible-label="workersTable" class="hidden sm:inline">Collapse</span>
+              </button>
+            </div>
+            <div data-collapsible-body="workersTable">
+          <div class="text-xs text-gray-400 mb-2 max-w-prose">All columns are shown. Scroll the table horizontally if the window is narrow. Tap a row for a full field dump.</div>
+          <div class="table-wrap rk-workers-table-wrap" data-workers-table>
+            <table class="rk-workers-table w-full min-w-0 text-xs sm:text-sm">
+              <thead class="text-gray-400">
+                <tr class="border-b border-card">
+                  <th class="text-left py-2">Instance</th>
+                  <th class="text-left py-2">Worker</th>
+                  <th class="text-left py-2">Wallet</th>
+                  <th class="text-left py-2">Hashrate</th>
+                  <th class="text-left py-2">Diff</th>
+                  <th class="text-left py-2">Shares</th>
+                  <th class="text-left py-2 rk-wt-aux" title="Stale shares">Stale</th>
+                  <th class="text-left py-2 rk-wt-aux" title="Invalid shares">Invalid</th>
+                  <th class="text-left py-2 rk-wt-aux" title="Duplicate shares">Dup</th>
+                  <th class="text-left py-2 rk-wt-aux" title="Weak shares">Weak</th>
+                  <th class="text-left py-2">Blocks</th>
+                  <th class="text-left py-2 rk-wt-aux" title="Blocks accepted by node">Acc Δ</th>
+                  <th class="text-left py-2 rk-wt-aux" title="Blocks not confirmed blue">N-blue</th>
+                  <th class="text-left py-2 rk-wt-aux" title="Disconnects">DC</th>
+                  <th class="text-left py-2 rk-wt-phone-hide" title="Jobs sent">Jobs</th>
+                  <th class="text-left py-2 rk-wt-phone-hide" title="Balance">Bal</th>
+                  <th class="text-left py-2 rk-wt-aux" title="Errors (all types)">Err</th>
+                  <th class="text-left py-2">Status</th>
+                  <th class="text-left py-2 rk-wt-phone-hide" title="Last seen">Last Seen</th>
+                  <th class="text-left py-2 rk-wt-phone-hide" title="Session uptime">Session</th>
+                </tr>
+              </thead>
+              <tbody id="workersBody" class="text-gray-200"></tbody>
+            </table>
+          </div>
+            </div>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <div id="rowDetailModal" class="hidden fixed inset-0 z-50">
+    <div id="rowDetailBackdrop" class="absolute inset-0 bg-black/60"></div>
+    <div class="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
+      <div class="bg-surface-1 border border-card rounded-2xl w-full max-w-xl shadow-xl">
+        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-card">
+          <div class="min-w-0">
+            <div id="rowDetailTitle" class="text-base font-semibold text-white truncate">Details</div>
+            <div class="text-xs text-gray-400">Tap Copy to copy values</div>
+          </div>
+          <button id="rowDetailClose" type="button" class="bg-surface-2 border border-card px-3 py-2 rounded-lg text-sm font-medium text-white hover:border-kaspa-primary">Close</button>
+        </div>
+        <div id="rowDetailBody" class="px-5 py-4 space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+  <script src="static/js/dashboard.js"></script>
+
+  <div id="toast" class="hidden fixed right-4 top-4 z-50 bg-surface-1 border border-card px-4 py-2 rounded-lg text-sm text-white"></div>
+</body>
+</html>

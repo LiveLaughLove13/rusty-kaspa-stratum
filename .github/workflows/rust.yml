@@ -30,13 +30,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip
 
       - name: Run Cargo Check
-        run: cargo check --locked --bin stratum-bridge
+        run: cargo check --locked -p kaspa-stratum-bridge
 
       - name: Run Clippy
-        run: cargo clippy --locked --bin stratum-bridge -- -D warnings
+        run: cargo clippy --locked -p kaspa-stratum-bridge -- -D warnings
 
       - name: Run tests
-        run: cargo test --locked
+        run: cargo test --locked -p kaspa-stratum-bridge
 
   build-release-assets:
     name: Build Release Assets
@@ -79,7 +79,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build binary
-        run: cargo build --locked --verbose --release --features rkstratum_cpu_miner --bin stratum-bridge
+        run: cargo build --locked --verbose --release --features rkstratum_cpu_miner -p kaspa-stratum-bridge
 
       - name: Add musl Rust target (Linux)
         if: runner.os == 'Linux'
@@ -92,8 +92,8 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          cargo build --locked --verbose --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner --bin stratum-bridge
-          bash appimage/build.sh "$TAG"
+          cargo build --locked --verbose --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge
+          bash bridge/appimage/build.sh "$TAG"
 
       - name: Pack AppImage tarball (Linux)
         if: runner.os == 'Linux' && steps.appimage.outcome == 'success'
@@ -115,7 +115,7 @@ jobs:
           mkdir staging
           cp README.md staging/
           cp LICENSE staging/
-          cp config.yaml staging/
+          cp bridge/config.yaml staging/config.yaml
           cp ${{ matrix.binary_path }} staging/${{ matrix.binary_name }}
 
       - name: Create tar.gz archive (Linux)
