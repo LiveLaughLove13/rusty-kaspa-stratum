@@ -69,7 +69,7 @@ jobs:
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip
+        run: sudo apt-get update && sudo apt-get install -y build-essential protobuf-compiler zip musl-tools librsvg2-bin
 
       - name: Install protoc (Windows)
         if: runner.os == 'Windows'
@@ -80,6 +80,35 @@ jobs:
 
       - name: Build binary
         run: cargo build --locked --verbose --release --features rkstratum_cpu_miner --bin stratum-bridge
+
+      - name: Add musl Rust target (Linux)
+        if: runner.os == 'Linux'
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Build stratum-bridge (musl) and AppImage (Linux)
+        id: appimage
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          cargo build --locked --verbose --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner --bin stratum-bridge
+          bash appimage/build.sh "$TAG"
+
+      - name: Pack AppImage tarball (Linux)
+        if: runner.os == 'Linux' && steps.appimage.outcome == 'success'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          IMG="stratum-bridge-${TAG}-x86_64.AppImage"
+          tar -czf "${IMG}.tar.gz" "$IMG"
+
+      - name: Upload AppImage workflow artifact (Linux)
+        if: runner.os == 'Linux' && steps.appimage.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: stratum-bridge-linux-appimage
+          path: ./stratum-bridge-${{ github.ref_name }}-x86_64.AppImage.tar.gz
 
       - name: Package release assets
         run: |

@@ -1,12 +1,12 @@
 ## Stratum Bridge Beta
 
+Repository layout (CLI binary, `static/` dashboard, `appimage/` Linux bundle, `bridge-tauri/` **RKStratum Bridge** GUI) is summarized in [PACKAGING.md](PACKAGING.md).
+
 This Stratum Bridge is currently in BETA. Support is available in the Kaspa Discord’s [#mining-and-hardware](https://discord.com/channels/599153230659846165/910178666099646584) channel.
 
 For bug reports or feature request, please open an issue at [`kaspanet/rusty-kaspa` issues](https://github.com/kaspanet/rusty-kaspa/issues) and prefix your issue title with `[Bridge]`.
 
-This repository contains a standalone Stratum bridge binary at:
-
-`bridge`
+This repository’s main artifact is the **`stratum-bridge`** binary (Rust crate `kaspa-stratum-bridge`).
 
 The bridge can run against:
 
@@ -18,7 +18,7 @@ The bridge can run against:
 
 The sample configuration file is:
 
-`bridge/config.yaml`
+`config.yaml`
 
 When running from the repository root, pass the config path explicitly:
 
@@ -52,7 +52,7 @@ cargo build -p kaspa-stratum-bridge --release --features rkstratum_cpu_miner
 Run (external node mode + internal CPU miner enabled):
 
 ```bash
-cargo run -p kaspa-stratum-bridge --release --features rkstratum_cpu_miner --bin stratum-bridge -- --config bridge/config.yaml --node-mode external --internal-cpu-miner --internal-cpu-miner-address kaspa:YOUR_WALLET_ADDRESS --internal-cpu-miner-threads 1
+cargo run -p kaspa-stratum-bridge --release --features rkstratum_cpu_miner --bin stratum-bridge -- --config config.yaml --node-mode external --internal-cpu-miner --internal-cpu-miner-address kaspa:YOUR_WALLET_ADDRESS --internal-cpu-miner-threads 1
 ```
 
 ### Running two bridges at once (two dashboards)
@@ -88,13 +88,13 @@ cargo run --release --bin kaspad -- --utxoindex --rpclisten=127.0.0.1:16110 --rp
 Terminal B (bridge):
 
 ```bash
-cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode external
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config config.yaml --node-mode external
 ```
 
 ### Run (in-process node)
 
 ```bash
-cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode inprocess -- --utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config config.yaml --node-mode inprocess -- --utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110
 ```
 
 **Important:** Use `--` separator before kaspad arguments. Arguments starting with hyphens must come after the `--` separator.
@@ -114,7 +114,7 @@ cargo run --release --bin stratum-bridge -- --rpclisten=127.0.0.1:16110 --config
 If you want to override it, pass `--appdir` to the bridge (before the `--` separator):
 
 ```bash
-cargo run --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode inprocess --appdir "C:\path\to\custom\datadir" -- --utxoindex --rpclisten=127.0.0.1:16110
+cargo run --release --bin stratum-bridge -- --config config.yaml --node-mode inprocess --appdir "C:\path\to\custom\datadir" -- --utxoindex --rpclisten=127.0.0.1:16110
 ```
 
 ### Miner / ASIC connection

@@ -1,6 +1,6 @@
 # RK Stratum Bridge — desktop (Tauri)
 
-Optional GUI that embeds the **same** `kaspa-stratum-bridge` library API as [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) (`bridge/` crate: runner, CLI, embedded dashboard). The standalone `stratum-bridge` binary at this repository root is unchanged and remains the primary way to run the bridge headlessly.
+Optional **bridge GUI** (window title and product name: **RKStratum Bridge**, see `src-tauri/tauri.conf.json`) that embeds the **same** `kaspa-stratum-bridge` library API as [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) (`bridge/` crate: runner, CLI, embedded dashboard). The standalone `stratum-bridge` binary at this repository root is unchanged and remains the primary way to run the bridge headlessly.
 
 ## Prerequisites
 

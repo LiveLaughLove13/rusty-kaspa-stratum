@@ -71,11 +71,15 @@ $env:RUST_LOG="info,kaspa_stratum_bridge=debug"
 
 On Windows, Ctrl+C may show `STATUS_CONTROL_C_EXIT` which is expected.
 
-## Desktop UI (optional)
+## Linux AppImage (optional)
 
-This repository also includes a **Tauri** desktop shell under [`bridge-tauri/`](bridge-tauri/) that embeds the bridge using the `kaspa-stratum-bridge` library from [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) (pinned by git revision in `bridge-tauri/src-tauri/Cargo.toml`). It does not replace the standalone `stratum-bridge` binary above.
+Headless **CLI** releases can also be packaged as an AppImage (same flow as [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) `bridge/appimage/`, adapted to this repo’s root `static/` layout). After a musl `stratum-bridge` build, run `bash appimage/build.sh <version-label>` from the repo root. The AppImage uses `$XDG_CONFIG_HOME/stratum-bridge/config.yaml` when present; see [`docs/PACKAGING.md`](docs/PACKAGING.md).
 
-See [`bridge-tauri/README.md`](bridge-tauri/README.md) for build commands and dependency notes.
+## Desktop UI — RKStratum Bridge (optional)
+
+The **Tauri** desktop shell (“bridge GUI”) lives under [`bridge-tauri/`](bridge-tauri/). It embeds the `kaspa-stratum-bridge` **library** from [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) (pinned by git revision in `bridge-tauri/src-tauri/Cargo.toml`). It does not replace the standalone `stratum-bridge` CLI binary above.
+
+See [`bridge-tauri/README.md`](bridge-tauri/README.md) and [`docs/PACKAGING.md`](docs/PACKAGING.md) for build commands and layout.
 
 ## 🤝 Contributing
 
