@@ -11,21 +11,23 @@ Optional **bridge GUI** (window title and product name: **RKStratum Bridge**, se
 
 `kaspa-stratum-bridge` is a **path** dependency to `../../bridge`. `kaspa-alloc` comes from **git** (`kaspanet/rusty-kaspa`, `branch = "master"`) to match the bridge’s allocator.
 
-The workspace root `Cargo.toml` defines `[patch.crates-io]` for **serde_nested_with** (yanked on crates.io). Building only the Tauri crate may require the same patch in this manifest or building from a workspace that includes the patch.
+The repository root **`Cargo.toml`** is a workspace that includes **`bridge`** and **`bridge-tauri/src-tauri`**. Root `[patch.crates-io]` for **serde_nested_with** applies to all members—do not duplicate patches in this crate.
 
-From the repository root:
+From the **repository root**:
 
 ```bash
-cargo check --manifest-path bridge-tauri/src-tauri/Cargo.toml
-cargo check --manifest-path bridge-tauri/src-tauri/Cargo.toml --features rkstratum_cpu_miner
+cargo check -p rkstratum-bridge-desktop
+cargo check -p rkstratum-bridge-desktop --features rkstratum_cpu_miner
 ```
 
-Release bundle:
+Release bundle (from `bridge-tauri/`, with npm deps installed):
 
 ```bash
-cargo tauri build --manifest-path bridge-tauri/src-tauri/Cargo.toml
+cd bridge-tauri
+npm ci
+npx tauri build --features rkstratum_cpu_miner
 ```
 
 ## Lockfile
 
-Commit `bridge-tauri/src-tauri/Cargo.lock` when it changes so CI and fresh clones stay reproducible.
+Reproducible builds use the **workspace root** [`Cargo.lock`](../Cargo.lock) only. Commit lockfile updates at the repo root when dependencies change.

@@ -4,7 +4,7 @@ This repository matches **kaspanet/rusty-kaspa** [`bridge/`](https://github.com/
 
 | Path | Role |
 | --- | --- |
-| `Cargo.toml` (root) | **Workspace** manifest only: `members = ["bridge"]`, shared `[workspace.dependencies]`, `[patch.crates-io]` for `serde_nested_with`. |
+| `Cargo.toml` (root) | **Workspace**: `members = ["bridge", "bridge-tauri/src-tauri"]`, shared `[workspace.dependencies]`, `[patch.crates-io]` for `serde_nested_with`. Single **root `Cargo.lock`** for `stratum-bridge` and `rkstratum-bridge-desktop`. |
 | `bridge/` | `kaspa-stratum-bridge` package: `src/`, `static/`, `appimage/`, `config.yaml`, `docs/`. |
 | `bridge/appimage/` | Linux **AppImage** scripts (same behavior as upstream `bridge/appimage/`). |
 | `bridge-tauri/` | **RKStratum Bridge** Tauri shell; depends on `kaspa-stratum-bridge` via `path = "../../bridge"`. |
