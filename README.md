@@ -30,13 +30,13 @@ By default it exposes these Stratum ports:
 
 ## Run (external node)
 
-Terminal A (node):
+Terminal A runs **`kaspad`**. This repository’s workspace only builds **`stratum-bridge`** (it does not ship the `kaspad` binary). Build or install `kaspad` from the full [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) tree or from that project’s release assets, then start it with RPC flags your bridge will use, for example:
 
 ```bash
-cargo run --release --bin kaspad -- --utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110
+kaspad --utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110
 ```
 
-Terminal B (bridge):
+Terminal B (bridge, **from this repository**):
 
 ```bash
 cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode external
@@ -72,6 +72,16 @@ $env:RUST_LOG="info,kaspa_stratum_bridge=debug"
 ```
 
 On Windows, Ctrl+C may show `STATUS_CONTROL_C_EXIT` which is expected.
+
+## GitHub Releases (CI)
+
+Tag pushes matching `v*` (for example `v1.3.0`) run [`.github/workflows/rust.yml`](.github/workflows/rust.yml) and attach binaries to the GitHub Release, including:
+
+- **Linux:** `stratum-bridge-linux-amd64` (tar.gz) and, when the AppImage step succeeds, `stratum-bridge-<tag>-x86_64.AppImage` packaged as a `.tar.gz` (preserves the executable bit).
+- **Windows:** `stratum-bridge-windows-amd64.zip` (includes `stratum-bridge.exe` and `rkstratum-bridge-desktop.exe` when built with the CPU-miner feature in CI).
+- **macOS:** `stratum-bridge-macos-arm64.zip` (Apple Silicon) and `stratum-bridge-macos-amd64.zip` (Intel; `macos-15-intel` runner).
+
+Pushes to **`main`** and pull requests run check/lint/tests only; they do not upload these release assets.
 
 ## Linux AppImage (optional)
 

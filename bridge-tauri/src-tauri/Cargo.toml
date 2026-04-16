@@ -26,8 +26,3 @@ default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 # Forward to the bridge crate so `--internal-cpu-miner` and related flags parse (optional build).
 rkstratum_cpu_miner = ["kaspa-stratum-bridge/rkstratum_cpu_miner"]
-
-# `serde_nested_with` was fully yanked on crates.io; pull the same sources from upstream git.
-# See: https://github.com/murar8/serde_nested_with (tag matches published 0.2.6).
-[patch.crates-io]
-serde_nested_with = { git = "https://github.com/murar8/serde_nested_with.git", tag = "0.2.6" }

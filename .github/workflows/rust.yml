@@ -102,10 +102,10 @@ jobs:
       - name: Build binary
         run: cargo build --locked --verbose --release --features rkstratum_cpu_miner -p kaspa-stratum-bridge
 
-      # Desktop shell is not a workspace member; same feature as local: cargo build --manifest-path bridge-tauri/src-tauri/Cargo.toml --features rkstratum_cpu_miner
+      # Tauri desktop is a workspace member; artifacts land in repo-root target/release (not bridge-tauri/src-tauri/target).
       - name: Build rkstratum-bridge-desktop (Windows, macOS)
         if: runner.os == 'Windows' || runner.os == 'macOS'
-        run: cargo build --locked --verbose --release --features rkstratum_cpu_miner --manifest-path bridge-tauri/src-tauri/Cargo.toml
+        run: cargo build --locked --verbose --release -p rkstratum-bridge-desktop --features rkstratum_cpu_miner
 
       - name: Add musl Rust target (Linux)
         if: runner.os == 'Linux'
@@ -146,11 +146,11 @@ jobs:
           cp ${{ matrix.binary_path }} staging/${{ matrix.binary_name }}
       - name: Add rkstratum-bridge-desktop to staging (Windows)
         if: runner.os == 'Windows'
-        run: cp bridge-tauri/src-tauri/target/release/rkstratum-bridge-desktop.exe staging/
+        run: cp target/release/rkstratum-bridge-desktop.exe staging/
 
       - name: Add rkstratum-bridge-desktop to staging (macOS)
         if: runner.os == 'macOS'
-        run: cp bridge-tauri/src-tauri/target/release/rkstratum-bridge-desktop staging/
+        run: cp target/release/rkstratum-bridge-desktop staging/
 
       - name: Create tar.gz archive (Linux)
         if: runner.os == 'Linux'

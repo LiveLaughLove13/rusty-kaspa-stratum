@@ -2,11 +2,11 @@
 
 This Stratum Bridge is currently in BETA. Support is available in the Kaspa Discord’s [#mining-and-hardware](https://discord.com/channels/599153230659846165/910178666099646584) channel.
 
-For bug reports or feature request, please open an issue at [`kaspanet/rusty-kaspa` issues](https://github.com/kaspanet/rusty-kaspa/issues) and prefix your issue title with `[Bridge]`.
+**This documentation** applies to the standalone [**rusty-kaspa-stratum**](https://github.com/LiveLaughLove13/rusty-kaspa-stratum) repository (same `bridge/` layout as [kaspanet/rusty-kaspa `bridge/`](https://github.com/kaspanet/rusty-kaspa/tree/master/bridge)). Repository layout (workspace, AppImage, optional Tauri GUI) is summarized in the repo [`README.md`](../../README.md) and [`docs/PACKAGING.md`](../../docs/PACKAGING.md).
 
-This repository contains a standalone Stratum bridge binary at:
+**Issues:** For bugs or features for **this fork**, open an issue on [rusty-kaspa-stratum](https://github.com/LiveLaughLove13/rusty-kaspa-stratum/issues). For **upstream** Kaspa core / full-node topics, use [kaspanet/rusty-kaspa issues](https://github.com/kaspanet/rusty-kaspa/issues) and prefix the title with `[Bridge]` when it concerns the bridge.
 
-`bridge`
+The workspace builds the **`stratum-bridge`** binary from the `bridge/` crate (`kaspa-stratum-bridge`).
 
 The bridge can run against:
 
@@ -15,10 +15,19 @@ The bridge can run against:
 
 ### Running from a release
 
-If you are running from GitHub Releases (without `cargo run`):
+If you are running from **GitHub Releases** (without `cargo run`), use the assets published by CI on `v*` tags:
 
-1. Download and extract the release archive for your OS.
-2. Prepare a config file (for example `bridge/config.yaml` from this repository).
+| Asset (examples) | Contents |
+| --- | --- |
+| `stratum-bridge-linux-amd64.tar.gz` | `stratum-bridge`, `config.yaml`, `README`, `LICENSE` |
+| `stratum-bridge-windows-amd64.zip` | `stratum-bridge.exe`, **`rkstratum-bridge-desktop.exe`** (GUI), `config.yaml`, etc. |
+| `stratum-bridge-macos-arm64.zip` / `stratum-bridge-macos-amd64.zip` | Same pattern for Apple Silicon vs Intel macOS |
+| `stratum-bridge-<version>-x86_64.AppImage.tar.gz` | Linux AppImage (when the release job publishes it) |
+
+Then:
+
+1. Download and extract the archive for your OS.
+2. Prepare a config file (for example copy `bridge/config.yaml` from this repository next to the binary, or pass `--config` to your file).
 3. Run the bridge binary directly (in-process mode first):
 
 ```bash
@@ -43,12 +52,14 @@ disable that. The AppImage looks for `config.yaml` at `$XDG_CONFIG_HOME/stratum-
 forwarded to the bridge (an explicit `--config` skips that default). To build the AppImage locally after a musl `stratum-bridge`
 release build: `bash bridge/appimage/build.sh <version-label>`.
 
+**Optional desktop GUI:** Windows and macOS release zips may include **`rkstratum-bridge-desktop`** (Tauri shell). Build from source with [`bridge-tauri/README.md`](../../bridge-tauri/README.md).
+
 ### CLI Help
 
-For detailed command-line options:
+For detailed command-line options (from the **repository root** of this workspace):
 
 ```bash
-cargo run --release --bin stratum-bridge -- --help
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --help
 ```
 
 This will show all available bridge options and guidance for kaspad arguments.
@@ -86,7 +97,7 @@ If `--node-mode` is not specified, the bridge defaults to **in-process** mode.
 Minimal run (sane defaults, no config file):
 
 ```bash
-cargo run --bin stratum-bridge --release
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge
 ```
 
 Run in-process with explicit config and kaspad args:
@@ -100,10 +111,10 @@ cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bri
 **Examples:**
 ```bash
 # ✓ Correct - bridge args first, then --, then kaspad args
-cargo run --release --bin stratum-bridge -- --config config.yaml --node-mode inprocess -- --utxoindex --rpclisten=127.0.0.1:16110
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config config.yaml --node-mode inprocess -- --utxoindex --rpclisten=127.0.0.1:16110
 
 # ✗ Incorrect - will show error message
-cargo run --release --bin stratum-bridge -- --rpclisten=127.0.0.1:16110 --config config.yaml --node-mode inprocess
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --rpclisten=127.0.0.1:16110 --config config.yaml --node-mode inprocess
 # Error: tip: to pass '--rpclisten' as a value, use '-- --rpclisten'
 ```
 
@@ -112,18 +123,18 @@ cargo run --release --bin stratum-bridge -- --rpclisten=127.0.0.1:16110 --config
 If you want to override it, pass `--appdir` to the bridge (before the `--` separator):
 
 ```bash
-cargo run --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode inprocess --appdir "C:\path\to\custom\datadir" -- --utxoindex --rpclisten=127.0.0.1:16110
+cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode inprocess --appdir "C:\path\to\custom\datadir" -- --utxoindex --rpclisten=127.0.0.1:16110
 ```
 
 ### Run (external node)
 
-Terminal A (node):
+Terminal A runs **`kaspad`**. This workspace does **not** include a `kaspad` package binary—build or install `kaspad` from the full [kaspanet/rusty-kaspa](https://github.com/kaspanet/rusty-kaspa) tree or use a published `kaspad` release, then start RPC, for example:
 
 ```bash
-cargo run --release --bin kaspad -- --utxoindex --rpclisten=127.0.0.1:16110
+kaspad --utxoindex --rpclisten=127.0.0.1:16110 --rpclisten-borsh=127.0.0.1:17110
 ```
 
-Terminal B (bridge):
+Terminal B (bridge, **from this repository**):
 
 ```bash
 cargo run -p kaspa-stratum-bridge --release --bin stratum-bridge -- --config bridge/config.yaml --node-mode external

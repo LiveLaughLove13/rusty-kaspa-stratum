@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["bridge"]
+members = ["bridge", "bridge-tauri/src-tauri"]
 
 [workspace.package]
 rust-version = "1.88.0"
