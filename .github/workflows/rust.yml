@@ -55,11 +55,17 @@ jobs:
             binary_name: stratum-bridge.exe
             asset_name: stratum-bridge-windows-amd64
             binary_path: target/release/stratum-bridge.exe
-          # macos-latest is Apple Silicon (arm64); stratum-bridge + rkstratum-bridge-desktop for that target.
+          # Apple Silicon (arm64): https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners
           - os: macos-latest
-            os_key: macos
+            os_key: macos-arm64
             binary_name: stratum-bridge
             asset_name: stratum-bridge-macos-arm64
+            binary_path: target/release/stratum-bridge
+          # Intel (x86_64): GitHub label macos-15-intel (replaces retired macos-13); supported until ~Fall 2027.
+          - os: macos-15-intel
+            os_key: macos-amd64
+            binary_name: stratum-bridge
+            asset_name: stratum-bridge-macos-amd64
             binary_path: target/release/stratum-bridge
 
     steps:
@@ -155,10 +161,12 @@ jobs:
         if: runner.os == 'Windows'
         run: Compress-Archive -Path staging\* -DestinationPath ${{ matrix.asset_name }}.zip
 
-      - name: Create tar.gz archive (macOS)
+      # .zip built on macOS (Finder-friendly; preserves +x on binaries inside the archive for unzip on macOS).
+      - name: Create zip archive (macOS)
         if: runner.os == 'macOS'
+        shell: bash
         run: |
-          tar -C staging -czf ${{ matrix.asset_name }}.tar.gz .
+          (cd staging && zip -r "${GITHUB_WORKSPACE}/${{ matrix.asset_name }}.zip" .)
 
       - name: Upload workflow artifact (Linux)
         if: runner.os == 'Linux'
@@ -179,7 +187,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: ./${{ matrix.asset_name }}.tar.gz
+          path: ./${{ matrix.asset_name }}.zip
 
   publish-release:
     name: Publish GitHub Release
