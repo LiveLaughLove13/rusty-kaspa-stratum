@@ -86,6 +86,64 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake protobuf-compiler zip curl zstd librsvg2-bin fuse libfuse2
 
+      # bridge-tauri (Tauri 1): WebKitGTK + GTK3 — see bridge-tauri/README.md and https://v1.tauri.app/v1/guides/getting-started/prerequisites/
+      - name: Install WebKit/GTK for rkstratum-bridge-desktop (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          if apt-cache show libwebkit2gtk-4.0-dev &>/dev/null && apt-cache show libjavascriptcoregtk-4.0-dev &>/dev/null; then
+            WEBKIT_PKG=libwebkit2gtk-4.0-dev
+            JSCORE_PKG=libjavascriptcoregtk-4.0-dev
+            NEED_PC_ALIAS=0
+          elif apt-cache show libwebkit2gtk-4.1-dev &>/dev/null && apt-cache show libjavascriptcoregtk-4.1-dev &>/dev/null; then
+            WEBKIT_PKG=libwebkit2gtk-4.1-dev
+            JSCORE_PKG=libjavascriptcoregtk-4.1-dev
+            NEED_PC_ALIAS=1
+          else
+            echo "::error::No compatible WebKit/JSC dev packages in apt (need 4.0 or 4.1)."
+            exit 1
+          fi
+          sudo apt-get install -y \
+            "$WEBKIT_PKG" \
+            "$JSCORE_PKG" \
+            curl wget file libssl-dev libgtk-3-dev libsoup2.4-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf
+          if [ "$NEED_PC_ALIAS" = "1" ]; then
+            sudo ldconfig
+            JSCORE_PC_DIR="$(pkg-config --variable pcfiledir javascriptcoregtk-4.1)"
+            WEBKIT_PC_DIR="$(pkg-config --variable pcfiledir webkit2gtk-4.1)"
+            sudo mkdir -p /usr/local/lib/pkgconfig
+            sudo ln -sf "$JSCORE_PC_DIR/javascriptcoregtk-4.1.pc" /usr/local/lib/pkgconfig/javascriptcoregtk-4.0.pc
+            sudo ln -sf "$WEBKIT_PC_DIR/webkit2gtk-4.1.pc" /usr/local/lib/pkgconfig/webkit2gtk-4.0.pc
+            echo "PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >> "$GITHUB_ENV"
+            shopt -s nullglob
+            _jsc=(/usr/lib/x86_64-linux-gnu/libjavascriptcoregtk-4.1.so*)
+            _wk=(/usr/lib/x86_64-linux-gnu/libwebkit2gtk-4.1.so*)
+            shopt -u nullglob
+            JSCORE_SO=""
+            WEBKIT_SO=""
+            if [ "${#_jsc[@]}" -gt 0 ]; then JSCORE_SO="$(readlink -f "${_jsc[0]}" 2>/dev/null || printf '%s' "${_jsc[0]}")"; fi
+            if [ "${#_wk[@]}" -gt 0 ]; then WEBKIT_SO="$(readlink -f "${_wk[0]}" 2>/dev/null || printf '%s' "${_wk[0]}")"; fi
+            if [ -z "$JSCORE_SO" ]; then
+              JSCORE_SO="$(ldconfig -p 2>/dev/null | awk '/libjavascriptcoregtk-4\.1\.so/{print $NF; exit}')"
+            fi
+            if [ -z "$WEBKIT_SO" ]; then
+              WEBKIT_SO="$(ldconfig -p 2>/dev/null | awk '/libwebkit2gtk-4\.1\.so/{print $NF; exit}')"
+            fi
+            if [ -n "$JSCORE_SO" ] && [ -n "$WEBKIT_SO" ]; then
+              sudo ln -sf "$JSCORE_SO" /usr/local/lib/libjavascriptcoregtk-4.0.so
+              sudo ln -sf "$WEBKIT_SO" /usr/local/lib/libwebkit2gtk-4.0.so
+              echo "LIBRARY_PATH=/usr/local/lib:${LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+              echo "LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+              echo "RUSTFLAGS=-L/usr/local/lib ${RUSTFLAGS:-}" >> "$GITHUB_ENV"
+            else
+              echo "::error::Could not resolve WebKit/JSC 4.1 .so paths for linker aliases."
+              exit 1
+            fi
+          fi
+
       - name: Install protoc (Windows)
         if: runner.os == 'Windows'
         uses: arduino/setup-protoc@v3
@@ -105,7 +163,7 @@ jobs:
         if: runner.os != 'Linux'
         run: cargo build --locked --verbose --release --features rkstratum_cpu_miner -p kaspa-stratum-bridge
 
-      # Tauri desktop is a workspace member; artifacts land in repo-root target/release (not bridge-tauri/src-tauri/target).
+      # Tauri desktop: workspace member `bridge-tauri/src-tauri`; UI is static files under bridge-tauri/ui (no npm required for cargo build).
       - name: Build rkstratum-bridge-desktop (Windows, macOS)
         if: runner.os == 'Windows' || runner.os == 'macOS'
         run: cargo build --locked --verbose --release -p rkstratum-bridge-desktop --features rkstratum_cpu_miner
@@ -124,6 +182,11 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           export RUSTFLAGS="$RUSTFLAGS -C link-arg=-Wl,--allow-multiple-definition"
           cargo build --locked --verbose --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge
+
+      # bridge-tauri: host glibc + WebKitGTK (see Install WebKit/GTK step). Runs after musl; fails the job before AppImage if the GUI cannot link.
+      - name: Build rkstratum-bridge-desktop (Linux)
+        if: runner.os == 'Linux'
+        run: cargo build --locked --verbose --release -p rkstratum-bridge-desktop --features rkstratum_cpu_miner
 
       - name: Build AppImage (Linux)
         id: appimage
@@ -160,6 +223,10 @@ jobs:
 
       - name: Add rkstratum-bridge-desktop to staging (macOS)
         if: runner.os == 'macOS'
+        run: cp target/release/rkstratum-bridge-desktop staging/
+
+      - name: Add rkstratum-bridge-desktop to staging (Linux)
+        if: runner.os == 'Linux'
         run: cp target/release/rkstratum-bridge-desktop staging/
 
       - name: Create tar.gz archive (Linux)

@@ -28,6 +28,8 @@ npm ci
 npx tauri build --features rkstratum_cpu_miner
 ```
 
+**Linux (x86_64):** Git tag builds include **`rkstratum-bridge-desktop`** in the **`stratum-bridge-linux-amd64`** release archive (next to the musl `stratum-bridge` CLI). That binary is a **glibc** build linked against WebKitGTK (not musl). Run it on a normal desktop distro with WebKit/GTK installed, or build locally after installing [Tauri 1 Linux dependencies](https://v1.tauri.app/v1/guides/getting-started/prerequisites/).
+
 ## Lockfile
 
 Reproducible builds use the **workspace root** [`Cargo.lock`](../Cargo.lock) only. Commit lockfile updates at the repo root when dependencies change.

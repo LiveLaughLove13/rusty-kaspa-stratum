@@ -29,3 +29,5 @@ Icon source: `bridge/static/assets/kaspa.svg`.
 ## Desktop GUI (Tauri)
 
 See [`bridge-tauri/README.md`](../bridge-tauri/README.md). The window title and bundle name are **RKStratum Bridge** (`bridge-tauri/src-tauri/tauri.conf.json`).
+
+Tagged releases ship **`rkstratum-bridge-desktop`** for Windows, macOS (arm + intel), and **Linux x86_64** (glibc + WebKitGTK). The Linux GUI binary is inside the **`stratum-bridge-linux-amd64`** `.tar.gz` alongside the musl CLI `stratum-bridge`.
