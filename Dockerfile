@@ -28,10 +28,11 @@ COPY .cargo/config.toml .cargo/config.toml
 COPY bridge ./bridge
 COPY bridge-tauri/src-tauri ./bridge-tauri/src-tauri
 
+# RUN expands `$` before bash: use `$$RUSTFLAGS` so `-static` from `source build.sh` is not stripped.
 RUN bash -c 'set -euo pipefail; \
     source musl-toolchain/build.sh; \
-    cd "$GITHUB_WORKSPACE"; \
-    export RUSTFLAGS="$RUSTFLAGS -C link-arg=-Wl,--allow-multiple-definition"; \
+    cd "${GITHUB_WORKSPACE}"; \
+    export RUSTFLAGS="$$RUSTFLAGS -C link-arg=-Wl,--allow-multiple-definition"; \
     cargo build --locked --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge; \
     cp target/x86_64-unknown-linux-musl/release/stratum-bridge /stratum-bridge'
 
