@@ -1,5 +1,6 @@
+# syntax=docker/dockerfile:1.4
 # Builder: Debian (glibc) so bindgen/librocksdb-sys can dlopen libclang. Static musl binary via
-# kaspanet `musl-toolchain` (same as rusty-kaspa BridgeGUI / release workflow).
+# kaspanet `musl-toolchain` (CI parity). Quoted heredoc avoids Docker RUN `$` expansion eating RUSTFLAGS.
 # ---------------------------------------- Builder image ----------------------------------------
 FROM rust:1.90-bookworm AS builder
 
@@ -9,6 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     cmake \
+    ninja-build \
+    zlib1g-dev \
     curl \
     ca-certificates \
     zstd \
@@ -17,8 +20,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 ENV CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
-# musl-toolchain/build.sh expects a workspace root (matches GitHub Actions).
 ENV GITHUB_WORKSPACE=/usr/src/rustbridge
+# buildx/GitHub runners are RAM-tight while compiling rocksdb; avoid OOM (often surfaces as exit 101).
+ENV CARGO_BUILD_JOBS=4
+ENV CMAKE_BUILD_PARALLEL_LEVEL=4
 
 WORKDIR /usr/src/rustbridge
 
@@ -28,13 +33,15 @@ COPY .cargo/config.toml .cargo/config.toml
 COPY bridge ./bridge
 COPY bridge-tauri/src-tauri ./bridge-tauri/src-tauri
 
-# RUN expands `$` before bash: use `$$RUSTFLAGS` so `-static` from `source build.sh` is not stripped.
-RUN bash -c 'set -euo pipefail; \
-    source musl-toolchain/build.sh; \
-    cd "${GITHUB_WORKSPACE}"; \
-    export RUSTFLAGS="$$RUSTFLAGS -C link-arg=-Wl,--allow-multiple-definition"; \
-    cargo build --locked --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge; \
-    cp target/x86_64-unknown-linux-musl/release/stratum-bridge /stratum-bridge'
+RUN <<'EOS'
+#!/usr/bin/env bash
+set -euo pipefail
+source musl-toolchain/build.sh
+cd "${GITHUB_WORKSPACE}"
+export RUSTFLAGS="${RUSTFLAGS} -C link-arg=-Wl,--allow-multiple-definition"
+cargo build --locked --release --target x86_64-unknown-linux-musl --features rkstratum_cpu_miner -p kaspa-stratum-bridge
+cp target/x86_64-unknown-linux-musl/release/stratum-bridge /stratum-bridge
+EOS
 
 # ---------------------------------------- Runtime image ----------------------------------------
 FROM alpine AS runtime
