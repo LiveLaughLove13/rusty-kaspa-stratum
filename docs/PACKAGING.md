@@ -7,7 +7,7 @@ This repository matches **kaspanet/rusty-kaspa** [`bridge/`](https://github.com/
 | `Cargo.toml` (root) | **Workspace**: `members = ["bridge", "bridge-tauri/src-tauri"]`, shared `[workspace.dependencies]`, `[patch.crates-io]` for `serde_nested_with`. Single **root `Cargo.lock`** for `stratum-bridge` and `rkstratum-bridge-desktop`. |
 | `bridge/` | `kaspa-stratum-bridge` package: `src/`, `static/`, `appimage/`, `config.yaml`, `docs/`. |
 | `bridge/appimage/` | Linux **AppImage** scripts (same behavior as upstream `bridge/appimage/`). |
-| `bridge-tauri/` | **RKStratum Bridge** Tauri shell; depends on `kaspa-stratum-bridge` via `path = "../../bridge"`. |
+| `bridge-tauri/` | **RKStratum Bridge** Tauri shell; `bridge-tauri/src-tauri/Cargo.toml` depends on `kaspa-stratum-bridge` via `path = "../../bridge"`. |
 
 ## Linux AppImage (CLI binary)
 
@@ -24,7 +24,11 @@ cargo build --release --locked -p kaspa-stratum-bridge \
 bash bridge/appimage/build.sh "$(git describe --tags --always)"
 ```
 
-Icon source: `bridge/static/assets/kaspa.svg`.
+AppImage **256×256** icon: `build.sh` rasterizes **`bridge-tauri/src-tauri/icons/kaspa-icon-raster.svg`** (square canvas, `preserveAspectRatio` — same artwork as Tauri) via `rsvg-convert` when available; otherwise it copies the committed fallback **`bridge/appimage/stratum-bridge.png`**. Regenerate the fallback (from repo root, with Node):
+
+`npx @resvg/resvg-js-cli --fit-width 256 bridge-tauri/src-tauri/icons/kaspa-icon-raster.svg bridge/appimage/stratum-bridge.png`
+
+The wide dashboard asset `bridge/static/assets/kaspa.svg` is **not** used for AppImage rasterization (forcing it to 256×256 would stretch the mark).
 
 ## Desktop GUI (Tauri)
 

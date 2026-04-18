@@ -484,7 +484,7 @@ fn dashboard_socket_addr(url: &str) -> Result<std::net::SocketAddr, String> {
 /// Opens the repository README for setup (browser).
 #[tauri::command]
 fn open_bridge_documentation() -> Result<(), String> {
-    const URL: &str = "https://github.com/kaspanet/rusty-kaspa/blob/master/bridge-tauri/README.md";
+    const URL: &str = "https://github.com/LiveLaughLove13/rusty-kaspa-stratum/blob/main/README.md";
     open_os_url(URL)
 }
 

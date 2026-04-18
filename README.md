@@ -21,12 +21,9 @@ The sample configuration file is:
 
 When running from the repository root, pass this path via `--config` (or copy it elsewhere).
 
-By default it exposes these Stratum ports:
+With **no** `config.yaml`, the bridge uses a **single** Stratum listener on **`0.0.0.0:5555`** (see `InstanceConfig::default()` in `bridge/src/config/app_config.rs`).
 
-- `:5555`
-- `:5556`
-- `:5557`
-- `:5558`
+The **checked-in** sample [`bridge/config.yaml`](bridge/config.yaml) is a **multi-instance** layout (seven listeners). Stratum ports there include **`:5559`**, **`:5560`**, **`:5561`**, and **`:5555`–`:5558`** (each with its own `min_share_diff` and optional `prom_port`). Adjust or trim instances to match your deployment.
 
 ## Run (external node)
 

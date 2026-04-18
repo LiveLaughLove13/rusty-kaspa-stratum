@@ -12,7 +12,8 @@ This document maps the Stratum bridge deliverables:
 |------|----------------------|
 | `lib.rs` | Declares library modules, documents the crate layout, and re-exports the public API used by the binary and tests. |
 | `bridge_error.rs` | `BridgeError`: typed error for the Stratum listener boundary (wraps `SubmitRunError` today); converted to `Box<dyn Error + Send + Sync>` so `EventHandler` stays object-safe. |
-| `main.rs` | `stratum-bridge` entrypoint: loads config, CLI overrides, tracing, health checks, optional in-process node and CPU miner, Prometheus/HTTP, and Stratum listener shutdown. |
+| `main.rs` | `stratum-bridge` binary entrypoint: initializes the allocator and calls `runner::run(Cli::parse())` (all config, node mode, listeners, and shutdown live in `runner.rs`). |
+| `runner.rs` | Async `run(cli)` orchestration: config discovery, tracing, shutdown channel, optional embedded `kaspad`, shared `KaspaApi`, web dashboard task, sync wait, optional internal CPU miner, and per-instance `listen_and_serve_with_shutdown` tasks. |
 | `cli.rs` | Command-line argument definitions and applying CLI overrides onto loaded configuration. |
 | `app_dirs.rs` | Resolves application data directories (e.g. config and chain data locations) for the running process. |
 | `health_check.rs` | Simple HTTP health endpoint logic for orchestrators and load balancers. |
@@ -143,13 +144,14 @@ This document maps the Stratum bridge deliverables:
 
 ## AppImage packaging
 
-Linux release bundles are built from a musl `stratum-bridge` binary via `bash bridge/appimage/build.sh` (see [README.md](README.md)). CI uses the same script in `.github/workflows/deploy.yaml`.
+Linux release bundles are built from a musl `stratum-bridge` binary via `bash bridge/appimage/build.sh` (see [README.md](README.md)). CI runs the same script from [`.github/workflows/rust.yml`](../../.github/workflows/rust.yml) on version tags.
 
 | File | What this file does |
 |------|----------------------|
-| `appimage/build.sh` | Assembles `StratumBridge.AppDir`, copies the `x86_64-unknown-linux-musl/release/stratum-bridge` binary, installs `AppRun` and desktop metadata, renders the icon from `static/assets/kaspa.svg`, downloads `appimagetool` if needed, and produces `stratum-bridge-<version>-x86_64.AppImage` at the repo root. |
+| `appimage/build.sh` | Assembles `StratumBridge.AppDir`, copies the `x86_64-unknown-linux-musl/release/stratum-bridge` binary, installs `AppRun` and desktop metadata, renders **256×256** `stratum-bridge.png` from `bridge-tauri/src-tauri/icons/kaspa-icon-raster.svg` (or copies bundled `appimage/stratum-bridge.png`), downloads `appimagetool` if needed, and produces `stratum-bridge-<version>-x86_64.AppImage` at the repo root. |
 | `appimage/AppRun` | AppImage entrypoint: optionally re-launches the app inside a desktop terminal when there is no TTY (unless `RKSTRATUM_NO_AUTO_TERMINAL=1`), ensures `$XDG_CONFIG_HOME/stratum-bridge` exists, and prepends `--config` pointing at `config.yaml` there when the user did not pass `--config`. |
 | `appimage/stratum-bridge.desktop` | Freedesktop entry: application name, comment, icon key, category, and `Terminal=true` for menu integration inside the AppDir. |
+| `appimage/stratum-bridge.png` | Committed **256×256** fallback icon (same artwork as `bridge-tauri/.../kaspa-icon-raster.svg`, not stretched). Used when `rsvg-convert` is not installed. |
 
 ## Web dashboard static assets
 
@@ -162,7 +164,7 @@ These files are the source for the operator UI. They ship with the repo and are 
 | `static/css/site.css` | Custom styles, theme tokens, and layout tweaks on top of Tailwind for the RK-Stratum dashboard. |
 | `static/js/dashboard.js` | Client-side logic for the main dashboard: fetching `/api/stats`, `/api/status`, rendering tables and charts, and handling UI refresh and interactions. |
 | `static/js/raw.js` | Raw view script: fetches `/api/status`, `/api/stats`, and host metrics, renders JSON in a `<pre>`, and provides clipboard copy with toast feedback. |
-| `static/assets/kaspa.svg` | Kaspa logo used in the web UI and as the source for the AppImage PNG icon in `appimage/build.sh`. |
+| `static/assets/kaspa.svg` | Kaspa logo used in the web UI (wide viewBox). AppImage icons use `bridge-tauri/.../kaspa-icon-raster.svg` or `appimage/stratum-bridge.png` so the mark is not stretched to a square. |
 
 ---
 

@@ -81,8 +81,8 @@ Merged JSON-friendly view of status/stats (and host when present) for support an
 
 | Area | Location |
 | --- | --- |
-| Node snapshot polling | `bridge/src/kaspaapi.rs` (`NODE_STATUS`, `NodeStatusSnapshot`) |
-| HTTP API / JSON shape | `bridge/src/prom.rs` (`WebStatusResponse`, `/api/status`, `/api/stats`) |
-| Host metrics | `bridge/src/host_metrics.rs` (feature `rkstratum_host_metrics`) |
+| Node snapshot | `bridge/src/kaspa/kaspaapi/node_status.rs` (`NODE_STATUS`, `NodeStatusSnapshot`) |
+| HTTP routing, `/api/*`, static dashboard | `bridge/src/prom/http/serve.rs`, `bridge/src/prom/http/config_api.rs`, `bridge/src/prom/http/stats_json/` |
+| Host metrics | `bridge/src/host/host_metrics.rs` (feature `rkstratum_host_metrics`; default build includes geo client via `rkstratum_geoip`) |
 | Dashboard markup | `bridge/static/index.html` |
 | Dashboard logic | `bridge/static/js/dashboard.js` |

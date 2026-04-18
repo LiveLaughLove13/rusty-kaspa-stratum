@@ -32,18 +32,21 @@ ln -sf "usr/share/applications/stratum-bridge.desktop" "${APPDIR}/stratum-bridge
 
 ICON_DIR="$APPDIR/usr/share/icons/hicolor/256x256/apps"
 mkdir -p "$ICON_DIR"
-SVG="${ROOT}/bridge/static/assets/kaspa.svg"
+# Prefer Tauri canonical icon: 1024×1024 canvas + preserveAspectRatio (logo not stretched to square).
+ICON_SVG_CANON="${ROOT}/bridge-tauri/src-tauri/icons/kaspa-icon-raster.svg"
+SVG_WIDE="${ROOT}/bridge/static/assets/kaspa.svg"
 BUNDLED_PNG="${PACK_DIR}/stratum-bridge.png"
 # appimagetool requires Icon=name as name.png at the AppDir root (256x256 recommended).
-if [[ -f "$SVG" ]] && command -v rsvg-convert >/dev/null 2>&1; then
-  rsvg-convert -w 256 -h 256 "$SVG" -o "${ICON_DIR}/stratum-bridge.png"
+if [[ -f "$ICON_SVG_CANON" ]] && command -v rsvg-convert >/dev/null 2>&1; then
+  rsvg-convert -w 256 -h 256 "$ICON_SVG_CANON" -o "${ICON_DIR}/stratum-bridge.png"
 elif [[ -f "$BUNDLED_PNG" ]]; then
   cp "$BUNDLED_PNG" "${ICON_DIR}/stratum-bridge.png"
-elif [[ -f "$SVG" ]]; then
-  echo "error: rsvg-convert not found and no ${BUNDLED_PNG}; cannot produce stratum-bridge.png for AppImage." >&2
+elif [[ -f "$ICON_SVG_CANON" ]] || [[ -f "$SVG_WIDE" ]]; then
+  echo "error: rsvg-convert not found and no ${BUNDLED_PNG}; cannot produce 256×256 stratum-bridge.png for AppImage." >&2
+  echo "hint: commit ${BUNDLED_PNG} (see bridge-tauri/src-tauri/icons/kaspa-icon-raster.svg) or install librsvg rsvg-convert." >&2
   exit 1
 else
-  echo "error: missing kaspa.svg and bundled stratum-bridge.png; cannot produce app icon." >&2
+  echo "error: missing ${ICON_SVG_CANON} (or ${SVG_WIDE}) and ${BUNDLED_PNG}; cannot produce app icon." >&2
   exit 1
 fi
 cp "${ICON_DIR}/stratum-bridge.png" "${APPDIR}/stratum-bridge.png"

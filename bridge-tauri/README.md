@@ -4,7 +4,7 @@ Optional **bridge GUI** (window title and product name: **RKStratum Bridge**, se
 
 ## Prerequisites
 
-- Rust (see `rust-version` in `src-tauri/Cargo.toml`)
+- Rust **1.88+** (see `rust-version` in `src-tauri/Cargo.toml`, aligned with `[workspace.package]` in the repo root `Cargo.toml`)
 - [Tauri 1.x prerequisites](https://v1.tauri.app/v1/guides/getting-started/prerequisites) (platform WebView, etc.)
 
 ## Build / check

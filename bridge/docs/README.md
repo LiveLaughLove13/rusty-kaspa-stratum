@@ -19,7 +19,7 @@ If you are running from **GitHub Releases** (without `cargo run`), use the asset
 
 | Asset (examples) | Contents |
 | --- | --- |
-| `stratum-bridge-linux-amd64.tar.gz` | `stratum-bridge`, `config.yaml`, `README`, `LICENSE` |
+| `stratum-bridge-linux-amd64.tar.gz` | `stratum-bridge` (musl CLI), **`rkstratum-bridge-desktop`** (glibc GUI), `config.yaml`, `README`, `LICENSE` |
 | `stratum-bridge-windows-amd64.zip` | `stratum-bridge.exe`, **`rkstratum-bridge-desktop.exe`** (GUI), `config.yaml`, etc. |
 | `stratum-bridge-macos-arm64.zip` / `stratum-bridge-macos-amd64.zip` | Same pattern for Apple Silicon vs Intel macOS |
 | `stratum-bridge-<version>-x86_64.AppImage.tar.gz` | Linux AppImage (when the release job publishes it) |
@@ -52,7 +52,7 @@ disable that. The AppImage looks for `config.yaml` at `$XDG_CONFIG_HOME/stratum-
 forwarded to the bridge (an explicit `--config` skips that default). To build the AppImage locally after a musl `stratum-bridge`
 release build: `bash bridge/appimage/build.sh <version-label>`.
 
-**Optional desktop GUI:** Windows and macOS release zips may include **`rkstratum-bridge-desktop`** (Tauri shell). Build from source with [`bridge-tauri/README.md`](../../bridge-tauri/README.md).
+**Optional desktop GUI (RKStratum Bridge):** Tagged releases include **`rkstratum-bridge-desktop`** for **Windows**, **macOS** (arm64 + Intel), and **Linux x86_64** (the Linux GUI binary ships inside the `stratum-bridge-linux-amd64` tarball next to the musl CLI—see [`docs/PACKAGING.md`](../../docs/PACKAGING.md)). Build from source with [`bridge-tauri/README.md`](../../bridge-tauri/README.md).
 
 ### CLI Help
 
@@ -202,7 +202,7 @@ The bridge includes a built-in web dashboard accessible at the configured `web_d
 
 **Local-first binding:** If you set only a port (`:3030` or `3030`), the dashboard and per-instance **`/metrics`** HTTP servers bind to **`127.0.0.1`**, not the whole network. That keeps the UI and JSON APIs off your LAN/WAN by default—good for a typical home machine. **Stratum** ports (`stratum_port`, `prom_port` when used as port-only) still listen on **all interfaces** (`0.0.0.0`) so miners on your LAN can connect. To open the dashboard from another device, set an explicit address, e.g. `web_dashboard_port: "0.0.0.0:3030"` or your LAN IP.
 
-**Note:** The web dashboard is only started if `web_dashboard_port` is configured (non-empty). The sample `config.yaml` sets this to `:3030` by default. If no config file is used and no `--web-dashboard-port` is specified, the dashboard will not be available.
+**Note:** The web dashboard is only started if `web_dashboard_port` is configured (non-empty). The sample [`bridge/config.yaml`](../../bridge/config.yaml) in this repo sets **`web_dashboard_port: "0.0.0.0:3030"`** (LAN-reachable dashboard; tighten to `:3030` or `127.0.0.1:3030` if you want loopback-only). If no config file is found and no `--web-dashboard-port` is passed, the dashboard stays **disabled** (code default is an empty port string).
 
 **Casual users:** Do not set `RKSTRATUM_ALLOW_CONFIG_WRITE=1` unless you understand that it allows changing `config.yaml` via `POST /api/config` with no password (only use on trusted localhost or behind your own protection).
 
@@ -309,7 +309,7 @@ The test suite includes:
 - Wallet address cleaning tests
 - CPU miner tests (when `rkstratum_cpu_miner` feature is enabled)
 
-The test suite is comprehensive and educational, with 175+ unit tests designed to help developers understand the codebase.
+The test suite is comprehensive and educational: most tests live in `src/tests.rs`, with additional focused tests in modules such as `mining/hasher.rs`, `share_handler/`, `prom/http/`, and `stratum/stratum_line_codec.rs` (on the order of **150+** `#[test]` / `#[tokio::test]` entries—run `cargo test -p kaspa-stratum-bridge` for the exact count on your checkout).
 
 ### Where to change what
 
