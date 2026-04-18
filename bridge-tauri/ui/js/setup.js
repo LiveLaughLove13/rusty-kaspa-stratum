@@ -8,6 +8,19 @@
     let logPollTimer = null;
     let logCursor = 0;
     let logPath = '';
+    let setupToastTimer = null;
+
+    function showSetupToast(message) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      if (setupToastTimer) clearTimeout(setupToastTimer);
+      t.textContent = message;
+      t.classList.add('show');
+      setupToastTimer = setTimeout(() => {
+        t.classList.remove('show');
+        setupToastTimer = null;
+      }, 2200);
+    }
 
     function tickShellLocalTime() {
       const el = document.getElementById('shellLocalTime');
@@ -33,14 +46,13 @@
       if (chromeWired) return;
       chromeWired = true;
       document.getElementById('btnLogs').addEventListener('click', () => {
-        const drawer = document.getElementById('logDrawer');
-        const isOpen = drawer.classList.toggle('open');
-        if (isOpen) {
-          startLogPolling(true);
-        } else {
-          stopLogPolling();
-        }
+        const btn = document.getElementById('btnLogs');
+        if (isLogModalOpen()) closeLogModal();
+        else openLogModal(btn);
       });
+      document.getElementById('logModalBackdrop')?.addEventListener('click', () => closeLogModal());
+      document.getElementById('btnLogModalClose')?.addEventListener('click', () => closeLogModal());
+      document.getElementById('btnLogModalDone')?.addEventListener('click', () => closeLogModal());
       document.getElementById('btnRevealExe').addEventListener('click', () => {
         invoke('reveal_exe_directory').catch((e) => alert(String(e)));
       });
@@ -63,6 +75,7 @@
         resetNodePill();
         startStatusPoll();
       });
+      wireSetupGlobalEscape();
     }
 
     async function pollLogs(initial = false) {
@@ -110,6 +123,49 @@
     function stopLogPolling() {
       if (logPollTimer) clearInterval(logPollTimer);
       logPollTimer = null;
+    }
+
+    let logModalOpener = null;
+
+    function isLogModalOpen() {
+      return document.getElementById('logModalRoot')?.classList.contains('is-open') ?? false;
+    }
+
+    function syncBodyModalScrollLock() {
+      document.body.style.overflow = document.querySelector('.setup-modal.is-open') ? 'hidden' : '';
+    }
+
+    function closeLogModal() {
+      const root = document.getElementById('logModalRoot');
+      if (!root || !isLogModalOpen()) return;
+      root.classList.remove('is-open');
+      root.setAttribute('aria-hidden', 'true');
+      stopLogPolling();
+      syncBodyModalScrollLock();
+      const label = document.getElementById('btnLogsLabel');
+      if (label) label.textContent = 'Show logs';
+      const prev = logModalOpener;
+      logModalOpener = null;
+      if (prev && typeof prev.focus === 'function') {
+        try {
+          prev.focus();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    function openLogModal(fromBtn) {
+      const root = document.getElementById('logModalRoot');
+      if (!root || isLogModalOpen()) return;
+      logModalOpener = fromBtn || document.activeElement;
+      root.classList.add('is-open');
+      root.setAttribute('aria-hidden', 'false');
+      syncBodyModalScrollLock();
+      const label = document.getElementById('btnLogsLabel');
+      if (label) label.textContent = 'Hide logs';
+      startLogPolling(true);
+      document.getElementById('btnLogModalDone')?.focus();
     }
 
     function parseInstanceLines(text) {
@@ -473,10 +529,7 @@
         kaspadArgs: document.getElementById('kaspadArgs').value,
       };
       localStorage.setItem(LS_KEY, JSON.stringify(o));
-      const t = document.getElementById('toast');
-      t.textContent = 'Configuration saved';
-      t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 2200);
+      showSetupToast('Configuration saved');
     }
 
     function updateBridgePill(bridgeRunning) {
@@ -627,6 +680,8 @@
 
     /** Show exactly one setup “page”; inactive `<details>` are hidden (not stacked). */
     function showSetupPage(id) {
+      closeLogModal();
+      invokeDismissOpenSetupModal();
       const root = document.getElementById('setupScroll');
       if (!root) return;
       const target = id ? document.getElementById(id) : null;
@@ -666,7 +721,11 @@
 
     function wireConnectionHelpJump() {
       const b = document.getElementById('btnJumpHelp');
-      if (b) b.addEventListener('click', () => showSetupPage('detHow'));
+      if (b)
+        b.addEventListener('click', () => {
+          invokeDismissOpenSetupModal();
+          showSetupPage('detHow');
+        });
     }
 
     let setupSectionNavWired = false;
@@ -683,6 +742,372 @@
       });
     }
 
+    let dismissOpenSetupModal = null;
+    let lastSetupModalOpener = null;
+
+    function invokeDismissOpenSetupModal() {
+      if (!dismissOpenSetupModal) return;
+      const fn = dismissOpenSetupModal;
+      dismissOpenSetupModal = null;
+      fn();
+    }
+
+    function closeSetupModalRoot(root) {
+      if (!root) return;
+      root.classList.remove('is-open');
+      root.setAttribute('aria-hidden', 'true');
+      syncBodyModalScrollLock();
+      const prev = lastSetupModalOpener;
+      lastSetupModalOpener = null;
+      if (prev && typeof prev.focus === 'function') {
+        try {
+          prev.focus();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    function getAdvancedModalSnapshot() {
+      return {
+        nodeMode: document.getElementById('nodeMode')?.value ?? '',
+        appdir: document.getElementById('appdir')?.value ?? '',
+        coinbase: document.getElementById('coinbase')?.value ?? '',
+        webDashboardPort: document.getElementById('webDashboardPort')?.value ?? '',
+        healthCheckPort: document.getElementById('healthCheckPort')?.value ?? '',
+        sharesPerMin: document.getElementById('sharesPerMin')?.value ?? '',
+        extranonceSize: document.getElementById('extranonceSize')?.value ?? '',
+        varDiffCb: saveCbChecked('varDiffCb'),
+        varDiffStatsCb: saveCbChecked('varDiffStatsCb'),
+        pow2ClampCb: saveCbChecked('pow2ClampCb'),
+        approximateGeoLookupCb: saveCbChecked('approximateGeoLookupCb'),
+      };
+    }
+
+    function applyAdvancedModalSnapshot(s) {
+      if (!s) return;
+      const el = (id) => document.getElementById(id);
+      const nm = el('nodeMode');
+      if (nm) nm.value = s.nodeMode;
+      const ad = el('appdir');
+      if (ad) ad.value = s.appdir;
+      const cb = el('coinbase');
+      if (cb) cb.value = s.coinbase;
+      const w = el('webDashboardPort');
+      if (w) w.value = s.webDashboardPort;
+      const h = el('healthCheckPort');
+      if (h) h.value = s.healthCheckPort;
+      const spm = el('sharesPerMin');
+      if (spm) spm.value = s.sharesPerMin;
+      const ex = el('extranonceSize');
+      if (ex) ex.value = s.extranonceSize;
+      applyCbTrueElseNull('varDiffCb', s.varDiffCb ? true : null);
+      applyCbTrueElseNull('varDiffStatsCb', s.varDiffStatsCb ? true : null);
+      applyCbTrueElseNull('pow2ClampCb', s.pow2ClampCb ? true : null);
+      applyCbTrueElseNull('approximateGeoLookupCb', s.approximateGeoLookupCb ? true : null);
+    }
+
+    let advancedModalSnapshot = null;
+
+    function cancelAdvancedModal() {
+      applyAdvancedModalSnapshot(advancedModalSnapshot);
+      advancedModalSnapshot = null;
+      dismissOpenSetupModal = null;
+      closeSetupModalRoot(document.getElementById('advancedModalRoot'));
+    }
+
+    function confirmAdvancedModal() {
+      advancedModalSnapshot = null;
+      dismissOpenSetupModal = null;
+      closeSetupModalRoot(document.getElementById('advancedModalRoot'));
+      showSetupToast('Advanced settings applied');
+    }
+
+    function openAdvancedModal(opener, opts) {
+      const root = document.getElementById('advancedModalRoot');
+      if (!root) return;
+      closeLogModal();
+      invokeDismissOpenSetupModal();
+      advancedModalSnapshot = getAdvancedModalSnapshot();
+      if (opts && opts.presetInprocess) {
+        const nm = document.getElementById('nodeMode');
+        if (nm) nm.value = 'inprocess';
+      }
+      lastSetupModalOpener = opener || document.activeElement;
+      dismissOpenSetupModal = cancelAdvancedModal;
+      root.classList.add('is-open');
+      root.setAttribute('aria-hidden', 'false');
+      syncBodyModalScrollLock();
+      document.getElementById('nodeMode')?.focus();
+    }
+
+    function wireAdvancedModal() {
+      const root = document.getElementById('advancedModalRoot');
+      const openBtn = document.getElementById('btnOpenAdvanced');
+      const backdrop = document.getElementById('advancedModalBackdrop');
+      const btnClose = document.getElementById('btnAdvancedModalClose');
+      const btnCancel = document.getElementById('btnAdvancedModalCancel');
+      const btnApply = document.getElementById('btnAdvancedModalApply');
+      if (!root || !openBtn) return;
+
+      openBtn.addEventListener('click', () => openAdvancedModal(openBtn));
+      backdrop?.addEventListener('click', () => invokeDismissOpenSetupModal());
+      btnClose?.addEventListener('click', () => invokeDismissOpenSetupModal());
+      btnCancel?.addEventListener('click', () => invokeDismissOpenSetupModal());
+      btnApply?.addEventListener('click', confirmAdvancedModal);
+    }
+
+    function bindSnapshottedSetupModal({
+      rootId,
+      openBtnId,
+      getSnapshot,
+      applySnapshot,
+      focusSelector,
+      applyToastMessage,
+    }) {
+      const root = document.getElementById(rootId);
+      const openBtn = document.getElementById(openBtnId);
+      if (!root || !openBtn) return;
+      let snapshot = null;
+      const backdrop = root.querySelector('.setup-modal__backdrop');
+      const btnClose = root.querySelector('.setup-modal-btn-close');
+      const btnCancel = root.querySelector('.setup-modal-btn-cancel');
+      const btnApply = root.querySelector('.setup-modal-btn-apply');
+
+      function cancel() {
+        applySnapshot(snapshot);
+        snapshot = null;
+        closeSetupModalRoot(root);
+      }
+
+      function confirm() {
+        snapshot = null;
+        closeSetupModalRoot(root);
+        if (applyToastMessage) showSetupToast(applyToastMessage);
+      }
+
+      function open() {
+        closeLogModal();
+        invokeDismissOpenSetupModal();
+        snapshot = getSnapshot();
+        lastSetupModalOpener = openBtn;
+        dismissOpenSetupModal = cancel;
+        root.classList.add('is-open');
+        root.setAttribute('aria-hidden', 'false');
+        syncBodyModalScrollLock();
+        const focusEl = focusSelector ? root.querySelector(focusSelector) : null;
+        (focusEl || openBtn).focus();
+      }
+
+      openBtn.addEventListener('click', open);
+      backdrop?.addEventListener('click', () => invokeDismissOpenSetupModal());
+      btnClose?.addEventListener('click', () => invokeDismissOpenSetupModal());
+      btnCancel?.addEventListener('click', () => invokeDismissOpenSetupModal());
+      btnApply?.addEventListener('click', () => {
+        dismissOpenSetupModal = null;
+        confirm();
+      });
+    }
+
+    function bindInfoOnlySetupModal(rootId, openBtnId, focusSelector) {
+      const root = document.getElementById(rootId);
+      const openBtn = document.getElementById(openBtnId);
+      if (!root || !openBtn) return;
+      const backdrop = root.querySelector('.setup-modal__backdrop');
+      const btnClose = root.querySelector('.setup-modal-btn-close');
+      const btnCancel = root.querySelector('.setup-modal-btn-cancel');
+
+      function closeOnly() {
+        dismissOpenSetupModal = null;
+        closeSetupModalRoot(root);
+      }
+
+      function open() {
+        closeLogModal();
+        invokeDismissOpenSetupModal();
+        lastSetupModalOpener = openBtn;
+        dismissOpenSetupModal = closeOnly;
+        root.classList.add('is-open');
+        root.setAttribute('aria-hidden', 'false');
+        syncBodyModalScrollLock();
+        const focusEl = focusSelector ? root.querySelector(focusSelector) : null;
+        (focusEl || openBtn).focus();
+      }
+
+      openBtn.addEventListener('click', open);
+      backdrop?.addEventListener('click', () => invokeDismissOpenSetupModal());
+      btnClose?.addEventListener('click', () => invokeDismissOpenSetupModal());
+      btnCancel?.addEventListener('click', () => invokeDismissOpenSetupModal());
+    }
+
+    function getStratumModeSnapshot() {
+      return { testnet: !!document.getElementById('testnet')?.checked };
+    }
+
+    function applyStratumModeSnapshot(s) {
+      if (!s) return;
+      const el = document.getElementById('testnet');
+      if (el) el.checked = !!s.testnet;
+    }
+
+    function getConnectionMainSnapshot() {
+      return {
+        config: document.getElementById('config')?.value ?? '',
+        kaspadAddress: document.getElementById('kaspadAddress')?.value ?? '',
+        blockWaitTimeMs: document.getElementById('blockWaitTimeMs')?.value ?? '',
+        printStatsCb: saveCbChecked('printStatsCb'),
+        logToFileCb: saveCbChecked('logToFileCb'),
+        stratumPort: document.getElementById('stratumPort')?.value ?? '',
+        promPort: document.getElementById('promPort')?.value ?? '',
+        minShareDiff: document.getElementById('minShareDiff')?.value ?? '',
+      };
+    }
+
+    function applyConnectionMainSnapshot(s) {
+      if (!s) return;
+      const g = (id) => document.getElementById(id);
+      const c = g('config');
+      if (c) c.value = s.config;
+      const k = g('kaspadAddress');
+      if (k) k.value = s.kaspadAddress;
+      const b = g('blockWaitTimeMs');
+      if (b) b.value = s.blockWaitTimeMs;
+      applyCbTrueElseNull('printStatsCb', s.printStatsCb ? true : null);
+      applyCbTrueElseNull('logToFileCb', s.logToFileCb ? true : null);
+      const st = g('stratumPort');
+      if (st) st.value = s.stratumPort;
+      const pr = g('promPort');
+      if (pr) pr.value = s.promPort;
+      const m = g('minShareDiff');
+      if (m) m.value = s.minShareDiff;
+    }
+
+    function getInstanceDefaultsSnapshot() {
+      return {
+        instanceSharesPerMin: document.getElementById('instanceSharesPerMin')?.value ?? '',
+        instanceLogToFileCb: saveCbChecked('instanceLogToFileCb'),
+        instanceVarDiffCb: saveCbChecked('instanceVarDiffCb'),
+        instanceVarDiffStatsCb: saveCbChecked('instanceVarDiffStatsCb'),
+        instancePow2ClampCb: saveCbChecked('instancePow2ClampCb'),
+      };
+    }
+
+    function applyInstanceDefaultsSnapshot(s) {
+      if (!s) return;
+      const el = document.getElementById('instanceSharesPerMin');
+      if (el) el.value = s.instanceSharesPerMin;
+      applyCbTrueElseNull('instanceLogToFileCb', s.instanceLogToFileCb ? true : null);
+      applyCbTrueElseNull('instanceVarDiffCb', s.instanceVarDiffCb ? true : null);
+      applyCbTrueElseNull('instanceVarDiffStatsCb', s.instanceVarDiffStatsCb ? true : null);
+      applyCbTrueElseNull('instancePow2ClampCb', s.instancePow2ClampCb ? true : null);
+    }
+
+    function getCpuMinerSnapshot() {
+      return {
+        internalCpuMiner: !!document.getElementById('internalCpuMiner')?.checked,
+        internalCpuMinerAddress: document.getElementById('internalCpuMinerAddress')?.value ?? '',
+        internalCpuMinerThreads: document.getElementById('internalCpuMinerThreads')?.value ?? '',
+        internalCpuMinerThrottleMs: document.getElementById('internalCpuMinerThrottleMs')?.value ?? '',
+        internalCpuMinerTemplatePollMs: document.getElementById('internalCpuMinerTemplatePollMs')?.value ?? '',
+      };
+    }
+
+    function applyCpuMinerSnapshot(s) {
+      if (!s) return;
+      const m = document.getElementById('internalCpuMiner');
+      if (m) m.checked = !!s.internalCpuMiner;
+      const setv = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.value = v;
+      };
+      setv('internalCpuMinerAddress', s.internalCpuMinerAddress);
+      setv('internalCpuMinerThreads', s.internalCpuMinerThreads);
+      setv('internalCpuMinerThrottleMs', s.internalCpuMinerThrottleMs);
+      setv('internalCpuMinerTemplatePollMs', s.internalCpuMinerTemplatePollMs);
+    }
+
+    function getListenersModalSnapshot() {
+      syncInstancesTextareaFromList();
+      return {
+        instances: document.getElementById('instances')?.value ?? '',
+        kaspadArgs: document.getElementById('kaspadArgs')?.value ?? '',
+      };
+    }
+
+    function applyListenersModalSnapshot(s) {
+      if (!s) return;
+      const ta = document.getElementById('instances');
+      if (ta) ta.value = s.instances;
+      const ka = document.getElementById('kaspadArgs');
+      if (ka) ka.value = s.kaspadArgs;
+      loadInstanceSpecsFromTextarea();
+      renderInstanceRows();
+    }
+
+    let setupGlobalEscapeWired = false;
+    function wireSetupGlobalEscape() {
+      if (setupGlobalEscapeWired) return;
+      setupGlobalEscapeWired = true;
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (isLogModalOpen()) {
+          e.preventDefault();
+          closeLogModal();
+          return;
+        }
+        if (dismissOpenSetupModal) {
+          e.preventDefault();
+          invokeDismissOpenSetupModal();
+        }
+      });
+    }
+
+    function wireAllSetupModals() {
+      bindSnapshottedSetupModal({
+        rootId: 'stratumModeModalRoot',
+        openBtnId: 'btnOpenStratumMode',
+        getSnapshot: getStratumModeSnapshot,
+        applySnapshot: applyStratumModeSnapshot,
+        focusSelector: '#testnet',
+        applyToastMessage: 'Stratum mode updated',
+      });
+      bindInfoOnlySetupModal('helpModalRoot', 'btnOpenHelp', '.setup-modal-btn-cancel');
+      bindInfoOnlySetupModal('quickStartModalRoot', 'btnOpenQuickStart', '.setup-modal-btn-cancel');
+      bindSnapshottedSetupModal({
+        rootId: 'connectionMainModalRoot',
+        openBtnId: 'btnOpenConnectionMain',
+        getSnapshot: getConnectionMainSnapshot,
+        applySnapshot: applyConnectionMainSnapshot,
+        focusSelector: '#config',
+        applyToastMessage: 'Connection settings applied',
+      });
+      bindSnapshottedSetupModal({
+        rootId: 'instanceDefaultsModalRoot',
+        openBtnId: 'btnOpenInstanceDefaults',
+        getSnapshot: getInstanceDefaultsSnapshot,
+        applySnapshot: applyInstanceDefaultsSnapshot,
+        focusSelector: '#instanceSharesPerMin',
+        applyToastMessage: 'Extra port defaults applied',
+      });
+      bindSnapshottedSetupModal({
+        rootId: 'cpuMinerModalRoot',
+        openBtnId: 'btnOpenCpuMiner',
+        getSnapshot: getCpuMinerSnapshot,
+        applySnapshot: applyCpuMinerSnapshot,
+        focusSelector: '#internalCpuMiner',
+        applyToastMessage: 'CPU miner settings applied',
+      });
+      bindSnapshottedSetupModal({
+        rootId: 'listenersModalRoot',
+        openBtnId: 'btnOpenListeners',
+        getSnapshot: getListenersModalSnapshot,
+        applySnapshot: applyListenersModalSnapshot,
+        focusSelector: '#btnAddInstance',
+        applyToastMessage: 'Listeners updated',
+      });
+      wireAdvancedModal();
+    }
+
     async function runGui() {
       document.getElementById('loader').style.display = 'none';
       document.getElementById('shell').style.display = 'flex';
@@ -692,6 +1117,7 @@
       const d = await invoke('gui_defaults');
       await maybeShowCpuSection();
       wireSetupSectionNav();
+      wireAllSetupModals();
       initFirstRunUx();
       wireConnectionHelpJump();
       syncSetupNavFromActivePage();
@@ -713,10 +1139,11 @@
         invoke('open_bridge_documentation').catch((e) => alert(String(e)));
       });
       document.getElementById('btnRunNode').addEventListener('click', () => {
-        document.getElementById('nodeMode').value = 'inprocess';
+        invokeDismissOpenSetupModal();
         showSetupPage('detGlobal');
-        const adv = document.querySelector('#detGlobal .advanced-fold');
-        if (adv) adv.open = true;
+        requestAnimationFrame(() =>
+          openAdvancedModal(document.getElementById('btnOpenAdvanced'), { presetInprocess: true }),
+        );
       });
       document.getElementById('btnSave').addEventListener('click', saveConfiguration);
 

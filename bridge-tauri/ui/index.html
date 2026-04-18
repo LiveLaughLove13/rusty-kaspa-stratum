@@ -55,6 +55,7 @@
       overflow-y: auto;
       padding: 0 0.15rem 0.5rem 0;
       scroll-behavior: smooth;
+      scrollbar-gutter: stable;
     }
     .setup-section-nav {
       flex-shrink: 0;
@@ -192,37 +193,149 @@
       margin: 0 0 0.65rem !important;
       font-size: 12px;
     }
-    .advanced-fold {
+    .advanced-trigger-wrap {
       margin-top: 1rem;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.18);
-      overflow: hidden;
     }
-    .advanced-fold > summary {
-      list-style: none;
+    .btn-advanced-open {
       display: flex;
       flex-wrap: wrap;
       align-items: baseline;
       gap: 0.35rem 0.75rem;
+      width: 100%;
       padding: 0.75rem 1rem;
-      cursor: pointer;
-      user-select: none;
-      font-weight: 600;
-      font-size: 13px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.18);
       color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
     }
-    .advanced-fold > summary::-webkit-details-marker { display: none; }
-    .advanced-fold__title { color: var(--teal); }
-    .advanced-fold__sub {
+    .btn-advanced-open:hover {
+      border-color: rgba(45, 212, 191, 0.35);
+      background: rgba(0, 0, 0, 0.28);
+    }
+    .btn-advanced-open__title { color: var(--teal); }
+    .btn-advanced-open__sub {
+      flex: 1 1 100%;
       font-weight: 400;
       font-size: 12px;
       color: var(--muted);
-      flex: 1 1 100%;
     }
-    .advanced-fold__body {
-      padding: 0 1rem 1rem;
-      border-top: 1px solid rgba(255,255,255,0.05);
+    .btn-advanced-open__hint {
+      margin-left: auto;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(112, 199, 186, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .setup-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+    .setup-modal.is-open {
+      display: flex;
+    }
+    .setup-modal--logs {
+      z-index: 1100;
+    }
+    .setup-modal__backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(4, 8, 14, 0.62);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .setup-modal__panel {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 560px;
+      max-height: min(85vh, 720px);
+      display: flex;
+      flex-direction: column;
+      border-radius: 14px;
+      border: 1px solid rgba(112, 199, 186, 0.28);
+      background: linear-gradient(165deg, #161c28 0%, #121722 100%);
+      box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.35),
+        0 28px 80px rgba(5, 12, 20, 0.65);
+    }
+    .setup-modal__panel--lg {
+      max-width: min(92vw, 720px);
+    }
+    .setup-modal__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 1rem 1.1rem 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      flex-shrink: 0;
+    }
+    .setup-modal__titles h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .setup-modal__titles p {
+      margin: 0.35rem 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .setup-modal__close {
+      flex-shrink: 0;
+      width: 2rem;
+      height: 2rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--muted);
+      font-size: 1.35rem;
+      line-height: 1;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .setup-modal__close:hover {
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.4);
+    }
+    .setup-modal__body {
+      flex: 1;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 1rem 1.1rem 0.25rem;
+    }
+    .setup-modal__body .setup-grid {
+      margin-bottom: 0;
+    }
+    .setup-modal__foot {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.65rem;
+      padding: 0.85rem 1.1rem 1rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
     }
     .setup-nav-btn[data-setup-jump="detCpu"] { display: none; }
     .setup-nav-btn[data-setup-jump="detCpu"].is-cpu-nav-visible { display: inline-block; }
@@ -360,20 +473,17 @@
       font-variant-numeric: tabular-nums;
     }
 
-    /* Log drawer */
-    .log-drawer {
-      display: none;
-      margin: 0 0 1rem;
-      padding: 1rem 1.1rem;
-      border-radius: var(--radius);
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
+    .log-modal__intro {
+      margin: 0 0 0.65rem;
       font-size: 13px;
       color: var(--muted);
     }
-    .log-drawer.open { display: block; }
-    .log-drawer p { margin: 0 0 0.65rem; }
-    .log-drawer .btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .log-modal__btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
     .log-path {
       margin: 0.25rem 0 0.65rem;
       font-size: 11px;
@@ -386,7 +496,7 @@
       border-radius: 8px;
       border: 1px solid var(--border);
       background: #0b0f17;
-      max-height: 42vh;
+      max-height: min(58vh, 520px);
       overflow: auto;
       padding: 0.6rem 0.7rem;
       font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
@@ -783,9 +893,9 @@
         <h1>RKStratum Bridge</h1>
       </div>
       <div class="top-actions">
-        <button type="button" class="btn-ghost" id="btnLogs" title="Toggle log hints">
+        <button type="button" class="btn-ghost" id="btnLogs" title="View live bridge logs">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
-          Show logs
+          <span id="btnLogsLabel">Show logs</span>
         </button>
         <div class="shell-local-time" role="status" aria-live="polite" title="Your local time">
           <span class="shell-local-time__label">Local time</span>
@@ -801,15 +911,6 @@
         </div>
       </div>
     </header>
-
-    <div class="log-drawer" id="logDrawer">
-      <p>Live bridge logs (IBD/sync/progress/accepted blocks) stream below while the bridge is running.</p>
-      <div class="log-path" id="logPath">Log file: —</div>
-      <div class="log-stream" id="logStream">Waiting for log output...</div>
-      <div class="btn-row">
-        <button type="button" class="btn-muted" id="btnRevealExe">Open executable folder</button>
-      </div>
-    </div>
 
     <div id="view-setup">
     <nav class="setup-section-nav" aria-label="Setup sections">
@@ -850,11 +951,14 @@
           <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
         </summary>
         <div class="card-body">
-          <div class="field row">
-            <input type="checkbox" id="testnet" />
-            <label for="testnet" style="margin:0">Testnet</label>
+          <p class="hint" style="margin-top:0">Mainnet is the default when testnet is off and your config does not override it.</p>
+          <div class="advanced-trigger-wrap">
+            <button type="button" class="btn-advanced-open" id="btnOpenStratumMode" aria-haspopup="dialog" aria-controls="stratumModeModalDialog">
+              <span class="btn-advanced-open__title">Stratum mode</span>
+              <span class="btn-advanced-open__sub">Mainnet vs testnet</span>
+              <span class="btn-advanced-open__hint" aria-hidden="true">Open</span>
+            </button>
           </div>
-          <p class="hint">Use testnet for development. Mainnet is the default when this is off and your config does not override it.</p>
         </div>
       </details>
 
@@ -864,18 +968,12 @@
           <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
         </summary>
         <div class="card-body">
-          <p class="hint" style="margin-top:0;margin-bottom:1rem">
-            <strong>Short version:</strong> open <strong>Connection</strong>, set your node address and Stratum port, then <strong>Save</strong> and <strong>Start bridge</strong>. The dashboard opens in this window. Use <strong>Stop bridge</strong> when finished (or <strong>Bridge → Stop bridge</strong> in the menu). Reloading (<kbd>F5</kbd>) while the bridge is running reconnects to the dashboard.
-          </p>
-          <div class="cta-row">
-            <button type="button" class="btn-teal" id="btnDocs">
-              View setup instructions
-            </button>
-            <button type="button" class="btn-muted" id="btnRunNode">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 2.5L7 14h3v6h2v-6h3L12 2.5zM6 16H4v3h2v-3zm14 0h-2v3h2v-3z"/>
-              </svg>
-              Run node (in-process)
+          <p class="hint" style="margin-top:0">Open the guide for steps, links, and optional in-process node.</p>
+          <div class="advanced-trigger-wrap">
+            <button type="button" class="btn-advanced-open" id="btnOpenHelp" aria-haspopup="dialog" aria-controls="helpModalDialog">
+              <span class="btn-advanced-open__title">Help &amp; actions</span>
+              <span class="btn-advanced-open__sub">Short guide, documentation, run in-process node</span>
+              <span class="btn-advanced-open__hint" aria-hidden="true">Open</span>
             </button>
           </div>
         </div>
@@ -890,107 +988,28 @@
           <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
         </summary>
         <div class="card-body">
-          <div class="quick-start-callout" role="region" aria-label="Quick start">
-            <strong style="display:block;margin-bottom:0.45rem;font-size:13px;color:var(--teal);">Quick start</strong>
-            <p class="hint" style="margin:0 0 0.55rem">Typical single-listener setup:</p>
-            <ol class="quick-start-steps">
-              <li>Enter your <strong>Kaspa node address</strong> under Essential.</li>
-              <li>Set <strong>Stratum listen port</strong> (and difficulty if needed) under Mining ports.</li>
-              <li><strong>Save configuration</strong>, then <strong>Start bridge</strong> at the bottom.</li>
-            </ol>
-            <p class="hint" style="margin:0.65rem 0 0">Want the full walkthrough? Use the <button type="button" class="btn-inline-link" id="btnJumpHelp">Help</button> tab.</p>
+          <p class="hint" style="margin-top:0">Use the panels below. <strong>Save configuration</strong> and <strong>Start bridge</strong> stay at the bottom of the window.</p>
+          <div class="advanced-trigger-wrap">
+            <button type="button" class="btn-advanced-open" id="btnOpenQuickStart" aria-haspopup="dialog" aria-controls="quickStartModalDialog">
+              <span class="btn-advanced-open__title">Quick start</span>
+              <span class="btn-advanced-open__sub">Typical single-listener checklist</span>
+              <span class="btn-advanced-open__hint" aria-hidden="true">Open</span>
+            </button>
           </div>
-
-          <div class="field span-2">
-            <label for="config">Config file (optional)</label>
-            <input type="text" id="config" autocomplete="off" placeholder="Path to config.yaml" />
-            <p class="hint" id="configHint"></p>
+          <div class="advanced-trigger-wrap">
+            <button type="button" class="btn-advanced-open" id="btnOpenConnectionMain" aria-haspopup="dialog" aria-controls="connectionMainModalDialog">
+              <span class="btn-advanced-open__title">Config, node &amp; mining ports</span>
+              <span class="btn-advanced-open__sub">Config file, essential RPC settings, Stratum and metrics ports</span>
+              <span class="btn-advanced-open__hint" aria-hidden="true">Open</span>
+            </button>
           </div>
-
-          <p class="section-eyebrow">Essential</p>
-          <p class="hint section-eyebrow-hint">RPC address of your node and basic bridge timing.</p>
-          <div class="form-pairs">
-            <div class="form-pair">
-              <label for="kaspadAddress">Kaspa node address</label>
-              <input type="text" id="kaspadAddress" autocomplete="off" placeholder="localhost:16110" />
-              <label class="check-line"><input type="checkbox" id="printStatsCb" /><span>Print statistics to console</span></label>
-            </div>
-            <div class="form-pair">
-              <label for="blockWaitTimeMs">Block wait time (ms)</label>
-              <input type="text" id="blockWaitTimeMs" autocomplete="off" placeholder="1000" />
-              <label class="check-line"><input type="checkbox" id="logToFileCb" /><span>Log to file</span></label>
-            </div>
+          <div class="advanced-trigger-wrap">
+            <button type="button" class="btn-advanced-open" id="btnOpenAdvanced" aria-haspopup="dialog" aria-controls="advancedModalDialog">
+              <span class="btn-advanced-open__title">Advanced</span>
+              <span class="btn-advanced-open__sub">Node mode, data paths, dashboard &amp; health ports, variable difficulty…</span>
+              <span class="btn-advanced-open__hint" aria-hidden="true">Open</span>
+            </button>
           </div>
-          <p class="hint" style="margin-top:0.35rem">Checked options turn features on for this run. Leave unchecked to follow your config file (not “force off”).</p>
-
-          <p class="section-eyebrow" style="margin-top:1rem">Mining ports — main listener</p>
-          <p class="hint section-eyebrow-hint">Where miners connect; optional metrics port and starting difficulty.</p>
-          <div class="field-grid-3 span-2">
-            <div class="field" style="margin-bottom:0">
-              <label for="stratumPort">Stratum listen port</label>
-              <input type="text" id="stratumPort" autocomplete="off" placeholder=":5555" />
-            </div>
-            <div class="field" style="margin-bottom:0">
-              <label for="promPort" title="Prometheus scrape / metrics endpoint">Metrics port (Prometheus)</label>
-              <input type="text" id="promPort" autocomplete="off" placeholder=":2114" title="Prometheus metrics port" />
-            </div>
-            <div class="field" style="margin-bottom:0">
-              <label for="minShareDiff" title="Minimum share difficulty for this listener">Min share difficulty</label>
-              <input type="text" id="minShareDiff" autocomplete="off" placeholder="e.g. 8192" />
-            </div>
-          </div>
-          <p class="hint span-2" style="margin-top:0.35rem">For <strong>multiple Stratum ports</strong>, use the <strong>Listeners</strong> tab. To turn options off via file, edit <code>config.yaml</code>.</p>
-
-          <details class="advanced-fold">
-            <summary>
-              <span class="advanced-fold__title">Advanced</span>
-              <span class="advanced-fold__sub">Node mode, data paths, dashboard &amp; health ports, variable difficulty…</span>
-            </summary>
-            <div class="advanced-fold__body">
-              <div class="setup-grid">
-                <div class="field">
-                  <label for="nodeMode">Node mode</label>
-                  <select id="nodeMode">
-                    <option value="">From config / default</option>
-                    <option value="external">External kaspad (RPC)</option>
-                    <option value="inprocess">In-process kaspad</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="appdir">App data directory (optional)</label>
-                  <input type="text" id="appdir" autocomplete="off" placeholder="Kaspa node data dir" />
-                  <p class="hint" id="appdirHint"></p>
-                </div>
-                <div class="field">
-                  <label for="coinbase">Coinbase tag suffix (optional)</label>
-                  <input type="text" id="coinbase" autocomplete="off" />
-                </div>
-                <div class="field">
-                  <label for="webDashboardPort">Web dashboard port (optional)</label>
-                  <input type="text" id="webDashboardPort" autocomplete="off" placeholder=":3030 or 0.0.0.0:3030" />
-                </div>
-                <div class="field">
-                  <label for="healthCheckPort">Health check port (optional)</label>
-                  <input type="text" id="healthCheckPort" autocomplete="off" placeholder=":8080" />
-                </div>
-                <div class="field">
-                  <label for="sharesPerMin">Shares per minute target (optional)</label>
-                  <input type="text" id="sharesPerMin" autocomplete="off" placeholder="30" />
-                </div>
-                <div class="field">
-                  <label for="extranonceSize">Extranonce size (optional)</label>
-                  <input type="text" id="extranonceSize" autocomplete="off" placeholder="2" />
-                </div>
-              </div>
-              <p class="section-label span-2" style="margin-top:0.75rem">Optional bridge flags</p>
-              <div class="check-grid span-2">
-                <label class="check-line"><input type="checkbox" id="varDiffCb" /><span>Variable difficulty</span></label>
-                <label class="check-line"><input type="checkbox" id="varDiffStatsCb" /><span>Variable difficulty stats</span></label>
-                <label class="check-line"><input type="checkbox" id="pow2ClampCb" /><span>Pow2 clamp</span></label>
-                <label class="check-line"><input type="checkbox" id="approximateGeoLookupCb" /><span>Approximate geo lookup</span></label>
-              </div>
-            </div>
-          </details>
         </div>
       </details>
 
@@ -1003,18 +1022,13 @@
           <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
         </summary>
         <div class="card-body">
-          <div class="field-grid-2">
-            <div class="field" style="margin-bottom:0">
-              <label for="instanceSharesPerMin">Instance shares/min (optional)</label>
-              <input type="text" id="instanceSharesPerMin" autocomplete="off" placeholder="30" />
-            </div>
-          </div>
-          <p class="hint" style="margin-top:0.65rem">Applied when you add rows on the <strong>Listeners</strong> tab (extra Stratum ports).</p>
-          <div class="check-grid" style="margin-top:0.65rem">
-            <label class="check-line"><input type="checkbox" id="instanceLogToFileCb" /><span>Instance log to file</span></label>
-            <label class="check-line"><input type="checkbox" id="instanceVarDiffCb" /><span>Instance variable difficulty</span></label>
-            <label class="check-line"><input type="checkbox" id="instanceVarDiffStatsCb" /><span>Instance var diff stats</span></label>
-            <label class="check-line"><input type="checkbox" id="instancePow2ClampCb" /><span>Instance pow2 clamp</span></label>
+          <p class="hint" style="margin-top:0">Defaults apply when you add rows on the <strong>Listeners</strong> tab.</p>
+          <div class="advanced-trigger-wrap">
+            <button type="button" class="btn-advanced-open" id="btnOpenInstanceDefaults" aria-haspopup="dialog" aria-controls="instanceDefaultsModalDialog">
+              <span class="btn-advanced-open__title">Extra port defaults</span>
+              <span class="btn-advanced-open__sub">Shares per minute and instance flags</span>
+              <span class="btn-advanced-open__hint" aria-hidden="true">Open</span>
+            </button>
           </div>
         </div>
       </details>
@@ -1028,27 +1042,13 @@
           <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
         </summary>
         <div class="card-body">
-          <div class="field row">
-            <input type="checkbox" id="internalCpuMiner" />
-            <label for="internalCpuMiner" style="margin:0">Enable internal CPU miner</label>
-          </div>
-          <div class="field-grid-2">
-            <div class="field">
-              <label for="internalCpuMinerAddress">Mining address (required if enabled)</label>
-              <input type="text" id="internalCpuMinerAddress" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="internalCpuMinerThreads">Threads (optional)</label>
-              <input type="text" id="internalCpuMinerThreads" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="internalCpuMinerThrottleMs">Throttle ms (optional)</label>
-              <input type="text" id="internalCpuMinerThrottleMs" autocomplete="off" />
-            </div>
-            <div class="field">
-              <label for="internalCpuMinerTemplatePollMs">Template poll ms (optional)</label>
-              <input type="text" id="internalCpuMinerTemplatePollMs" autocomplete="off" />
-            </div>
+          <p class="hint" style="margin-top:0">Optional embedded CPU mining when this build includes it.</p>
+          <div class="advanced-trigger-wrap">
+            <button type="button" class="btn-advanced-open" id="btnOpenCpuMiner" aria-haspopup="dialog" aria-controls="cpuMinerModalDialog">
+              <span class="btn-advanced-open__title">CPU miner</span>
+              <span class="btn-advanced-open__sub">Enable, address, threads, and timing</span>
+              <span class="btn-advanced-open__hint" aria-hidden="true">Open</span>
+            </button>
           </div>
         </div>
       </details>
@@ -1062,16 +1062,13 @@
           <svg class="chev" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
         </summary>
         <div class="card-body">
-          <div class="instances-toolbar">
-            <p class="hint" style="margin:0;flex:1;min-width:12rem">Each row is an extra mining port (port, difficulty, metrics port).</p>
-            <button type="button" class="btn-add-instance" id="btnAddInstance">+ Add instance</button>
-          </div>
-          <div id="instanceList" class="instance-list" aria-live="polite"></div>
-          <textarea id="instances" style="display:none" aria-hidden="true"></textarea>
-          <div class="field" style="margin-top:1rem">
-            <label for="kaspadArgs">Kaspad arguments (optional)</label>
-            <textarea id="kaspadArgs" placeholder="Passed after `--` for in-process kaspad, e.g.&#10;--utxoindex&#10;--rpclisten=127.0.0.1:16110"></textarea>
-            <p class="hint">One token per line or space-separated. Omit if you use external kaspad only.</p>
+          <p class="hint" style="margin-top:0">Extra mining ports and optional <code>kaspad</code> arguments for in-process mode.</p>
+          <div class="advanced-trigger-wrap">
+            <button type="button" class="btn-advanced-open" id="btnOpenListeners" aria-haspopup="dialog" aria-controls="listenersModalDialog">
+              <span class="btn-advanced-open__title">Listeners &amp; kaspad</span>
+              <span class="btn-advanced-open__sub">Instance list and node arguments</span>
+              <span class="btn-advanced-open__hint" aria-hidden="true">Open</span>
+            </button>
           </div>
         </div>
       </details>
@@ -1100,6 +1097,346 @@
     <p id="loaderErr" style="display:none;color:var(--err);font-size:13px;margin-top:0.75rem;"></p>
   </div>
   <div id="toast" role="status" aria-live="polite"></div>
+
+  <div id="logModalRoot" class="setup-modal setup-modal--logs" aria-hidden="true">
+    <div class="setup-modal__backdrop" id="logModalBackdrop" tabindex="-1"></div>
+    <div
+      id="logModalDialog"
+      class="setup-modal__panel setup-modal__panel--lg"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="logModalTitle"
+    >
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="logModalTitle">Bridge logs</h2>
+          <p>Live output (IBD, sync, progress, accepted blocks) while the bridge is running.</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" id="btnLogModalClose" aria-label="Close logs">×</button>
+      </div>
+      <div class="setup-modal__body" style="padding-top:0.65rem">
+        <p class="log-modal__intro">Logs stream below when the bridge is running.</p>
+        <div class="log-path" id="logPath">Log file: —</div>
+        <div class="log-stream" id="logStream">Waiting for log output...</div>
+        <div class="log-modal__btn-row">
+          <button type="button" class="btn-muted" id="btnRevealExe">Open executable folder</button>
+        </div>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel" id="btnLogModalDone">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="stratumModeModalRoot" class="setup-modal" aria-hidden="true">
+    <div class="setup-modal__backdrop" tabindex="-1"></div>
+    <div id="stratumModeModalDialog" class="setup-modal__panel" role="dialog" aria-modal="true" aria-labelledby="stratumModeModalTitle">
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="stratumModeModalTitle">Stratum mode</h2>
+          <p>Mainnet or testnet for this run (unless your config file overrides).</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" aria-label="Close">×</button>
+      </div>
+      <div class="setup-modal__body">
+        <div class="field row">
+          <input type="checkbox" id="testnet" />
+          <label for="testnet" style="margin:0">Testnet</label>
+        </div>
+        <p class="hint">Use testnet for development. Mainnet is the default when this is off and your config does not override it.</p>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel">Cancel</button>
+        <button type="button" class="btn-teal setup-modal-btn-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="helpModalRoot" class="setup-modal" aria-hidden="true">
+    <div class="setup-modal__backdrop" tabindex="-1"></div>
+    <div id="helpModalDialog" class="setup-modal__panel" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="helpModalTitle">How to start the Stratum bridge</h2>
+          <p>Quick guide and shortcuts.</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" aria-label="Close">×</button>
+      </div>
+      <div class="setup-modal__body">
+        <p class="hint" style="margin-top:0;margin-bottom:1rem">
+          <strong>Short version:</strong> open <strong>Connection</strong>, set your node address and Stratum port, then <strong>Save</strong> and <strong>Start bridge</strong>. The dashboard opens in this window. Use <strong>Stop bridge</strong> when finished (or <strong>Bridge → Stop bridge</strong> in the menu). Reloading (<kbd>F5</kbd>) while the bridge is running reconnects to the dashboard.
+        </p>
+        <div class="cta-row">
+          <button type="button" class="btn-teal" id="btnDocs">
+            View setup instructions
+          </button>
+          <button type="button" class="btn-muted" id="btnRunNode">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2.5L7 14h3v6h2v-6h3L12 2.5zM6 16H4v3h2v-3zm14 0h-2v3h2v-3z"/>
+            </svg>
+            Run node (in-process)
+          </button>
+        </div>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="quickStartModalRoot" class="setup-modal" aria-hidden="true">
+    <div class="setup-modal__backdrop" tabindex="-1"></div>
+    <div id="quickStartModalDialog" class="setup-modal__panel" role="dialog" aria-modal="true" aria-labelledby="quickStartModalTitle">
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="quickStartModalTitle">Quick start</h2>
+          <p>Typical single-listener setup.</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" aria-label="Close">×</button>
+      </div>
+      <div class="setup-modal__body">
+        <div class="quick-start-callout" role="region" aria-label="Quick start" style="margin:0;border:none;padding:0;background:transparent">
+          <p class="hint" style="margin:0 0 0.55rem">Typical single-listener setup:</p>
+          <ol class="quick-start-steps">
+            <li>Enter your <strong>Kaspa node address</strong> under Essential (Connection → Config, node &amp; mining ports).</li>
+            <li>Set <strong>Stratum listen port</strong> (and difficulty if needed) under Mining ports.</li>
+            <li><strong>Save configuration</strong>, then <strong>Start bridge</strong> at the bottom.</li>
+          </ol>
+          <p class="hint" style="margin:0.65rem 0 0">Want the full walkthrough? Use the <button type="button" class="btn-inline-link" id="btnJumpHelp">Help</button> tab.</p>
+        </div>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="connectionMainModalRoot" class="setup-modal" aria-hidden="true">
+    <div class="setup-modal__backdrop" tabindex="-1"></div>
+    <div id="connectionMainModalDialog" class="setup-modal__panel setup-modal__panel--lg" role="dialog" aria-modal="true" aria-labelledby="connectionMainModalTitle">
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="connectionMainModalTitle">Config, node &amp; mining ports</h2>
+          <p>Config file, essential RPC settings, and main Stratum listener.</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" aria-label="Close">×</button>
+      </div>
+      <div class="setup-modal__body">
+        <div class="field span-2">
+          <label for="config">Config file (optional)</label>
+          <input type="text" id="config" autocomplete="off" placeholder="Path to config.yaml" />
+          <p class="hint" id="configHint"></p>
+        </div>
+        <p class="section-eyebrow">Essential</p>
+        <p class="hint section-eyebrow-hint">RPC address of your node and basic bridge timing.</p>
+        <div class="form-pairs">
+          <div class="form-pair">
+            <label for="kaspadAddress">Kaspa node address</label>
+            <input type="text" id="kaspadAddress" autocomplete="off" placeholder="localhost:16110" />
+            <label class="check-line"><input type="checkbox" id="printStatsCb" /><span>Print statistics to console</span></label>
+          </div>
+          <div class="form-pair">
+            <label for="blockWaitTimeMs">Block wait time (ms)</label>
+            <input type="text" id="blockWaitTimeMs" autocomplete="off" placeholder="1000" />
+            <label class="check-line"><input type="checkbox" id="logToFileCb" /><span>Log to file</span></label>
+          </div>
+        </div>
+        <p class="hint" style="margin-top:0.35rem">Checked options turn features on for this run. Leave unchecked to follow your config file (not “force off”).</p>
+        <p class="section-eyebrow" style="margin-top:1rem">Mining ports — main listener</p>
+        <p class="hint section-eyebrow-hint">Where miners connect; optional metrics port and starting difficulty.</p>
+        <div class="field-grid-3 span-2">
+          <div class="field" style="margin-bottom:0">
+            <label for="stratumPort">Stratum listen port</label>
+            <input type="text" id="stratumPort" autocomplete="off" placeholder=":5555" />
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="promPort" title="Prometheus scrape / metrics endpoint">Metrics port (Prometheus)</label>
+            <input type="text" id="promPort" autocomplete="off" placeholder=":2114" title="Prometheus metrics port" />
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="minShareDiff" title="Minimum share difficulty for this listener">Min share difficulty</label>
+            <input type="text" id="minShareDiff" autocomplete="off" placeholder="e.g. 8192" />
+          </div>
+        </div>
+        <p class="hint span-2" style="margin-top:0.35rem">For <strong>multiple Stratum ports</strong>, use the <strong>Listeners</strong> tab. To turn options off via file, edit <code>config.yaml</code>.</p>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel">Cancel</button>
+        <button type="button" class="btn-teal setup-modal-btn-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="instanceDefaultsModalRoot" class="setup-modal" aria-hidden="true">
+    <div class="setup-modal__backdrop" tabindex="-1"></div>
+    <div id="instanceDefaultsModalDialog" class="setup-modal__panel" role="dialog" aria-modal="true" aria-labelledby="instanceDefaultsModalTitle">
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="instanceDefaultsModalTitle">Extra port defaults</h2>
+          <p>Optional defaults for additional Stratum listeners.</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" aria-label="Close">×</button>
+      </div>
+      <div class="setup-modal__body">
+        <div class="field-grid-2">
+          <div class="field" style="margin-bottom:0">
+            <label for="instanceSharesPerMin">Instance shares/min (optional)</label>
+            <input type="text" id="instanceSharesPerMin" autocomplete="off" placeholder="30" />
+          </div>
+        </div>
+        <p class="hint" style="margin-top:0.65rem">Applied when you add rows on the <strong>Listeners</strong> tab (extra Stratum ports).</p>
+        <div class="check-grid" style="margin-top:0.65rem">
+          <label class="check-line"><input type="checkbox" id="instanceLogToFileCb" /><span>Instance log to file</span></label>
+          <label class="check-line"><input type="checkbox" id="instanceVarDiffCb" /><span>Instance variable difficulty</span></label>
+          <label class="check-line"><input type="checkbox" id="instanceVarDiffStatsCb" /><span>Instance var diff stats</span></label>
+          <label class="check-line"><input type="checkbox" id="instancePow2ClampCb" /><span>Instance pow2 clamp</span></label>
+        </div>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel">Cancel</button>
+        <button type="button" class="btn-teal setup-modal-btn-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cpuMinerModalRoot" class="setup-modal" aria-hidden="true">
+    <div class="setup-modal__backdrop" tabindex="-1"></div>
+    <div id="cpuMinerModalDialog" class="setup-modal__panel" role="dialog" aria-modal="true" aria-labelledby="cpuMinerModalTitle">
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="cpuMinerModalTitle">Internal CPU miner</h2>
+          <p>Requires desktop built with <code>rkstratum_cpu_miner</code>.</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" aria-label="Close">×</button>
+      </div>
+      <div class="setup-modal__body">
+        <div class="field row">
+          <input type="checkbox" id="internalCpuMiner" />
+          <label for="internalCpuMiner" style="margin:0">Enable internal CPU miner</label>
+        </div>
+        <div class="field-grid-2">
+          <div class="field">
+            <label for="internalCpuMinerAddress">Mining address (required if enabled)</label>
+            <input type="text" id="internalCpuMinerAddress" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="internalCpuMinerThreads">Threads (optional)</label>
+            <input type="text" id="internalCpuMinerThreads" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="internalCpuMinerThrottleMs">Throttle ms (optional)</label>
+            <input type="text" id="internalCpuMinerThrottleMs" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="internalCpuMinerTemplatePollMs">Template poll ms (optional)</label>
+            <input type="text" id="internalCpuMinerTemplatePollMs" autocomplete="off" />
+          </div>
+        </div>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel">Cancel</button>
+        <button type="button" class="btn-teal setup-modal-btn-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="listenersModalRoot" class="setup-modal" aria-hidden="true">
+    <div class="setup-modal__backdrop" tabindex="-1"></div>
+    <div id="listenersModalDialog" class="setup-modal__panel setup-modal__panel--lg" role="dialog" aria-modal="true" aria-labelledby="listenersModalTitle">
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="listenersModalTitle">Listeners &amp; kaspad</h2>
+          <p>Extra Stratum ports and optional in-process node arguments.</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" aria-label="Close">×</button>
+      </div>
+      <div class="setup-modal__body">
+        <div class="instances-toolbar">
+          <p class="hint" style="margin:0;flex:1;min-width:12rem">Each row is an extra mining port (port, difficulty, metrics port).</p>
+          <button type="button" class="btn-add-instance" id="btnAddInstance">+ Add instance</button>
+        </div>
+        <div id="instanceList" class="instance-list" aria-live="polite"></div>
+        <textarea id="instances" style="display:none" aria-hidden="true"></textarea>
+        <div class="field" style="margin-top:1rem">
+          <label for="kaspadArgs">Kaspad arguments (optional)</label>
+          <textarea id="kaspadArgs" placeholder="Passed after `--` for in-process kaspad, e.g.&#10;--utxoindex&#10;--rpclisten=127.0.0.1:16110"></textarea>
+          <p class="hint">One token per line or space-separated. Omit if you use external kaspad only.</p>
+        </div>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel">Cancel</button>
+        <button type="button" class="btn-teal setup-modal-btn-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="advancedModalRoot" class="setup-modal" aria-hidden="true">
+    <div class="setup-modal__backdrop" id="advancedModalBackdrop" tabindex="-1"></div>
+    <div
+      id="advancedModalDialog"
+      class="setup-modal__panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="advancedModalTitle"
+      aria-describedby="advancedModalDesc"
+    >
+      <div class="setup-modal__head">
+        <div class="setup-modal__titles">
+          <h2 id="advancedModalTitle">Advanced</h2>
+          <p id="advancedModalDesc">Node mode, data paths, dashboard and health ports, variable difficulty, and optional bridge flags.</p>
+        </div>
+        <button type="button" class="setup-modal__close setup-modal-btn-close" id="btnAdvancedModalClose" aria-label="Close advanced settings">×</button>
+      </div>
+      <div class="setup-modal__body">
+        <div class="setup-grid">
+          <div class="field">
+            <label for="nodeMode">Node mode</label>
+            <select id="nodeMode">
+              <option value="">From config / default</option>
+              <option value="external">External kaspad (RPC)</option>
+              <option value="inprocess">In-process kaspad</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="appdir">App data directory (optional)</label>
+            <input type="text" id="appdir" autocomplete="off" placeholder="Kaspa node data dir" />
+            <p class="hint" id="appdirHint"></p>
+          </div>
+          <div class="field">
+            <label for="coinbase">Coinbase tag suffix (optional)</label>
+            <input type="text" id="coinbase" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="webDashboardPort">Web dashboard port (optional)</label>
+            <input type="text" id="webDashboardPort" autocomplete="off" placeholder=":3030 or 0.0.0.0:3030" />
+          </div>
+          <div class="field">
+            <label for="healthCheckPort">Health check port (optional)</label>
+            <input type="text" id="healthCheckPort" autocomplete="off" placeholder=":8080" />
+          </div>
+          <div class="field">
+            <label for="sharesPerMin">Shares per minute target (optional)</label>
+            <input type="text" id="sharesPerMin" autocomplete="off" placeholder="30" />
+          </div>
+          <div class="field">
+            <label for="extranonceSize">Extranonce size (optional)</label>
+            <input type="text" id="extranonceSize" autocomplete="off" placeholder="2" />
+          </div>
+        </div>
+        <p class="section-label span-2" style="margin-top:0.75rem">Optional bridge flags</p>
+        <div class="check-grid span-2">
+          <label class="check-line"><input type="checkbox" id="varDiffCb" /><span>Variable difficulty</span></label>
+          <label class="check-line"><input type="checkbox" id="varDiffStatsCb" /><span>Variable difficulty stats</span></label>
+          <label class="check-line"><input type="checkbox" id="pow2ClampCb" /><span>Pow2 clamp</span></label>
+          <label class="check-line"><input type="checkbox" id="approximateGeoLookupCb" /><span>Approximate geo lookup</span></label>
+        </div>
+      </div>
+      <div class="setup-modal__foot">
+        <button type="button" class="btn-muted setup-modal-btn-cancel" id="btnAdvancedModalCancel">Cancel</button>
+        <button type="button" class="btn-teal setup-modal-btn-apply" id="btnAdvancedModalApply">Apply</button>
+      </div>
+    </div>
+  </div>
 
   <script src="js/setup.js" defer></script>
 </body>
