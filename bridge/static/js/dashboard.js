@@ -2958,18 +2958,18 @@ async function refresh(options = {}) {
     if (loader) loader.style.display = 'none';
     setDot('online', 'Online');
 
-    document.getElementById('kaspadVersion').textContent = status.kaspad_version ?? '-';
-    document.getElementById('instances').textContent = status.instances;
+    setText('kaspadVersion', status.kaspad_version ?? '-');
+    setText('instances', status.instances);
     setLastUpdated(Date.now(), false);
     populateNodePanel(status.node);
     populateHostPanel(status.host);
     updateHostMetricsBanner(status);
     updateNodeDifficultyHint(mergedStats, status.node);
 
-    document.getElementById('totalBlocks').textContent = mergedStats.totalBlocks;
+    setText('totalBlocks', mergedStats.totalBlocks);
     setMiningBlockSubtotals(mergedStats);
-    document.getElementById('totalShares').textContent = mergedStats.totalShares;
-    document.getElementById('activeWorkers').textContent = mergedStats.activeWorkers;
+    setText('totalShares', mergedStats.totalShares);
+    setText('activeWorkers', mergedStats.activeWorkers);
     
     // Calculate and display total worker hashrate
     const totalWorkerHashrateHs = (mergedStats.workers || []).reduce((sum, w) => sum + ((w.hashrate || 0) * 1e9), 0);
@@ -2980,7 +2980,7 @@ async function refresh(options = {}) {
       totalWorkerHashrateEl.textContent = '';
     }
     
-    document.getElementById('networkHashrate').textContent = formatHashrateHs(mergedStats.networkHashrate);
+    setText('networkHashrate', formatHashrateHs(mergedStats.networkHashrate));
     
     // Display bridge uptime
     if (mergedStats.bridgeUptime != null) {
@@ -2988,8 +2988,8 @@ async function refresh(options = {}) {
     } else {
       setText('bridgeUptime', '-');
     }
-    document.getElementById('networkDifficulty').textContent = formatDifficulty(mergedStats.networkDifficulty);
-    document.getElementById('networkBlockCount').textContent = mergedStats.networkBlockCount ?? '-';
+    setText('networkDifficulty', formatDifficulty(mergedStats.networkDifficulty));
+    setText('networkBlockCount', mergedStats.networkBlockCount ?? '-');
 
     const icpu = mergedStats.internalCpu;
     if (icpu && typeof icpu === 'object') {
@@ -3135,8 +3135,8 @@ async function refresh(options = {}) {
       updateNodeDifficultyHint(null, null);
     }
     if (cached) {
-      document.getElementById('kaspadVersion').textContent = cached.status.kaspad_version ?? '-';
-      document.getElementById('instances').textContent = cached.status.instances ?? '-';
+      setText('kaspadVersion', cached.status.kaspad_version ?? '-');
+      setText('instances', cached.status.instances ?? '-');
       setLastUpdated(cached.updatedMs, true);
       populateNodePanel(cached.status.node);
       populateHostPanel(cached.status.host);
@@ -3150,13 +3150,14 @@ async function refresh(options = {}) {
         setText('bridgeUptime', '-');
       }
 
-      document.getElementById('totalBlocks').textContent = displayTotalBlocksFromStats(cached.stats);
+      const tbEl = document.getElementById('totalBlocks');
+      if (tbEl) tbEl.textContent = displayTotalBlocksFromStats(cached.stats);
       setMiningBlockSubtotals(cached.stats);
-      document.getElementById('totalShares').textContent = cached.stats.totalShares;
-      document.getElementById('activeWorkers').textContent = cached.stats.activeWorkers;
-      document.getElementById('networkHashrate').textContent = formatHashrateHs(cached.stats.networkHashrate);
-      document.getElementById('networkDifficulty').textContent = formatDifficulty(cached.stats.networkDifficulty);
-      document.getElementById('networkBlockCount').textContent = cached.stats.networkBlockCount ?? '-';
+      setText('totalShares', cached.stats.totalShares);
+      setText('activeWorkers', cached.stats.activeWorkers);
+      setText('networkHashrate', formatHashrateHs(cached.stats.networkHashrate));
+      setText('networkDifficulty', formatDifficulty(cached.stats.networkDifficulty));
+      setText('networkBlockCount', cached.stats.networkBlockCount ?? '-');
 
       const icpu = cached.stats.internalCpu;
       if (icpu && typeof icpu === 'object') {
@@ -3475,7 +3476,7 @@ document.getElementById('downloadBlocksCsv')?.addEventListener('click', () => {
   downloadCsv(`blocks-${ts}.csv`, rows);
 });
 
-document.getElementById('refreshBtn').addEventListener('click', refresh);
+document.getElementById('refreshBtn')?.addEventListener('click', refresh);
 (function initWalletSearch() {
   const input = document.getElementById('walletSearchInput');
   const searchBtn = document.getElementById('walletSearchBtn');
@@ -3621,8 +3622,8 @@ setInterval(() => {
 (function bootstrapFromCache() {
   const cached = readCachedSnapshot();
   if (!cached) return;
-  document.getElementById('kaspadVersion').textContent = cached.status.kaspad_version ?? '-';
-  document.getElementById('instances').textContent = cached.status.instances ?? '-';
+  setText('kaspadVersion', cached.status.kaspad_version ?? '-');
+  setText('instances', cached.status.instances ?? '-');
   setLastUpdated(cached.updatedMs, true);
   populateNodePanel(cached.status.node);
   populateHostPanel(cached.status.host);
@@ -3636,13 +3637,16 @@ setInterval(() => {
     setText('bridgeUptime', '-');
   }
 
-  document.getElementById('totalBlocks').textContent = displayTotalBlocksFromStats(cached.stats);
+  {
+    const tb = document.getElementById('totalBlocks');
+    if (tb) tb.textContent = displayTotalBlocksFromStats(cached.stats);
+  }
   setMiningBlockSubtotals(cached.stats);
-  document.getElementById('totalShares').textContent = cached.stats.totalShares;
-  document.getElementById('activeWorkers').textContent = cached.stats.activeWorkers;
-  document.getElementById('networkHashrate').textContent = formatHashrateHs(cached.stats.networkHashrate);
-  document.getElementById('networkDifficulty').textContent = formatDifficulty(cached.stats.networkDifficulty);
-  document.getElementById('networkBlockCount').textContent = cached.stats.networkBlockCount ?? '-';
+  setText('totalShares', cached.stats.totalShares);
+  setText('activeWorkers', cached.stats.activeWorkers);
+  setText('networkHashrate', formatHashrateHs(cached.stats.networkHashrate));
+  setText('networkDifficulty', formatDifficulty(cached.stats.networkDifficulty));
+  setText('networkBlockCount', cached.stats.networkBlockCount ?? '-');
 
   const filter = getWalletFilter();
   const dayFilter = getBlocksDayFilter();
