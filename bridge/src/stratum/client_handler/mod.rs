@@ -71,7 +71,7 @@ impl ClientHandler {
         let ctx_clone = Arc::clone(&ctx);
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(5)).await;
-            if !ctx_clone.identity.lock().worker_name.is_empty() {
+            if !ctx_clone.identity.lock().wallet_addr.is_empty() {
                 share_handler.get_create_stats(&ctx_clone);
             }
         });
@@ -91,24 +91,9 @@ impl ClientHandler {
             clients.remove(&id);
             debug!("removed client {}", id);
         }
-        let (wallet_addr, worker_name, remote_app) = {
-            let id = ctx.identity.lock();
-            (
-                id.wallet_addr.clone(),
-                id.worker_name.clone(),
-                id.remote_app.clone(),
-            )
-        };
-
-        let is_unauthed = wallet_addr.is_empty() && worker_name.is_empty();
-        if !is_unauthed {
-            record_disconnect(&crate::prom::WorkerContext {
-                instance_id: self.instance_id.clone(),
-                worker_name: worker_name.clone(),
-                miner: remote_app,
-                wallet: wallet_addr.clone(),
-                ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
-            });
+        if !ctx.identity.lock().wallet_addr.is_empty() {
+            let remote_app = ctx.identity.lock().remote_app.clone();
+            record_disconnect(&worker_context(&self.instance_id, ctx, remote_app));
         }
     }
 

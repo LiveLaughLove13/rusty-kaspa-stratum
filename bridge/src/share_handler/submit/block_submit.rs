@@ -47,7 +47,7 @@ pub(super) async fn run_block_found_submit_flow(
     network_target: &BigUint,
 ) -> Result<BlockSubmitFlowResult, SubmitRunError> {
     let wallet_addr = ctx.identity.lock().wallet_addr.clone();
-    let worker_name = ctx.identity.lock().worker_name.clone();
+    let worker_name = ctx.effective_worker_name();
     let prefix = handler.log_prefix();
 
     info!(
@@ -306,13 +306,7 @@ pub(super) async fn run_block_found_submit_flow(
             let stats = handler.get_create_stats(ctx.as_ref());
             let overall = handler.overall.clone();
             let instance_id = handler.instance_id.clone();
-            let prom_worker = crate::prom::WorkerContext {
-                instance_id: handler.instance_id.clone(),
-                worker_name: worker_name.clone(),
-                miner: String::new(),
-                wallet: wallet_addr.clone(),
-                ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
-            };
+            let prom_worker = crate::prom::worker_context(&handler.instance_id, ctx.as_ref(), "");
 
             record_block_accepted_by_node(&prom_worker);
 
@@ -428,13 +422,11 @@ pub(super) async fn run_block_found_submit_flow(
                 *stats.stale_shares.lock() += 1;
                 *handler.overall.stale_shares.lock() += 1;
 
-                record_stale_share(&crate::prom::WorkerContext {
-                    instance_id: handler.instance_id.clone(),
-                    worker_name: worker_name.clone(),
-                    miner: String::new(),
-                    wallet: wallet_addr.clone(),
-                    ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
-                });
+                record_stale_share(&crate::prom::worker_context(
+                    &handler.instance_id,
+                    ctx.as_ref(),
+                    "",
+                ));
                 ctx.reply_stale_share(event.id.clone()).await?;
                 return Ok(BlockSubmitFlowResult::Finished);
             }
@@ -464,13 +456,11 @@ pub(super) async fn run_block_found_submit_flow(
             *stats.invalid_shares.lock() += 1;
             *handler.overall.invalid_shares.lock() += 1;
 
-            record_invalid_share(&crate::prom::WorkerContext {
-                instance_id: handler.instance_id.clone(),
-                worker_name: worker_name.clone(),
-                miner: String::new(),
-                wallet: wallet_addr.clone(),
-                ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
-            });
+            record_invalid_share(&crate::prom::worker_context(
+                &handler.instance_id,
+                ctx.as_ref(),
+                "",
+            ));
 
             {
                 let now = Instant::now();

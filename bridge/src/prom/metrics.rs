@@ -405,6 +405,21 @@ impl WorkerContext {
     }
 }
 
+/// Build Prometheus worker labels from a Stratum session (stable name, no empty `worker` label).
+pub fn worker_context(
+    instance_id: &str,
+    ctx: &crate::stratum_context::StratumContext,
+    miner: impl Into<String>,
+) -> WorkerContext {
+    WorkerContext {
+        instance_id: instance_id.to_string(),
+        worker_name: ctx.effective_worker_name(),
+        miner: miner.into(),
+        wallet: ctx.identity.lock().wallet_addr.clone(),
+        ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
+    }
+}
+
 pub fn record_block_accepted_by_node(worker: &WorkerContext) {
     if let Some(counter) = BLOCK_ACCEPTED_COUNTER.get() {
         counter.with_label_values(&worker.labels()).inc();
@@ -643,6 +658,7 @@ pub fn init_worker_counters(worker: &WorkerContext) {
     if let Some(gauge) = WORKER_CURRENT_DIFFICULTY.get() {
         gauge.with_label_values(&worker.labels()).set(0.0);
     }
+    update_worker_activity(worker);
 }
 
 /// Update the current mining difficulty for a worker

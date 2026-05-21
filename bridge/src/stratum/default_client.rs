@@ -347,8 +347,10 @@ pub async fn handle_authorize(
     {
         let mut id = ctx.identity.lock();
         id.wallet_addr = address.clone();
-        id.worker_name = worker_name.clone();
+        id.worker_name = worker_name;
     }
+    ctx.ensure_default_worker_name();
+    let worker_name = ctx.effective_worker_name();
 
     let remote_app = ctx.identity.lock().remote_app.clone();
     tracing::info!(

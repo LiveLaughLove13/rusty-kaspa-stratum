@@ -220,14 +220,7 @@ pub(super) fn prepare(
     debug!("[SUBMIT] Parsed nonce value (u64): {}", nonce_val);
     debug!("[SUBMIT] Nonce hex: {:016x}", nonce_val);
 
-    let worker_id = {
-        let id = ctx.identity.lock();
-        if !id.worker_name.is_empty() {
-            id.worker_name.clone()
-        } else {
-            format!("{}:{}", ctx.remote_addr(), ctx.remote_port())
-        }
-    };
+    let worker_id = ctx.effective_worker_name();
     let submit_key = format!("{}|{}|{}", worker_id, job_id, final_nonce_str);
 
     Ok(PreparedSubmit {

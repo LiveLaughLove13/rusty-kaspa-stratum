@@ -7,7 +7,7 @@ use super::parse::PreparedSubmit;
 use crate::{
     jsonrpc_event::{JsonRpcEvent, JsonRpcResponse},
     mining_state::GetMiningState,
-    prom::{WorkerContext, record_share_found, record_weak_share},
+    prom::{record_share_found, record_weak_share, worker_context},
     stratum_context::StratumContext,
 };
 use std::sync::Arc;
@@ -30,15 +30,7 @@ pub(super) async fn after_pow_loop(
         *stats.invalid_shares.lock() += 1;
         *handler.overall.invalid_shares.lock() += 1;
 
-        let wallet_addr = ctx.identity.lock().wallet_addr.clone();
-        let worker_name = ctx.identity.lock().worker_name.clone();
-        record_weak_share(&WorkerContext {
-            instance_id: handler.instance_id.clone(),
-            worker_name: worker_name.clone(),
-            miner: String::new(),
-            wallet: wallet_addr.clone(),
-            ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
-        });
+        record_weak_share(&worker_context(&handler.instance_id, ctx.as_ref(), ""));
 
         if let Some(id) = &event.id {
             let _ = ctx.reply_low_diff_share(id).await;
@@ -62,16 +54,8 @@ pub(super) async fn after_pow_loop(
     *stats.last_share.lock() = Instant::now();
     *handler.overall.shares_found.lock() += 1;
 
-    let wallet_addr = ctx.identity.lock().wallet_addr.clone();
-    let worker_name = ctx.identity.lock().worker_name.clone();
     record_share_found(
-        &WorkerContext {
-            instance_id: handler.instance_id.clone(),
-            worker_name: worker_name.clone(),
-            miner: String::new(),
-            wallet: wallet_addr.clone(),
-            ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
-        },
+        &worker_context(&handler.instance_id, ctx.as_ref(), ""),
         hash_value,
     );
 

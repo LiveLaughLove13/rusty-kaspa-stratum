@@ -166,21 +166,8 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
         stratum_diff.set_diff_value_for_miner(min_diff, &remote_app);
         state.set_stratum_diff(stratum_diff);
 
-        // Update worker difficulty metric
-        let wallet_addr = client_clone.identity.lock().wallet_addr.clone();
-        let worker_name = client_clone.identity.lock().worker_name.clone();
         update_worker_difficulty(
-            &WorkerContext {
-                instance_id: instance_id.clone(),
-                worker_name: worker_name.clone(),
-                miner: remote_app.clone(),
-                wallet: wallet_addr.clone(),
-                ip: format!(
-                    "{}:{}",
-                    client_clone.remote_addr(),
-                    client_clone.remote_port()
-                ),
-            },
+            &crate::prom::worker_context(&instance_id, &client_clone, remote_app.clone()),
             min_diff,
         );
 
@@ -219,21 +206,8 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
                 stratum_diff.set_diff_value_for_miner(var_diff, &remote_app);
                 state.set_stratum_diff(stratum_diff);
 
-                // Update worker difficulty metric
-                let wallet_addr = client_clone.identity.lock().wallet_addr.clone();
-                let worker_name = client_clone.identity.lock().worker_name.clone();
                 update_worker_difficulty(
-                    &WorkerContext {
-                        instance_id: instance_id.clone(),
-                        worker_name: worker_name.clone(),
-                        miner: remote_app.clone(),
-                        wallet: wallet_addr.clone(),
-                        ip: format!(
-                            "{}:{}",
-                            client_clone.remote_addr(),
-                            client_clone.remote_port()
-                        ),
-                    },
+                    &crate::prom::worker_context(&instance_id, &client_clone, remote_app.clone()),
                     var_diff,
                 );
 
@@ -360,19 +334,11 @@ pub(crate) async fn new_block_job_task<T: KaspaApiTrait + Send + Sync + 'static>
             );
         }
     } else {
-        let wallet_addr_str = wallet_addr.clone();
-        let worker_name = client_clone.identity.lock().worker_name.clone();
-        record_new_job(&crate::prom::WorkerContext {
-            instance_id: instance_id.clone(),
-            worker_name: worker_name.clone(),
-            miner: String::new(),
-            wallet: wallet_addr_str.clone(),
-            ip: format!(
-                "{}:{}",
-                client_clone.remote_addr(),
-                client_clone.remote_port()
-            ),
-        });
+        record_new_job(&crate::prom::worker_context(
+            &instance_id,
+            &client_clone,
+            "",
+        ));
         debug!(
             "new_block_available: successfully sent job ID {} to client {}",
             job_id, client_clone.remote_addr

@@ -38,14 +38,7 @@ impl ShareHandler {
     pub fn get_create_stats(&self, ctx: &StratumContext) -> WorkStats {
         let mut stats_map = self.stats.lock();
 
-        let worker_id = {
-            let id = ctx.identity.lock();
-            if !id.worker_name.is_empty() {
-                id.worker_name.clone()
-            } else {
-                ctx.remote_addr().to_string()
-            }
-        };
+        let worker_id = ctx.effective_worker_name();
 
         if let Some(stats) = stats_map.get(&worker_id) {
             return stats.clone();
@@ -64,16 +57,7 @@ impl ShareHandler {
         stats_map.insert(worker_id.clone(), stats.clone());
         drop(stats_map);
 
-        // Initialize worker counters
-        let wallet_addr = ctx.identity.lock().wallet_addr.clone();
-        let worker_name = stats.worker_name.lock().clone();
-        init_worker_counters(&crate::prom::WorkerContext {
-            instance_id: self.instance_id.clone(),
-            worker_name: worker_name.clone(),
-            miner: String::new(),
-            wallet: wallet_addr.clone(),
-            ip: format!("{}:{}", ctx.remote_addr(), ctx.remote_port()),
-        });
+        init_worker_counters(&crate::prom::worker_context(&self.instance_id, ctx, ""));
 
         stats
     }
