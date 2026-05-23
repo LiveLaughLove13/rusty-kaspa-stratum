@@ -77,6 +77,14 @@ impl ClientHandler {
         });
     }
 
+    /// Sync Prometheus session metrics for an authorized worker (dashboard hashrate/uptime).
+    pub fn sync_worker_prom_metrics(&self, ctx: &StratumContext) {
+        if ctx.identity.lock().wallet_addr.is_empty() {
+            return;
+        }
+        self.share_handler.get_create_stats(ctx);
+    }
+
     /// Assign extranonce to a client based on detected miner type
     /// Called from handle_subscribe after miner type is detected
     pub fn assign_extranonce_for_miner(&self, ctx: &StratumContext, remote_app: &str) {

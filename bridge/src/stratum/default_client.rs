@@ -352,6 +352,10 @@ pub async fn handle_authorize(
     ctx.ensure_default_worker_name();
     let worker_name = ctx.effective_worker_name();
 
+    if let Some(ref client_handler) = client_handler {
+        client_handler.sync_worker_prom_metrics(&ctx);
+    }
+
     let remote_app = ctx.identity.lock().remote_app.clone();
     tracing::info!(
         "[HANDSHAKE] authorized {}:{} worker='{}' app='{}'",

@@ -616,8 +616,8 @@ pub(crate) fn filter_metric_families_for_instance(
     out
 }
 
-/// Initialize worker counters (set to 0 to create the metric)
-pub fn init_worker_counters(worker: &WorkerContext) {
+/// Register counter/gauge time series for a worker (idempotent).
+fn init_worker_counter_series(worker: &WorkerContext) {
     if let Some(counter) = SHARE_COUNTER.get() {
         counter.with_label_values(&worker.labels()).inc_by(0.0);
     }
@@ -646,23 +646,51 @@ pub fn init_worker_counters(worker: &WorkerContext) {
     if let Some(counter) = JOB_COUNTER.get() {
         counter.with_label_values(&worker.labels()).inc_by(0.0);
     }
-    // Set worker start time (Unix timestamp in seconds)
-    if let Some(gauge) = WORKER_START_TIME.get() {
-        let start_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as f64;
-        gauge.with_label_values(&worker.labels()).set(start_time);
-    }
-    // Initialize worker difficulty to 0 (will be updated when difficulty is set)
     if let Some(gauge) = WORKER_CURRENT_DIFFICULTY.get() {
-        gauge.with_label_values(&worker.labels()).set(0.0);
+        let metric = gauge.with_label_values(&worker.labels());
+        if metric.get() <= 0.0 {
+            metric.set(0.0);
+        }
     }
+}
+
+/// Ensure Prometheus worker metrics exist for the current `(instance, worker, wallet)` labels.
+/// `session_start_unix` should be aligned with in-memory `WorkStats.start_time` when available so
+/// dashboard hashrate/uptime match the terminal table.
+pub fn ensure_worker_session_metrics(worker: &WorkerContext, session_start_unix: f64) {
+    if worker.wallet.is_empty() {
+        return;
+    }
+
+    init_worker_counter_series(worker);
+
+    if let Some(gauge) = WORKER_START_TIME.get() {
+        let metric = gauge.with_label_values(&worker.labels());
+        if metric.get() <= 0.0 {
+            metric.set(session_start_unix);
+        }
+    }
+
     update_worker_activity(worker);
+}
+
+/// Initialize worker counters (set to 0 to create the metric)
+pub fn init_worker_counters(worker: &WorkerContext) {
+    let start_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as f64;
+    ensure_worker_session_metrics(worker, start_time);
 }
 
 /// Update the current mining difficulty for a worker
 pub fn update_worker_difficulty(worker: &WorkerContext, difficulty: f64) {
+    let start_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as f64;
+    ensure_worker_session_metrics(worker, start_time);
+
     if let Some(gauge) = WORKER_CURRENT_DIFFICULTY.get() {
         gauge.with_label_values(&worker.labels()).set(difficulty);
     }

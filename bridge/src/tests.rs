@@ -2039,6 +2039,59 @@ mod comprehensive_tests {
     }
 
     #[test]
+    fn test_worker_prom_session_syncs_start_time_for_current_wallet() {
+        use crate::prom::{init_metrics, record_share_found, worker_context};
+        use prometheus::gather;
+
+        init_metrics();
+
+        let handler = ShareHandler::new("Instance 1".to_string());
+        let ctx = create_test_context_sync();
+        ctx.identity.lock().worker_name = "ks0".to_string();
+
+        let stats_before_wallet = handler.get_create_stats(&ctx);
+        assert_eq!(*stats_before_wallet.worker_name.lock(), "ks0");
+
+        let wallet = "kaspa:qr8example123456789012345678901234567890123456789012345678901234567890"
+            .to_string();
+        ctx.identity.lock().wallet_addr = wallet.clone();
+
+        let stats_after_wallet = handler.get_create_stats(&ctx);
+        assert!(Arc::ptr_eq(
+            &stats_before_wallet.worker_name,
+            &stats_after_wallet.worker_name
+        ));
+
+        record_share_found(&worker_context("Instance 1", &ctx, ""), 8192.0);
+
+        let mut found_start_time = false;
+        for family in gather() {
+            if family.get_name() != "ks_worker_start_time" {
+                continue;
+            }
+            for metric in family.get_metric() {
+                let labels: std::collections::HashMap<&str, &str> = metric
+                    .get_label()
+                    .iter()
+                    .map(|l| (l.get_name(), l.get_value()))
+                    .collect();
+                if labels.get("instance") == Some(&"Instance 1")
+                    && labels.get("worker") == Some(&"ks0")
+                    && labels.get("wallet") == Some(&wallet.as_str())
+                    && metric.get_gauge().get_value() > 0.0
+                {
+                    found_start_time = true;
+                }
+            }
+        }
+
+        assert!(
+            found_start_time,
+            "ks_worker_start_time must exist for the authorized wallet label set"
+        );
+    }
+
+    #[test]
     fn test_share_handler_vardiff_management() {
         // Test: VarDiff difficulty management
         let handler = ShareHandler::new("test-instance".to_string());

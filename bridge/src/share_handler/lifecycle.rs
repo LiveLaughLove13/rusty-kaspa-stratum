@@ -35,30 +35,47 @@ impl ShareHandler {
         }
     }
 
-    pub fn get_create_stats(&self, ctx: &StratumContext) -> WorkStats {
-        let mut stats_map = self.stats.lock();
+    fn workstats_session_start_unix(stats: &WorkStats) -> f64 {
+        let now_unix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs_f64();
+        now_unix - stats.start_time.elapsed().as_secs_f64()
+    }
 
+    fn sync_worker_prom_session(&self, ctx: &StratumContext, stats: &WorkStats) {
+        if ctx.identity.lock().wallet_addr.is_empty() {
+            return;
+        }
+        let worker = worker_context(&self.instance_id, ctx, "");
+        ensure_worker_session_metrics(&worker, Self::workstats_session_start_unix(stats));
+    }
+
+    pub fn get_create_stats(&self, ctx: &StratumContext) -> WorkStats {
         let worker_id = ctx.effective_worker_name();
 
-        if let Some(stats) = stats_map.get(&worker_id) {
-            return stats.clone();
-        }
+        let stats = {
+            let mut stats_map = self.stats.lock();
 
-        let stats = WorkStats::new(worker_id.clone());
-        // Seed per-worker displayed diff from current mining state so recreated
-        // entries do not start at 0.0 and get stuck in terminal/UI.
-        let seeded_diff = GetMiningState(ctx)
-            .stratum_diff()
-            .map(|d| d.diff_value)
-            .unwrap_or(0.0);
-        if seeded_diff > 0.0 {
-            *stats.min_diff.lock() = seeded_diff;
-        }
-        stats_map.insert(worker_id.clone(), stats.clone());
-        drop(stats_map);
+            if let Some(stats) = stats_map.get(&worker_id) {
+                stats.clone()
+            } else {
+                let stats = WorkStats::new(worker_id.clone());
+                // Seed per-worker displayed diff from current mining state so recreated
+                // entries do not start at 0.0 and get stuck in terminal/UI.
+                let seeded_diff = GetMiningState(ctx)
+                    .stratum_diff()
+                    .map(|d| d.diff_value)
+                    .unwrap_or(0.0);
+                if seeded_diff > 0.0 {
+                    *stats.min_diff.lock() = seeded_diff;
+                }
+                stats_map.insert(worker_id.clone(), stats.clone());
+                stats
+            }
+        };
 
-        init_worker_counters(&crate::prom::worker_context(&self.instance_id, ctx, ""));
-
+        self.sync_worker_prom_session(ctx, &stats);
         stats
     }
 
