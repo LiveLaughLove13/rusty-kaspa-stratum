@@ -2097,6 +2097,8 @@ mod comprehensive_tests {
         let handler = ShareHandler::new("test-instance".to_string());
         let ctx = create_test_context_sync();
 
+        handler.get_create_stats(&ctx);
+
         // Set initial difficulty
         let prev = handler.set_client_vardiff(&ctx, 8192.0);
         assert_eq!(prev, 0.0, "Previous diff should be 0");
@@ -2151,6 +2153,8 @@ mod comprehensive_tests {
         // This test verifies the ShareHandler can manage VarDiff
         let handler = ShareHandler::new("test-instance".to_string());
         let ctx = create_test_context_sync();
+
+        handler.get_create_stats(&ctx);
 
         // Set initial difficulty
         handler.set_client_vardiff(&ctx, 8192.0);
@@ -3117,6 +3121,8 @@ mod comprehensive_tests {
         let handler = ShareHandler::new("test-instance".to_string());
         let ctx = create_test_context_sync();
 
+        handler.get_create_stats(&ctx);
+
         // Test minimum difficulty (1.0)
         handler.set_client_vardiff(&ctx, 1.0);
         assert_eq!(
@@ -3155,6 +3161,8 @@ mod comprehensive_tests {
         // Test: Scenarios where VarDiff should not change
         let handler = ShareHandler::new("test-instance".to_string());
         let ctx = create_test_context_sync();
+
+        handler.get_create_stats(&ctx);
 
         // Set initial difficulty
         handler.set_client_vardiff(&ctx, 8192.0);

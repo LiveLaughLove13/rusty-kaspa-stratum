@@ -683,13 +683,10 @@ pub fn init_worker_counters(worker: &WorkerContext) {
     ensure_worker_session_metrics(worker, start_time);
 }
 
-/// Update the current mining difficulty for a worker
+/// Update the current mining difficulty for a worker.
+/// Does not refresh dashboard activity — jobs alone must not keep 0-share workers "online".
 pub fn update_worker_difficulty(worker: &WorkerContext, difficulty: f64) {
-    let start_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as f64;
-    ensure_worker_session_metrics(worker, start_time);
+    init_worker_counter_series(worker);
 
     if let Some(gauge) = WORKER_CURRENT_DIFFICULTY.get() {
         gauge.with_label_values(&worker.labels()).set(difficulty);
