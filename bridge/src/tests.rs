@@ -1283,10 +1283,8 @@ fn test_parse_instance_spec_multiple_ports() {
     let _ = result;
 }
 
-// Integration tests for the bridge binary
-// Run: cargo test -p kaspa-stratum-bridge --bin stratum-bridge
-// With CPU miner feature, InternalCpuMinerConfig is asserted inside the single in-process test
-// (only one embedded kaspad per process — global log logger).
+// Integration tests (embedded kaspad). Run in isolation — one in-process node per process:
+//   cargo test -p kaspa-stratum-bridge test_bridge_startup_with_inprocess_node -- --test-threads=1
 
 #[cfg(test)]
 mod integration {
@@ -1294,48 +1292,90 @@ mod integration {
         KaspaApi, StratumServerBridgeConfig as StratumBridgeConfig, listen_and_serve_with_shutdown,
     };
     use kaspa_alloc::init_allocator_with_default_settings;
+    use kaspa_grpc_client::GrpcClient;
+    use kaspa_rpc_core::notify::mode::NotificationMode;
     use kaspad_lib::args as kaspad_args;
     use std::ffi::OsString;
-    use std::time::Duration;
+    use std::sync::Once;
+    use std::time::{Duration, Instant};
     use tokio::sync::watch;
     use tokio::time::timeout;
 
-    #[tokio::test]
-    async fn test_bridge_startup_with_inprocess_node() {
-        init_allocator_with_default_settings();
+    static INIT_ALLOC: Once = Once::new();
 
-        // Use a temporary directory for the node data
+    /// Mirrors upstream `testing/integration/src/common/daemon.rs::free_port`.
+    fn free_port() -> u16 {
+        std::net::TcpListener::bind("127.0.0.1:0")
+            .expect("bind ephemeral port")
+            .local_addr()
+            .expect("local_addr")
+            .port()
+    }
+
+    fn grpc_endpoint(rpc_address: &str) -> String {
+        if rpc_address.starts_with("grpc://") {
+            rpc_address.to_string()
+        } else {
+            format!("grpc://{rpc_address}")
+        }
+    }
+
+    /// Poll until gRPC accepts connections (devnet startup can be slow on CI).
+    async fn wait_for_rpc_ready(rpc_address: &str, deadline: Instant) {
+        let grpc_address = grpc_endpoint(rpc_address);
+        while Instant::now() < deadline {
+            let connect = GrpcClient::connect_with_args(
+                NotificationMode::Direct,
+                grpc_address.clone(),
+                None,
+                true,
+                None,
+                false,
+                Some(500_000),
+                Default::default(),
+            );
+            if matches!(timeout(Duration::from_secs(5), connect).await, Ok(Ok(_))) {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+        panic!("kaspad gRPC at {rpc_address} did not become ready before deadline");
+    }
+
+    async fn run_bridge_startup_with_inprocess_node() {
+        INIT_ALLOC.call_once(init_allocator_with_default_settings);
+
         let temp_dir = std::env::temp_dir().join(format!("kaspad_test_{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::create_dir_all(&temp_dir).expect("create temp appdir");
 
-        // Start an in-process node with simnet/testnet settings
-        // Use a random port to avoid conflicts
-        let rpc_port = 16110 + (std::process::id() % 1000) as u16;
-        let rpc_address = format!("127.0.0.1:{}", rpc_port);
+        let rpc_address = format!("127.0.0.1:{}", free_port());
         let argv: Vec<OsString> = vec![
             "kaspad".into(),
-            "--testnet".into(),
+            "--devnet".into(),
             "--appdir".into(),
             temp_dir.to_string_lossy().to_string().into(),
-            format!("--rpclisten={}", rpc_address).into(),
+            format!("--rpclisten={rpc_address}").into(),
+            format!("--listen=127.0.0.1:{}", free_port()).into(),
+            "--disable-upnp".into(),
             "--utxoindex".into(),
         ];
 
-        let node_args = kaspad_args::Args::parse(argv).unwrap();
-        let inprocess_node =
-            crate::inprocess_node::InProcessNode::start_from_args(node_args).unwrap();
+        let node_args = kaspad_args::Args::parse(argv).expect("parse kaspad argv");
+        let inprocess_node = crate::inprocess_node::InProcessNode::start_from_args(node_args)
+            .expect("start in-process kaspad");
 
-        // Wait a bit for the node to start
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        let rpc_deadline = Instant::now() + Duration::from_secs(90);
+        wait_for_rpc_ready(&rpc_address, rpc_deadline).await;
 
-        // Create KaspaApi client
         let (shutdown_tx, shutdown_rx) = watch::channel(false);
-        let kaspa_api = KaspaApi::new(rpc_address.clone(), None, shutdown_rx.clone())
-            .await
-            .unwrap();
+        let kaspa_api = timeout(
+            Duration::from_secs(30),
+            KaspaApi::new(rpc_address.clone(), None, shutdown_rx.clone()),
+        )
+        .await
+        .expect("KaspaApi::new timed out")
+        .expect("KaspaApi::new failed");
 
-        // With rkstratum_cpu_miner: exercise the type in the same run (only one in-process
-        // kaspad per process — log::set_logger is global; a second #[tokio::test] would panic).
         #[cfg(feature = "rkstratum_cpu_miner")]
         {
             use crate::InternalCpuMinerConfig;
@@ -1350,10 +1390,9 @@ mod integration {
             assert_eq!(miner_config.threads, 1);
         }
 
-        // Create bridge config
         let bridge_config = StratumBridgeConfig {
             instance_id: "test-instance".to_string(),
-            stratum_port: ":0".to_string(), // Use port 0 for testing
+            stratum_port: ":0".to_string(),
             kaspad_address: rpc_address.clone(),
             prom_port: String::new(),
             print_stats: false,
@@ -1369,25 +1408,32 @@ mod integration {
             coinbase_tag_suffix: None,
         };
 
-        // Start the bridge server (with a timeout to prevent hanging)
         let bridge_handle = tokio::spawn(async move {
             listen_and_serve_with_shutdown::<KaspaApi>(bridge_config, kaspa_api, None, shutdown_rx)
                 .await
         });
 
-        // Give it a moment to start
         tokio::time::sleep(Duration::from_millis(200)).await;
-
-        // Signal shutdown
         let _ = shutdown_tx.send(true);
 
-        // Wait for bridge to shutdown (with timeout)
-        let result = timeout(Duration::from_secs(5), bridge_handle).await;
-        assert!(result.is_ok(), "Bridge should shutdown gracefully");
+        let join = timeout(Duration::from_secs(15), bridge_handle)
+            .await
+            .expect("bridge task join timed out")
+            .expect("bridge task panicked");
+        join.expect("listen_and_serve_with_shutdown returned error");
 
-        // Cleanup
         crate::inprocess_node::shutdown_inprocess(inprocess_node).await;
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[tokio::test]
+    async fn test_bridge_startup_with_inprocess_node() {
+        timeout(
+            Duration::from_secs(120),
+            run_bridge_startup_with_inprocess_node(),
+        )
+        .await
+        .expect("integration test timed out after 120s");
     }
 }
 

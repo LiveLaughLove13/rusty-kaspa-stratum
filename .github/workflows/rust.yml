@@ -35,8 +35,12 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --locked -p kaspa-stratum-bridge -- -D warnings
 
-      - name: Run tests
-        run: cargo test --locked -p kaspa-stratum-bridge
+      - name: Run library tests
+        run: cargo test --locked -p kaspa-stratum-bridge --lib -- --skip test_bridge_startup_with_inprocess_node
+
+      # Embedded kaspad: devnet + global allocator/logger — run alone, single-threaded.
+      - name: Run in-process kaspad integration test
+        run: cargo test --locked -p kaspa-stratum-bridge test_bridge_startup_with_inprocess_node -- --test-threads=1 --nocapture
 
   build-release-assets:
     name: Build Release Assets
