@@ -21,7 +21,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.91.0
           components: clippy
           cache: true
           cache-key: rust-ubuntu-${{ hashFiles('Cargo.lock') }}
@@ -80,7 +80,7 @@ jobs:
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.91.0
           cache: true
           cache-key: rust-${{ matrix.os_key }}-${{ hashFiles('Cargo.lock') }}
 
