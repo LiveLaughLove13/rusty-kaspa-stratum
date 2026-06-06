@@ -1,13 +1,19 @@
 # ---------------------------------------- Chef image -------------------------------------------
   FROM rust:1.91-alpine AS chef
+  # clang-dev (+ clang-static): librocksdb-sys/bindgen need libclang (was clang15-dev on Alpine 3.19).
   RUN apk --no-cache add \
     musl-dev \
     protobuf-dev \
     g++ \
     clang \
+    clang-dev \
+    clang-static \
     linux-headers \
     wasm-pack \
-    openssl-dev
+    openssl-dev \
+  && CLANG_LIB_DIR="$(dirname "$(find /usr/lib -name 'libclang.so' -print -quit 2>/dev/null)")" \
+  && test -n "$CLANG_LIB_DIR" \
+  && ln -sf "$CLANG_LIB_DIR" /usr/lib/libclang-bindgen
   RUN cargo install cargo-chef --locked
   WORKDIR /app
   
@@ -21,7 +27,10 @@
   COPY --from=planner /app/recipe.json recipe.json
   
   ENV RUSTFLAGS="-C target-feature=-crt-static" \
-    CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse"
+    CARGO_REGISTRIES_CRATES_IO_PROTOCOL="sparse" \
+    LIBCLANG_PATH=/usr/lib/libclang-bindgen \
+    LIBCLANG_STATIC_PATH=/usr/lib/libclang-bindgen \
+    CARGO_BUILD_JOBS=4
   
   # Build dependencies - this is the caching Docker layer
   RUN cargo chef cook --release --recipe-path recipe.json -p kaspa-stratum-bridge --bin stratum-bridge
